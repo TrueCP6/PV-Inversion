@@ -4,14 +4,14 @@ from atmosphere import AtmosphereBackground
 
 
 class PVInversionModel:
-    def __init__(self, mesh, atm: AtmosphereBackground, domain: DomainConfig, anom: AnomalyConfig, sol_cfg: SolverConfig):
+    def __init__(self, mesh, function_space, atm: AtmosphereBackground, domain: DomainConfig, anom: AnomalyConfig, sol_cfg: SolverConfig):
         self.mesh = mesh
         self.atm = atm
         self.domain = domain
         self.anom = anom
         self.sol_cfg = sol_cfg
 
-        self.V = FunctionSpace(mesh, "CG", 1)
+        self.V = function_space
         self.psi = TrialFunction(self.V)
         self.phi = TestFunction(self.V)
         self.n = FacetNormal(mesh)
@@ -44,15 +44,16 @@ class PVInversionModel:
 
     def _calculate_theta_star(self):
         PETSc.Sys.Print("Computing thetaStar for zero net flux...")
-        z = self.atm.z
-        z_top = self.domain.z_top
 
-        rho_bot = replace(self.atm.rho, {z: Constant(0)})
-        rho_top = replace(self.atm.rho, {z: Constant(z_top)})
-        Nbar_bot = replace(self.atm.Nbar, {z: Constant(0)})
-        Nbar_top = replace(self.atm.Nbar, {z: Constant(z_top)})
-        theta_bot = replace(self.atm.thetaBar, {z: Constant(0)})
-        theta_top = replace(self.atm.thetaBar, {z: Constant(z_top)})
+        top = [0, 0, self.domain.z_top]
+        bot = [0, 0, 0]
+
+        Nbar_bot = self.atm.Nbar(bot)
+        Nbar_top = self.atm.Nbar(top)
+        rho_bot = self.atm.rho(bot)
+        rho_top = self.atm.rho(top)
+        theta_bot = self.atm.thetaBar(bot)
+        theta_top = self.atm.thetaBar(top)
 
         numerator = assemble(self.atm.rho * self.q * dx)
         denominator = self.domain.x_max * self.domain.y_max * self.atm.f * self.atm.g * \
