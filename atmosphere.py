@@ -12,8 +12,9 @@ class AtmosphereBackground:
         # Physical constants
         self.g = Constant(phys.g)
         self.f = Constant(phys.f_coriolis)
-        self.f2 = self.f ** 2
         self.z_trop = Constant(phys.z_trop)
+        self.u = phys.u
+        self.v = phys.v
 
         self._setup_profiles()
 

@@ -17,8 +17,8 @@ class PVInversionModel:
         self.n = FacetNormal(mesh)
 
         # Boundary wind components
-        self.u = Function(self.V).assign(4)
-        self.v = Function(self.V).assign(0)
+        self.u = Function(self.V).interpolate(atm.u)
+        self.v = Function(self.V).interpolate(atm.v)
 
         self.q = self._build_pv_field()
         self.psi_solution = Function(self.V, name="Streamfunction")
@@ -70,12 +70,12 @@ class PVInversionModel:
         # Bilinear weak form
         a = (self.atm.rho * self.psi.dx(0) * self.phi.dx(0) +
              self.atm.rho * self.psi.dx(1) * self.phi.dx(1) +
-             self.atm.f2 * self.atm.rho * self.psi.dx(2) * self.phi.dx(2) / (self.atm.Nbar ** 2)) * dx
+             (self.atm.f**2) * self.atm.rho * self.psi.dx(2) * self.phi.dx(2) / (self.atm.Nbar ** 2)) * dx
 
         # Linear Form components
         x_base = self.atm.rho * self.phi * self.v * self.n[0]
         y_base = self.atm.rho * self.phi * -self.u * self.n[1]
-        z_base = self.n[2] * self.atm.f2 * self.phi * self.atm.rho / (self.atm.Nbar ** 2)
+        z_base = self.n[2] * (self.atm.f**2) * self.phi * self.atm.rho / (self.atm.Nbar ** 2)
 
         L_x = x_base * ds_v((1, 2))
         L_y = y_base * ds_v((3, 4))

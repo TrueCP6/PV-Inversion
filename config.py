@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from math import sin, pi
+from firedrake import Constant
 
 @dataclass
 class DomainConfig:
@@ -16,6 +17,8 @@ class PhysicsConfig:
     g: float = 9.81
     # -42 degrees latitude Coriolis
     f_coriolis: float = 2 * 7.292e-5 * sin(-42 / 180 * pi)
+    u = Constant(4)
+    v = Constant(0)
 
 @dataclass
 class AnomalyConfig:
