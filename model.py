@@ -27,13 +27,6 @@ class PVInversionModel:
         relative_vorticity = self.v.dx(0) - self.u.dx(1)
         q_bg = relative_vorticity + self.atm.f + self.atm.f * (self.atm.thetaBar / self.atm.thetaBar.dx(2)).dx(2)
 
-        # Debug PV at a specific point
-        if self.sol_cfg.evaluate_q_debug:
-            q_func = project(q_bg, self.V, name="Evaluated_q")
-            test_point = [self.domain.x_max / 2.0, self.domain.y_max / 2.0, 11285]
-            q_value = q_func(test_point)
-            PETSc.Sys.Print(f"Background q evaluated at {test_point} is: {q_value * 1e6}")
-
         # PV Anomaly field
         ANO_exponent = -((self.atm.z - self.anom.z_pos) / self.anom.z_size) ** 2 \
                        - ((self.atm.x - self.anom.x_pos) / self.anom.x_size) ** 2 \
@@ -87,9 +80,22 @@ class PVInversionModel:
         L = L_x + L_y + L_z_bottom + L_z_top + L_vol
 
         if self.sol_cfg.check_flux:
-            L_scalar = replace(L, {self.phi: Constant(1.0)})
-            net_flux = assemble(L_scalar)
-            PETSc.Sys.Print(f"Compatibility condition check. Net flux is: {net_flux}")
+            PETSc.Sys.Print("--- FLUX DEBUGGING ---")
+
+            # Replace the test function with 1.0 to integrate the raw flux
+            Lx_val = assemble(replace(L_x, {self.phi: Constant(1.0)}))
+            Ly_val = assemble(replace(L_y, {self.phi: Constant(1.0)}))
+            Lz_bot_val = assemble(replace(L_z_bottom, {self.phi: Constant(1.0)}))
+            Lz_top_val = assemble(replace(L_z_top, {self.phi: Constant(1.0)}))
+            Lvol_val = assemble(replace(L_vol, {self.phi: Constant(1.0)}))
+
+            PETSc.Sys.Print(f"Lateral X Flux: {Lx_val}")
+            PETSc.Sys.Print(f"Lateral Y Flux: {Ly_val}")
+            PETSc.Sys.Print(f"Bottom Z Flux: {Lz_bot_val}")
+            PETSc.Sys.Print(f"Top Z Flux: {Lz_top_val}")
+            PETSc.Sys.Print(f"Volume Source: {Lvol_val}")
+            PETSc.Sys.Print(f"Total Net Flux: {Lx_val + Ly_val + Lz_bot_val + Lz_top_val + Lvol_val}")
+            PETSc.Sys.Print("----------------------")
 
         nullspace = VectorSpaceBasis(constant=True)
         solver_params = {

@@ -39,3 +39,6 @@ def kink_function(x, delta):
     return conditional(x <= 0.0, val_less_than_0,
            conditional(x <= 0.5, val_lower_mid,
            conditional(x <= 1.0, val_upper_mid, val_greater_than_1)))
+
+def scaled_kink(x, delta, left_val, right_val, kink_width, kink_centre):
+    return (right_val - left_val) * kink_function((x-kink_centre)/kink_width + 0.5, delta) + left_val

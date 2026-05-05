@@ -4,7 +4,8 @@ from firedrake import Constant
 
 @dataclass
 class DomainConfig:
-    N_x: int = 30
+    N_h: int = 30
+    N_z: int = N_h
     x_max: float = 1000e3
     y_max: float = 1000e3
     z_top: float = 20e3
@@ -33,5 +34,4 @@ class AnomalyConfig:
 @dataclass
 class SolverConfig:
     check_flux: bool = True
-    evaluate_q_debug: bool = True
     output_filename: str = "output.pvd"

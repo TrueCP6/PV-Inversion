@@ -1,6 +1,6 @@
-from firedrake import SpatialCoordinate, Constant, conditional, exp, ln, Function, project
+from firedrake import SpatialCoordinate, exp, ln, Function, project
 from config import PhysicsConfig, DomainConfig
-from math_utils import compute_vertical_integral
+from math_utils import *
 
 class AtmosphereBackground:
     def __init__(self, mesh, function_space, phys: PhysicsConfig, domain: DomainConfig):
@@ -20,8 +20,8 @@ class AtmosphereBackground:
         self._setup_profiles()
 
     def _setup_profiles(self):
-        # Vertical stability (TODO: implement kink function)
-        self.Nbar = conditional(self.z < self.z_trop, 0.01, 0.022)
+        # Vertical stability
+        self.Nbar = scaled_kink(self.z, 2, 0.01, 0.03, 1000, self.z_trop)
         self.Nbar = Function(self.V).interpolate(self.Nbar)
 
         # Vertical integral of Nbar^2
@@ -35,4 +35,4 @@ class AtmosphereBackground:
         A = self.phys.rho_bot
         B = -ln(self.phys.rho_top / A) / self.domain.z_top
         self.rho = A * exp(-B * self.z)
-        self.rho = project(self.rho, self.V)
+        self.rho = Function(self.V).interpolate(self.rho)
