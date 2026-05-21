@@ -19,6 +19,9 @@ def main():
     solver_params = SolverParams()
     solver = Solver(checker, solver_params)
     solver.solve_psi()
+    err = checker.calc_error(solver.psi_soln)
+
+    print("Error is ", err)
 
 if __name__ == "__main__":
     main()

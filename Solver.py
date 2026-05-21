@@ -36,7 +36,7 @@ class Solver:
         L_x = x_base * ds_v((1, 2))
         L_y = y_base * ds_v((3, 4))
         L_bottom = z_base * bottom_boundary * ds_b
-        L_top = z_base * top_boundary * ds_b
+        L_top = z_base * top_boundary * ds_t
         L_vol = -q * rho_bar * phi * dx
 
         # Linear form

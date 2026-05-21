@@ -1,3 +1,5 @@
+from functools import cache
+
 from AtmosphereBuilder import AtmosphereBuilder
 from firedrake import *
 from Parameters import PhysicalParams
@@ -41,3 +43,27 @@ class MMSChecker(AtmosphereBuilder):
 
     def q(self):
         return (-5 * (pi**2) / (self.L**2)) * cos(pi * self.x / self.L) * sin(2 * pi * self.y / self.L) + self.c_5 * (2*self.A + self.c_4 * (2 * self.A * self.z + self.B))
+
+    @cache
+    def psi(self):
+        return cos(pi * self.x / self.L) * sin(2*pi*self.y / self.L) + self.A * (self.z**2) + self.B * self.z
+
+    def calc_error(self, psi_numerical: Function):
+        # calculate mean offset between numerical and analytical solutions, as we don't know what constant the solver added to psi
+        total_offset = assemble((psi_numerical - self.psi()) * dx)
+        volume = self.L * self.L * self.H
+        mean_offset = total_offset / volume
+
+        # shift psi by that constant we have worked out
+        numerical_shifted = Function(self.func_space).assign(psi_numerical - mean_offset)
+
+        absolute_error = errornorm(self.psi(), numerical_shifted, norm_type='L2')
+
+        # compute mean of exact solution
+        exact_mean = assemble(self.psi() * dx) / volume
+        # shift exact solution, to prevent similar problem to before
+        exact_shifted = Function(self.func_space).interpolate(self.psi() - exact_mean)
+
+        exact_norm = norm(exact_shifted, norm_type='L2')
+
+        return absolute_error / exact_norm
