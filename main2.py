@@ -16,12 +16,12 @@ def main():
 
     phys_params = PhysicalParams()
     checker = MMSChecker(mesh, V, phys_params)
-    solver_params = SolverParams()
+    solver_params = SolverParams(nx=200, ny=200, nz=200)
     solver = Solver(checker, solver_params)
     solver.solve_psi()
-    err = checker.calc_error(solver.psi_soln)
 
-    print("Error is ", err)
+    err = checker.calc_error(solver.psi_soln)
+    PETSc.Sys.Print("Error is ", err)
 
 if __name__ == "__main__":
     main()
