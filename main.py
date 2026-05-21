@@ -1,6 +1,3 @@
-from firedrake import RectangleMesh, ExtrudedMesh, PETSc
-
-import math_utils
 from config import DomainConfig, PhysicsConfig, AnomalyConfig, SolverConfig
 from atmosphere import AtmosphereBackground
 from model import PVInversionModel
@@ -12,22 +9,22 @@ def create_domain(domain: DomainConfig):
     base_mesh = RectangleMesh(domain.N_h, domain.N_h, domain.x_max, domain.y_max)
     mesh = ExtrudedMesh(base_mesh, layers=domain.N_z, layer_height=(domain.z_top / domain.N_z))
     V = FunctionSpace(mesh, "CG", 1)
+
+    PETSc.Sys.Print("Created extruded mesh")
+
     return mesh, V
 
-def main():
+def main(): #todo mpiexec script
     PETSc.Sys.Print("Starting setup...")
 
     # 1. Initialize configurations
     domain_cfg = DomainConfig(N_h=30, N_z=100)
-    mesh, V = create_domain(domain_cfg)
     phys_cfg = PhysicsConfig()
     anom_cfg = AnomalyConfig()
     sol_cfg = SolverConfig()
 
     # 2. Build the mesh
     mesh, function_space = create_domain(domain_cfg)
-
-    PETSc.Sys.Print("Created extruded mesh")
 
     # 3. Setup the background physics
     atm = AtmosphereBackground(mesh, function_space, phys_cfg, domain_cfg)

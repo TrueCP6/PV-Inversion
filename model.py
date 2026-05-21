@@ -24,16 +24,24 @@ class PVInversionModel:
         self.psi_solution = Function(self.V, name="Streamfunction")
 
     def _build_pv_field(self):
-        relative_vorticity = self.v.dx(0) - self.u.dx(1)
-        q_bg = relative_vorticity + self.atm.f + self.atm.f * (self.atm.thetaBar / self.atm.thetaBar.dx(2)).dx(2)
+        A = -0.0511453
+        B = 0.199998
+        C = 2719.17138
+        background_pvu = A * exp((self.atm.z - B) / C)
 
         # PV Anomaly field
         ANO_exponent = -((self.atm.z - self.anom.z_pos) / self.anom.z_size) ** 2 \
                        - ((self.atm.x - self.anom.x_pos) / self.anom.x_size) ** 2 \
                        - ((self.atm.y - self.anom.y_pos) / self.anom.y_size) ** 2
-        ANO = min_value(-1.5, -4 * exp(ANO_exponent))
+        #ANO = min_value(-1.5, -4 * exp(ANO_exponent))
+        #ANO = -4 * exp(ANO_exponent)
+        ANO = 0
 
-        return q_bg + ANO * 1e-6
+        Q = (background_pvu + ANO) * 1e-6
+
+        q = Q * self.atm.rho * self.atm.g / (self.atm.thetaBar * (self.atm.Nbar**2)) - self.atm.f
+
+        return q
 
     def _calculate_theta_star(self):
         PETSc.Sys.Print("Computing thetaStar for zero net flux...")
