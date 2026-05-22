@@ -42,3 +42,5 @@ def kink_function(x, delta):
 
 def scaled_kink(x, delta, left_val, right_val, kink_width, kink_centre):
     return (right_val - left_val) * kink_function((x-kink_centre)/kink_width + 0.5, delta) + left_val
+
+def plot_func_slice(func : Function)

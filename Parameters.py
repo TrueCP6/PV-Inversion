@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from math import sin, pi
 
-
 @dataclass
 class PhysicalParams:
     Lx: float = 1000e3
@@ -9,7 +8,6 @@ class PhysicalParams:
     H: float = 20e3
     f: float = 2 * 7.292e-5 * sin(-42 / 180 * pi)
     g: float = 9.80665
-
 
 @dataclass
 class SolverParams:
