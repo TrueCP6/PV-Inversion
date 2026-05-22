@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from firedrake import Mesh, FunctionSpace, Constant
 from ufl import SpatialCoordinate
-from Parameters import PhysicalParams
+from parameters import PhysicalParams
 
 class AtmosphereBuilder(ABC):
     def __init__(self, mesh: Mesh, function_space: FunctionSpace, phys_params: PhysicalParams):

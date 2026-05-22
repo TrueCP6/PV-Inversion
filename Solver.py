@@ -1,6 +1,6 @@
 from firedrake import *
-import AtmosphereBuilder
-from Parameters import SolverParams
+from atmosphere_builder import AtmosphereBuilder
+from parameters import SolverParams
 
 
 class Solver:

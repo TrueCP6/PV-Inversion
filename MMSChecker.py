@@ -1,8 +1,8 @@
 from functools import cache
 
-from AtmosphereBuilder import AtmosphereBuilder
+from atmosphere_builder import AtmosphereBuilder
 from firedrake import *
-from Parameters import PhysicalParams
+from parameters import PhysicalParams
 
 class MMSChecker(AtmosphereBuilder):
     def __init__(self, mesh: Mesh, function_space: FunctionSpace, phys_params: PhysicalParams):
