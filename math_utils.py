@@ -1,4 +1,6 @@
-from firedrake import TrialFunction, TestFunction, dx, DirichletBC, Constant, solve, Function, conditional
+from firedrake import *
+from mpi4py import MPI
+import pyvista as pv
 
 def compute_vertical_integral(integrand, V):
     """
@@ -43,4 +45,36 @@ def kink_function(x, delta):
 def scaled_kink(x, delta, left_val, right_val, kink_width, kink_centre):
     return (right_val - left_val) * kink_function((x-kink_centre)/kink_width + 0.5, delta) + left_val
 
-def plot_func_slice(func : Function)
+def plot_func_slice(func : Function):
+    file_name = "temp_func.pvd"
+    func_name = "Provided Function"
+    func.rename(func_name)
+
+    # Temporarily save function as a pvd file
+    outfile = VTKFile(file_name)
+    outfile.write(func)
+
+    # Get the current MPI process running this method
+    rank = MPI.COMM_WORLD.Get_rank()
+
+    # Only let the main process plot the figure
+    if rank != 0:
+        return
+
+    # Load file and create slice
+    multiblock = pv.read(file_name)
+    mesh = multiblock.combine()
+    slice_yz = mesh.slice(normal='x', origin=(500e3, 500e3, 10000))
+
+    # Do actual plotting
+    plotter = pv.Plotter()
+    plotter.add_mesh(
+        slice_yz,
+        scalars=func_name,
+        cmap="viridis",
+        show_edges=True
+    )
+    plotter.camera_position = 'yz'
+    plotter.set_scale(zscale=25)
+    plotter.show()
+

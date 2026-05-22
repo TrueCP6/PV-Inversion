@@ -69,3 +69,5 @@ class Solver:
         solve(a == L, self.psi_soln, solver_parameters=firedrake_params, nullspace=nullspace)
         PETSc.Sys.Print("Solve completed")
 
+        return self.psi_soln
+

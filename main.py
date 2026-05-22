@@ -1,4 +1,5 @@
 from firedrake import *
+import math_utils
 from MMSChecker import MMSChecker
 from Solver import Solver
 from Parameters import SolverParams, PhysicalParams
@@ -18,10 +19,17 @@ def main():
     checker = MMSChecker(mesh, V, phys_params)
     solver_params = SolverParams(nx=200, ny=200, nz=200)
     solver = Solver(checker, solver_params)
-    solver.solve_psi()
+    psi = solver.solve_psi()
 
     err = checker.calc_error(solver.psi_soln)
     PETSc.Sys.Print("Error is ", err)
+
+    x_vel = - psi.dx(1)
+    y_vel = psi.dx(0)
+    speed = sqrt(x_vel**2 + y_vel**2)
+
+    speed_fn = Function(V).interpolate(speed)
+    math_utils.plot_func_slice(speed_fn)
 
 if __name__ == "__main__":
     main()
