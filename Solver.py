@@ -61,7 +61,7 @@ class Solver:
 
         firedrake_params = { #todo move these into actual parameters class
             "ksp_type": "cg",
-            "pc_type": "gamg",
+            "pc_type": "bjacobi",
             "ksp_rtol": 1e-6,
         }
 

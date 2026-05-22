@@ -72,11 +72,12 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
     @cache
     def q(self):
-        return ( # convert from ertel pv to qg pv
+        full_expr = ( # convert from ertel pv to qg pv
             self.ertel_pv() * self.rho_bar() * self.phys_params.g
             / (self.theta_bar() * self.N_bar()**2)
             - self.phys_params.f
         )
+        return Function(self.func_space).interpolate(full_expr)
 
     @cache
     def ertel_pv(self):

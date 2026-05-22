@@ -22,7 +22,12 @@ def main():
 
     psi = slver.solve_psi()
 
-    math_utils.plot_func_slice(psi)
+    u = -psi.dx(1)
+    v = psi.dx(0)
+    speed = sqrt(u**2 + v**2)
+    func = Function(V).interpolate(speed)
+
+    math_utils.plot_func_slice(func)
 
 
 if __name__ == "__main__":
