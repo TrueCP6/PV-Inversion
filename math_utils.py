@@ -2,29 +2,31 @@ from firedrake import *
 from mpi4py import MPI
 import pyvista as pv
 
-def compute_vertical_integral(integrand, V):
+def compute_vertical_integral(integrand, main_func_space):
     """
     Computes the indefinite vertical integral of an arbitrary UFL integrand
     from z=0 to z. Solves the ODE: dI/dz = integrand with I(z=0) = 0.
     """
-    I_trial = TrialFunction(V)
-    W_test = TestFunction(V)
+    I_trial = TrialFunction(main_func_space)
+    W_test = TestFunction(main_func_space)
 
     a_I = I_trial.dx(2) * W_test * dx
     L_I = integrand * W_test * dx
 
-    bc_I = DirichletBC(V, Constant(0.0), "bottom")
-    I_func = Function(V)
+    bc_I = DirichletBC(main_func_space, Constant(0.0), "bottom")
+    I_func = Function(main_func_space)
 
-    # todo check if this is the most optimal solver
-    # GMRES is required for a first derivative (asymmetric matrix)
+    # Maximally efficient solver for Extruded column integrals
     int_solver_params = {
-        "ksp_type": "gmres",
-        "pc_type": "bjacobi",
-        "sub_pc_type": "ilu"
+        "ksp_type": "gmres",        # Fast iterative solver
+        "ksp_rtol": 1e-7,           # Standard tolerance
+        "pc_type": "bjacobi",       # Isolates matrix blocks to individual MPI ranks (Zero network communication)
+        "sub_pc_type": "ilu",       # Local incomplete LU factorization (extremely fast)
+        "sub_pc_factor_shift_type": "NONZERO"  # Prevents the "Diverged Linear Solve" zero-diagonal crash!
     }
 
     solve(a_I == L_I, I_func, bcs=[bc_I], solver_parameters=int_solver_params)
+
     return I_func
 
 def kink_function(x, delta):
