@@ -23,11 +23,12 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
     @cache
     def top_boundary(self):
-        pass
+        return self.phys_params.g * self.theta_star() \
+            / (self.phys_params.f * self.theta_bar())
 
     @cache
     def bottom_boundary(self):
-        pass
+        return self.top_boundary()
 
     @cache
     def rho_bar(self):
@@ -38,11 +39,11 @@ class BarnesAtmosphere(AtmosphereBuilder):
         kappa = self.kappa
 
         full_expr = p_bar**(1-kappa) * p_s**kappa / (R * theta_bar)
-        return full_expr
+        return Function(self.func_space).interpolate(full_expr)
 
     @cache
     def N_bar(self):
-        return scaled_kink(
+        full_expr = scaled_kink(
             self.z,
             2,
             self.phys_params.N_trop,
@@ -50,11 +51,13 @@ class BarnesAtmosphere(AtmosphereBuilder):
             self.phys_params.trop_width,
             self.phys_params.trop_height
         )
+        return Function(self.func_space).interpolate(full_expr)
 
     @cache
     def theta_bar(self):
         integral = compute_vertical_integral(self.N_bar()**2, self.func_space)
-        return self.phys_params.theta_bar_bottom * exp(integral / self.phys_params.g)
+        full_expr = self.phys_params.theta_bar_bottom * exp(integral / self.phys_params.g)
+        return Function(self.func_space).interpolate(full_expr)
 
     @cache
     def p_bar(self):
@@ -64,12 +67,16 @@ class BarnesAtmosphere(AtmosphereBuilder):
                 * (self.phys_params.p_s / self.phys_params.p_bottom)**self.kappa
                 * integral
             )
-        full_expr = self.phys_params.p_bottom * (1 - inner_term)**(1/self.kappa)
-        return full_expr
+        return self.phys_params.p_bottom * (1 - inner_term)**(1/self.kappa)
+
 
     @cache
     def q(self):
-        pass
+        return ( # convert from ertel pv to qg pv
+            self.ertel_pv() * self.rho_bar() * self.phys_params.g
+            / (self.theta_bar() * self.N_bar()**2)
+            - self.phys_params.f
+        )
 
     @cache
     def ertel_pv(self):
@@ -84,3 +91,26 @@ class BarnesAtmosphere(AtmosphereBuilder):
         B = scalar * (c1*c4 - c2*c3)
 
         return -exp(A*self.z + B) * 1e-6
+
+    @cache
+    def theta_star(self):
+        q = self.q()
+        N_bar = self.N_bar()
+        theta_bar = self.theta_bar()
+        rho_bar = self.rho_bar()
+
+        x_mid = self.Lx / 2
+        y_mid = self.Ly / 2
+        top = [x_mid, y_mid, self.phys_params.H]
+        bot = [x_mid, y_mid, 0]
+
+        denom = (
+            self.Lx * self.Ly * self.phys_params.g * self.phys_params.f * (
+            rho_bar(top) / (N_bar(top)**2 * theta_bar(top))
+            - rho_bar(bot) / (N_bar(bot)**2 * theta_bar(bot))
+        ))
+
+        numerator = assemble(rho_bar * q * dx)
+
+        return numerator / denom
+
