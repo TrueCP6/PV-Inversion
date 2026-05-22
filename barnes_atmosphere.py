@@ -91,7 +91,12 @@ class BarnesAtmosphere(AtmosphereBuilder):
         A = scalar * (c3 - c4)
         B = scalar * (c1*c4 - c2*c3)
 
-        return -exp(A*self.z + B) * 1e-6
+        ANO_exponent = -((self.z - self.phys_params.z_pos) / self.phys_params.z_size) ** 2 \
+                       - ((self.x - self.phys_params.x_pos) / self.phys_params.x_size) ** 2 \
+                       - ((self.y - self.phys_params.y_pos) / self.phys_params.y_size) ** 2
+        ANO = min_value(-1.5, -4 * exp(ANO_exponent))
+
+        return (ANO - exp(A*self.z + B)) * 1e-6
 
     @cache
     def theta_star(self):

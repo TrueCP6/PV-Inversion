@@ -28,10 +28,11 @@ class Solver:
         v = self.atmos.v()
         N_bar = self.atmos.N_bar()
         q = self.atmos.q()
+        rho_N2 = Function(self.func_space).interpolate(rho_bar / (N_bar**2))
 
         x_base = rho_bar * phi * v * n[0]
         y_base = rho_bar * phi * -u * n[1]
-        z_base = n[2] * (f**2) * phi * rho_bar / (N_bar**2)
+        z_base = n[2] * (f**2) * phi * rho_N2
 
         L_x = x_base * ds_v((1, 2))
         L_y = y_base * ds_v((3, 4))
@@ -45,12 +46,13 @@ class Solver:
         # Bilinear weak form
         a = (rho_bar * psi.dx(0) * phi.dx(0) +
              rho_bar * psi.dx(1) * phi.dx(1) +
-             (f**2) * rho_bar * psi.dx(2) * phi.dx(2) / (N_bar**2)) * dx
+             (f**2) * rho_N2 * psi.dx(2) * phi.dx(2)) * dx
 
         return a, L
 
     def solve_psi(self):
         a, L = self._specify_equation()
+        PETSc.Sys.Print("Set up equation")
 
         if self.solver_params.check_flux:
             PETSc.Sys.Print("Calculating net flux...")
@@ -60,7 +62,7 @@ class Solver:
         nullspace = VectorSpaceBasis(constant=True)
 
         firedrake_params = { #todo move these into actual parameters class
-            "ksp_type": "cg",
+            "ksp_type": "gmres",
             "pc_type": "bjacobi",
             "ksp_rtol": 1e-6,
         }

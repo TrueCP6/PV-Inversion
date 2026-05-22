@@ -20,6 +20,12 @@ class PhysicalParams:
     p_s: float = 1000 * 1e2
     q_trop = -1.5 # temporary constants (in PVU)
     q_max = -80
+    x_pos = Lx/2
+    y_pos = Ly/2
+    z_pos = trop_height
+    x_size = 200e3
+    y_size = 200e3
+    z_size = 5000
 
 @dataclass
 class SolverParams:
