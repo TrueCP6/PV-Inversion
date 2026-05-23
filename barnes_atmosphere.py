@@ -81,22 +81,17 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
     @cache
     def ertel_pv(self):
-        # temporary approximation for background pv profile
-        c1 = self.phys_params.trop_height
-        c2 = self.phys_params.H
-        c3 = ln(-self.phys_params.q_trop)
-        c4 = ln(-self.phys_params.q_max)
+        #Background state
+        background = self.phys_params.f * self.theta_bar() * self.N_bar()**2 \
+            / (self.phys_params.g * self.rho_bar())
 
-        scalar = 1/(c1 - c2)
-        A = scalar * (c3 - c4)
-        B = scalar * (c1*c4 - c2*c3)
-
+        # Specify anomaly
         ANO_exponent = -((self.z - self.phys_params.z_pos) / self.phys_params.z_size) ** 2 \
                        - ((self.x - self.phys_params.x_pos) / self.phys_params.x_size) ** 2 \
                        - ((self.y - self.phys_params.y_pos) / self.phys_params.y_size) ** 2
-        ANO = min_value(-1.5, -4 * exp(ANO_exponent))
+        ANO = min_value(-1.5, -4 * exp(ANO_exponent)) * 1e-6
 
-        return (ANO - exp(A*self.z + B)) * 1e-6
+        return background + ANO
 
     @cache
     def theta_star(self):
@@ -117,6 +112,8 @@ class BarnesAtmosphere(AtmosphereBuilder):
         ))
 
         numerator = assemble(rho_bar * q * dx)
+        theta_star = numerator / denom
 
-        return numerator / denom
+        PETSc.Sys.Print("theta_star: ", theta_star)
+        return theta_star
 
