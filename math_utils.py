@@ -7,27 +7,35 @@ def compute_vertical_integral(integrand, main_func_space):
     Computes the indefinite vertical integral of an arbitrary UFL integrand
     from z=0 to z. Solves the ODE: dI/dz = integrand with I(z=0) = 0.
     """
-    I_trial = TrialFunction(main_func_space)
-    W_test = TestFunction(main_func_space)
+    mesh = main_func_space.mesh()
+    h_degree, v_degree = main_func_space.ufl_element().degree()
 
-    a_I = I_trial.dx(2) * W_test * dx
+    DG_func_space = FunctionSpace(mesh, "DQ", h_degree, vdegree=v_degree)
+
+    I_trial = TrialFunction(DG_func_space)
+    W_test = TestFunction(DG_func_space)
+
+    n = FacetNormal(mesh)
+
+    vol = -I_trial * W_test.dx(2) * dx
+    interior_surf_flux = (W_test('+') * n[2]('+') + W_test('-') * n[2]('-')) * I_trial('+') * dS_h # Upwinding
+    top_exterior_surf_flux = W_test * I_trial * n[2] * ds_t
+
+    a_I = vol + top_exterior_surf_flux + interior_surf_flux
     L_I = integrand * W_test * dx
 
-    bc_I = DirichletBC(main_func_space, Constant(0.0), "bottom")
-    I_func = Function(main_func_space)
+    I_func = Function(DG_func_space) # Solution will be stored here
 
-    # Maximally efficient solver for Extruded column integrals
+    # Maximally efficient solver for lower-triangular extruded DG columns
     int_solver_params = {
-        "ksp_type": "gmres",        # Fast iterative solver
-        "ksp_rtol": 1e-7,           # Standard tolerance
-        "pc_type": "bjacobi",       # Isolates matrix blocks to individual MPI ranks (Zero network communication)
-        "sub_pc_type": "ilu",       # Local incomplete LU factorization (extremely fast)
-        "sub_pc_factor_shift_type": "NONZERO"  # Prevents the "Diverged Linear Solve" zero-diagonal crash!
+        "ksp_type": "preonly", # Matrix is lower-triangular, no iteration needed
+        "pc_type": "bjacobi", # Isolate vertical columns
+        "sub_pc_type": "lu", # Exact LU factorization solves it in one pass
     }
 
-    solve(a_I == L_I, I_func, bcs=[bc_I], solver_parameters=int_solver_params)
+    solve(a_I == L_I, I_func, solver_parameters=int_solver_params)
 
-    return I_func
+    return Function(main_func_space).project(I_func)
 
 def kink_function(x, delta):
     """
