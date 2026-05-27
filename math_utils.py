@@ -14,6 +14,9 @@ def _get_vertical_integral_solver(main_func_space):
     # Setup placeholder functions
     integrand_placeholder = Function(main_func_space)
     solution_dq = Function(dq_space)
+    solution_cg = Function(main_func_space)
+
+    projector = Projector(solution_dq, solution_cg)
 
     I_trial = TrialFunction(dq_space)
     W_test = TestFunction(dq_space)
@@ -37,7 +40,9 @@ def _get_vertical_integral_solver(main_func_space):
     problem = LinearVariationalProblem(a_I, L_I, solution_dq)
     solver = LinearVariationalSolver(problem, solver_parameters=int_solver_params)
 
-    return solver, integrand_placeholder, solution_dq
+    PETSc.Sys.Print("Cached vertical integral solver")
+
+    return solver, integrand_placeholder, projector, solution_cg
 
 def compute_vertical_integral(integrand, main_func_space):
     """
@@ -45,12 +50,20 @@ def compute_vertical_integral(integrand, main_func_space):
     from z=0 to z. Solves the ODE: dI/dz = integrand with I(z=0) = 0.
     """
 
-    solver, integrand_placeholder, solution_dq = _get_vertical_integral_solver(main_func_space)
-    integrand_placeholder.interpolate(integrand)
+    solver, integrand_placeholder, projector, solution_cg = _get_vertical_integral_solver(main_func_space)
+    integrand_placeholder.interpolate(integrand) # Write the integrand into the placeholder function
 
-    solver.solve()
+    # Used for logging to profile how long each operation is taking
+    solve_event = PETSc.Log.Event("DG_Extruded_Solve")
+    project_event = PETSc.Log.Event("CG_Projection")
 
-    return Function(main_func_space).project(solution_dq)
+    with solve_event:
+        solver.solve() # Solver writes to solution to solution_dq
+
+    with project_event:
+        projector.project() # Projector projects solution_dq to solution_cg
+
+    return solution_cg.copy(deepcopy=True) # Make sure to copy the solution so it doesn't get overwritten
 
 def kink_function(x, delta):
     """
