@@ -39,7 +39,9 @@ class BarnesAtmosphere(AtmosphereBuilder):
         kappa = self.kappa
 
         full_expr = p_bar**(1-kappa) * p_s**kappa / (R * theta_bar)
-        return Function(self.func_space).interpolate(full_expr)
+        fn = Function(self.func_space).interpolate(full_expr)
+        PETSc.Sys.Print("Computed reference density profile")
+        return fn
 
     @cache
     def N_bar(self):
@@ -51,13 +53,17 @@ class BarnesAtmosphere(AtmosphereBuilder):
             self.phys_params.trop_width,
             self.phys_params.trop_height
         )
-        return Function(self.func_space).interpolate(full_expr)
+        fn = Function(self.func_space).interpolate(full_expr)
+        PETSc.Sys.Print("Computed reference Brunt-Vaisala frequency profile")
+        return fn
 
     @cache
     def theta_bar(self):
         integral = compute_vertical_integral(self.N_bar()**2, self.func_space)
         full_expr = self.phys_params.theta_bar_bottom * exp(integral / self.phys_params.g)
-        return Function(self.func_space).interpolate(full_expr)
+        fn = Function(self.func_space).interpolate(full_expr)
+        PETSc.Sys.Print("Computed reference potential temperature profile")
+        return fn
 
     @cache
     def p_bar(self):
@@ -69,7 +75,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
             )
         return self.phys_params.p_bottom * (1 - inner_term)**(1/self.kappa)
 
-
     @cache
     def q(self):
         full_expr = ( # convert from ertel pv to qg pv
@@ -77,7 +82,9 @@ class BarnesAtmosphere(AtmosphereBuilder):
             / (self.theta_bar() * self.N_bar()**2)
             - self.phys_params.f
         )
-        return Function(self.func_space).interpolate(full_expr)
+        fn = Function(self.func_space).interpolate(full_expr)
+        PETSc.Sys.Print("Computed q(x,y,z)")
+        return fn
 
     @cache
     def ertel_pv(self):
@@ -114,6 +121,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
         numerator = assemble(rho_bar * q * dx)
         theta_star = numerator / denom
 
-        PETSc.Sys.Print("theta_star: ", theta_star)
+        PETSc.Sys.Print("theta_star = ", theta_star)
         return theta_star
 
