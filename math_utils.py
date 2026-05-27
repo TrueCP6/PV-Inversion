@@ -1,41 +1,56 @@
+from functools import cache
 from firedrake import *
 from mpi4py import MPI
 import pyvista as pv
+
+@cache
+def _get_vertical_integral_solver(main_func_space):
+    mesh = main_func_space.mesh()
+
+    # Create the temporary DQ space
+    h_degree, v_degree = main_func_space.ufl_element().degree()
+    dq_space = FunctionSpace(mesh, "DQ", h_degree, vdegree=v_degree)
+
+    # Setup placeholder functions
+    integrand_placeholder = Function(main_func_space)
+    solution_dq = Function(dq_space)
+
+    I_trial = TrialFunction(dq_space)
+    W_test = TestFunction(dq_space)
+    n = FacetNormal(mesh)
+
+    # Specify weak form
+    vol = -I_trial * W_test.dx(2) * dx
+    interior_surf_flux = (W_test('+') * n[2]('+') + W_test('-') * n[2]('-')) * I_trial('+') * dS_h  # Upwinding
+    top_exterior_surf_flux = W_test * I_trial * n[2] * ds_t
+
+    a_I = vol + top_exterior_surf_flux + interior_surf_flux
+    L_I = integrand_placeholder * W_test * dx
+
+    # Maximally efficient solver for lower-triangular extruded DG columns
+    int_solver_params = {
+        "ksp_type": "preonly",  # Matrix is lower-triangular, no iteration needed
+        "pc_type": "bjacobi",  # Isolate vertical columns
+        "sub_pc_type": "lu",  # Exact LU factorization solves it in one pass
+    }
+
+    problem = LinearVariationalProblem(a_I, L_I, solution_dq)
+    solver = LinearVariationalSolver(problem, solver_parameters=int_solver_params)
+
+    return solver, integrand_placeholder, solution_dq
 
 def compute_vertical_integral(integrand, main_func_space):
     """
     Computes the indefinite vertical integral of an arbitrary UFL integrand
     from z=0 to z. Solves the ODE: dI/dz = integrand with I(z=0) = 0.
     """
-    mesh = main_func_space.mesh()
-    h_degree, v_degree = main_func_space.ufl_element().degree()
 
-    DG_func_space = FunctionSpace(mesh, "DQ", h_degree, vdegree=v_degree)
+    solver, integrand_placeholder, solution_dq = _get_vertical_integral_solver(main_func_space)
+    integrand_placeholder.interpolate(integrand)
 
-    I_trial = TrialFunction(DG_func_space)
-    W_test = TestFunction(DG_func_space)
+    solver.solve()
 
-    n = FacetNormal(mesh)
-
-    vol = -I_trial * W_test.dx(2) * dx
-    interior_surf_flux = (W_test('+') * n[2]('+') + W_test('-') * n[2]('-')) * I_trial('+') * dS_h # Upwinding
-    top_exterior_surf_flux = W_test * I_trial * n[2] * ds_t
-
-    a_I = vol + top_exterior_surf_flux + interior_surf_flux
-    L_I = integrand * W_test * dx
-
-    I_func = Function(DG_func_space) # Solution will be stored here
-
-    # Maximally efficient solver for lower-triangular extruded DG columns
-    int_solver_params = {
-        "ksp_type": "preonly", # Matrix is lower-triangular, no iteration needed
-        "pc_type": "bjacobi", # Isolate vertical columns
-        "sub_pc_type": "lu", # Exact LU factorization solves it in one pass
-    }
-
-    solve(a_I == L_I, I_func, solver_parameters=int_solver_params)
-
-    return Function(main_func_space).project(I_func)
+    return Function(main_func_space).project(solution_dq)
 
 def kink_function(x, delta):
     """
