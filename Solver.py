@@ -1,3 +1,4 @@
+from datetime import datetime
 from firedrake import *
 from atmosphere_builder import AtmosphereBuilder
 from parameters import SolverParams
@@ -59,17 +60,24 @@ class Solver:
             flux = assemble(replace(L, {self.phi : Constant(1)}))
             PETSc.Sys.Print(f"Net flux is {flux}")
 
-        nullspace = VectorSpaceBasis(constant=True)
-
         firedrake_params = { #todo move these into actual parameters class
-            "ksp_type": "gmres",
+            "ksp_type": "cg",
             "pc_type": "bjacobi",
-            "ksp_rtol": 1e-6,
+            "ksp_rtol": 1e-6
         }
 
-        PETSc.Sys.Print("Completed solver setup. Now solving...")
-        solve(a == L, self.psi_soln, solver_parameters=firedrake_params, nullspace=nullspace)
-        PETSc.Sys.Print("Solve completed")
+        nullspace = VectorSpaceBasis(constant=True)
+
+        problem = LinearVariationalProblem(a, L, self.psi_soln)
+        solver = LinearVariationalSolver(
+            problem,
+            solver_parameters=firedrake_params,
+            nullspace=nullspace,
+        )
+
+        PETSc.Sys.Print(f"Completed solver setup at {datetime.now()}")
+        solver.solve()
+        PETSc.Sys.Print(f"Solve completed at {datetime.now()}")
 
         return self.psi_soln
 
