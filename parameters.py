@@ -28,8 +28,8 @@ class PhysicalParams:
 
 @dataclass
 class SolverParams:
-    nx: int = 30
-    ny: int = 30
-    nz: int = 30
-    check_flux: bool = True
+    nx: int = 20
+    ny: int = 20
+    nz: int = 20
+    check_flux: bool = False
     output_file: str = "output.pvd"

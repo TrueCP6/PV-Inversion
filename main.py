@@ -5,17 +5,25 @@ from Solver import Solver
 from barnes_atmosphere import BarnesAtmosphere
 from parameters import SolverParams, PhysicalParams
 
-
 def main():
     solver_params = SolverParams()
     phys_params = PhysicalParams()
 
     # todo move this into its own method
-    temp_mesh = RectangleMesh(solver_params.nx, solver_params.ny, phys_params.Lx, phys_params.Ly)#, quadrilateral=True)
-    mesh = ExtrudedMesh(temp_mesh, layers=solver_params.nz, layer_height=(phys_params.H / solver_params.nz))
+    temp_mesh = RectangleMesh(
+        solver_params.nx, solver_params.ny,
+        phys_params.Lx, phys_params.Ly,
+        #quadrilateral=True
+    )
+    mesh = ExtrudedMesh(
+        temp_mesh,
+        layers=solver_params.nz,
+        layer_height=(phys_params.H / solver_params.nz)
+    )
     PETSc.Sys.Print("Built extruded mesh")
 
-    V = FunctionSpace(mesh, "Q", 3)
+    # todo maybe fdm
+    V = FunctionSpace(mesh, "Q", 4)
     total_dofs = V.dof_dset.layout_vec.getSize() # can also be calculated as (degree*N+1)^3
     PETSc.Sys.Print(f"Created function space with {total_dofs} degrees of freedom")
 

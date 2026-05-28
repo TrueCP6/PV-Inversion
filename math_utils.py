@@ -30,7 +30,7 @@ def _get_vertical_integral_solver(main_func_space):
     a_I = vol + top_exterior_surf_flux + interior_surf_flux
     L_I = integrand_placeholder * W_test * dx
 
-    # Maximally efficient solver for lower-triangular extruded DG columns
+    # todo check matrix structure is correct and that this is actually efficient
     int_solver_params = {
         "ksp_type": "preonly",  # Matrix is lower-triangular, no iteration needed
         "pc_type": "bjacobi",  # Isolate vertical columns

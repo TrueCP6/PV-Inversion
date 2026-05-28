@@ -1,7 +1,9 @@
 import time
 from firedrake import *
+import math_utils
 from atmosphere_builder import AtmosphereBuilder
 from parameters import SolverParams
+import gc
 
 class Solver:
     def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams):
@@ -59,10 +61,13 @@ class Solver:
             flux = assemble(replace(L, {self.phi : Constant(1)}))
             PETSc.Sys.Print(f"Net flux is {flux}")
 
-        firedrake_params = { #todo move these into actual parameters class
+        firedrake_params = {
             "ksp_type": "cg",
-            "pc_type": "bjacobi",
-            "ksp_rtol": 1e-6
+            "pc_type": "python",
+            "ksp_rtol": 1e-6,
+            "pc_python_type": "firedrake.PMGPC",
+            "pmg_mg_levels_pc_type": "jacobi",
+            "pmg_mg_coarse_pc_type": "lu"
         }
 
         nullspace = VectorSpaceBasis(constant=True)
@@ -74,10 +79,14 @@ class Solver:
             nullspace=nullspace,
         )
 
+        # Make sure as much RAM is available as possible for the solver
+        math_utils._get_vertical_integral_solver.cache_clear()
+        gc.collect()
+
         PETSc.Sys.Print(f"Completed solver setup")
         start_time = time.perf_counter()
         solver.solve()
         end_time = time.perf_counter()
-        PETSc.Sys.Print(f"Solve completed in {end_time - start_time:0.4f} sec")
+        PETSc.Sys.Print(f"Solve completed in {end_time - start_time:0.2f} sec")
 
         return self.psi_soln
