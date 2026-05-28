@@ -1,8 +1,7 @@
-from datetime import datetime
+import time
 from firedrake import *
 from atmosphere_builder import AtmosphereBuilder
 from parameters import SolverParams
-
 
 class Solver:
     def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams):
@@ -75,9 +74,10 @@ class Solver:
             nullspace=nullspace,
         )
 
-        PETSc.Sys.Print(f"Completed solver setup at {datetime.now()}")
+        PETSc.Sys.Print(f"Completed solver setup")
+        start_time = time.perf_counter()
         solver.solve()
-        PETSc.Sys.Print(f"Solve completed at {datetime.now()}")
+        end_time = time.perf_counter()
+        PETSc.Sys.Print(f"Solve completed in {end_time - start_time:0.4f} sec")
 
         return self.psi_soln
-
