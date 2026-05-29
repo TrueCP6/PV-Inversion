@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="MPI" type="ShConfigurationType">
-    <option name="SCRIPT_TEXT" value="export OMP_NUM_THREADS=1 &amp;&amp; mpiexec -n 8 /home/truec/venv-firedrake/bin/python main.py" />
+    <option name="SCRIPT_TEXT" value="export OMP_NUM_THREADS=1 &amp;&amp; mpiexec -n 8 /home/truec/venv-firedrake/bin/python main.py -log_view :flamegraph.txt:ascii_flamegraph" />
     <option name="INDEPENDENT_SCRIPT_PATH" value="true" />
     <option name="SCRIPT_PATH" value="" />
     <option name="SCRIPT_OPTIONS" value="" />
