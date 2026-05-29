@@ -9,14 +9,14 @@ def _get_vertical_integral_solver(main_func_space):
 
     # Create the temporary DQ space
     h_degree, v_degree = main_func_space.ufl_element().degree()
-    dq_space = FunctionSpace(mesh, "DQ", h_degree, vdegree=v_degree)
+    dq_space = FunctionSpace(mesh, "DQ", 0, vdegree=v_degree) # Use a horizontal degree of zero as there is no horizontal variation in the integrand
 
     # Setup placeholder functions
     integrand_placeholder = Function(main_func_space)
     solution_dq = Function(dq_space)
     solution_cg = Function(main_func_space)
 
-    projector = Projector(solution_dq, solution_cg)
+    projector = Projector(solution_dq, solution_cg) #todo optimise projector
 
     I_trial = TrialFunction(dq_space)
     W_test = TestFunction(dq_space)
@@ -24,7 +24,7 @@ def _get_vertical_integral_solver(main_func_space):
 
     # Specify weak form
     vol = -I_trial * W_test.dx(2) * dx
-    interior_surf_flux = (W_test('+') * n[2]('+') + W_test('-') * n[2]('-')) * I_trial('+') * dS_h  # Upwinding
+    interior_surf_flux = jump(W_test, n[2]) * I_trial('+') * dS_h  # Upwinding
     top_exterior_surf_flux = W_test * I_trial * n[2] * ds_t
 
     a_I = vol + top_exterior_surf_flux + interior_surf_flux
@@ -32,9 +32,10 @@ def _get_vertical_integral_solver(main_func_space):
 
     # todo check matrix structure is correct and that this is actually efficient
     int_solver_params = {
-        "ksp_type": "preonly",  # Matrix is lower-triangular, no iteration needed
-        "pc_type": "bjacobi",  # Isolate vertical columns
-        "sub_pc_type": "lu",  # Exact LU factorization solves it in one pass
+        "ksp_type": "preonly",
+        "pc_type": "sor",
+        "snes_lag_jacobian": -2,  # -2 tells SNES to compute the matrix once and never rebuild it
+        "snes_lag_preconditioner": -2,
     }
 
     problem = LinearVariationalProblem(a_I, L_I, solution_dq)

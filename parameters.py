@@ -33,3 +33,4 @@ class SolverParams:
     nz: int = 20
     check_flux: bool = False
     output_file: str = "output.pvd"
+    quadrilateral: bool = True
