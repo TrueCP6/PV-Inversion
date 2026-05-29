@@ -3,6 +3,7 @@ from firedrake import *
 import math_utils
 from atmosphere_builder import AtmosphereBuilder
 from parameters import SolverParams
+import gc
 
 class Solver:
     def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams, firedrake_params):
