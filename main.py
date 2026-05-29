@@ -13,7 +13,7 @@ def main():
     temp_mesh = RectangleMesh(
         solver_params.nx, solver_params.ny,
         phys_params.Lx, phys_params.Ly,
-        quadrilateral=True
+        quadrilateral=solver_params.quadrilateral,
     )
     mesh = ExtrudedMesh(
         temp_mesh,
@@ -37,6 +37,13 @@ def main():
         "pmg_mg_coarse_pc_type": "lu"
     }
 
+    # firedrake_params = {
+    #     "ksp_type": "preonly",
+    #     "pc_type": "fdm",  # Fast Diagonalisation Method
+    #     "ksp_rtol": 1e-6,
+    #     "ksp_monitor": None
+    # }
+
     atmos = BarnesAtmosphere(mesh, V, phys_params)
     slver = Solver(atmos, solver_params, firedrake_params)
 
@@ -49,7 +56,6 @@ def main():
 
     PETSc.Sys.Print(f"Average solve completed in {avg_solve_time:0.2f} sec")
 
-    # solve_time = slver.solve_psi()
     # psi = slver.psi_soln
     # u = -psi.dx(1)
     # v = psi.dx(0)
