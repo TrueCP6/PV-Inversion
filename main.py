@@ -1,6 +1,4 @@
 from firedrake import *
-import math_utils
-from MMSChecker import MMSChecker
 from Solver import Solver
 from barnes_atmosphere import BarnesAtmosphere
 from parameters import SolverParams, PhysicalParams
@@ -27,22 +25,30 @@ def main():
     total_dofs = V.dof_dset.layout_vec.getSize() # can also be calculated as (degree*N+1)^3
     PETSc.Sys.Print(f"Created function space with {total_dofs} degrees of freedom")
 
-    firedrake_params = {  # todo temporary location for solver params
+    firedrake_params = {
+        # --- Top Level Solver ---
         "ksp_type": "cg",
-        "pc_type": "python",
         "ksp_rtol": 1e-6,
         "ksp_monitor": None,
-        "pc_python_type": "firedrake.PMGPC",
-        "pmg_mg_levels_pc_type": "jacobi",
-        "pmg_mg_coarse_pc_type": "lu"
-    }
 
-    # firedrake_params = {
-    #     "ksp_type": "preonly",
-    #     "pc_type": "fdm",  # Fast Diagonalisation Method
-    #     "ksp_rtol": 1e-6,
-    #     "ksp_monitor": None
-    # }
+        # Enable matrix-free evaluation globally
+        "mat_type": "matfree",
+
+        # --- p-Multigrid Preconditioner ---
+        "pc_type": "python",
+        "pc_python_type": "firedrake.PMGPC",
+
+        # --- Fine & Intermediate Levels (Smoothers) ---
+        # Chebyshev is generally superior to default Richardson for multigrid smoothing
+        "pmg_mg_levels_ksp_type": "chebyshev",
+        "pmg_mg_levels_pc_type": "jacobi",
+
+        # --- Coarse Level ---
+        "pmg_mg_coarse_ksp_type": "preonly",
+        "pmg_mg_coarse_pc_type": "lu",
+        # CRITICAL: Force assembly of the coarse matrix so LU can factorize it
+        "pmg_mg_coarse_mat_type": "aij"
+    }
 
     atmos = BarnesAtmosphere(mesh, V, phys_params)
     slver = Solver(atmos, solver_params, firedrake_params)
