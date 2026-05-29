@@ -6,14 +6,17 @@ from parameters import SolverParams
 import gc
 
 class Solver:
-    def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams):
+    def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams, firedrake_params):
         self.atmos = atmos
         self.func_space = atmos.func_space
         self.solver_params = solver_params
         self.mesh = atmos.mesh
         self.phys_params = atmos.phys_params
+        self.firedrake_params = firedrake_params
         self.phi = TestFunction(self.func_space)
-        self.psi_soln = Function(self.func_space) # Solution to system will be stored here
+        self.psi_soln = Function(self.func_space)  # Solution to system will be stored here
+
+        self._setup_solver()
 
     def _specify_equation(self):
         psi = TrialFunction(self.func_space)
@@ -52,41 +55,33 @@ class Solver:
 
         return a, L
 
-    def solve_psi(self):
+    def _setup_solver(self):
         a, L = self._specify_equation()
         PETSc.Sys.Print("Set up equation")
 
         if self.solver_params.check_flux:
             PETSc.Sys.Print("Calculating net flux...")
-            flux = assemble(replace(L, {self.phi : Constant(1)}))
+            flux = assemble(replace(L, {self.phi: Constant(1)}))
             PETSc.Sys.Print(f"Net flux is {flux}")
-
-        firedrake_params = {
-            "ksp_type": "cg",
-            "pc_type": "python",
-            "ksp_rtol": 1e-6,
-            "pc_python_type": "firedrake.PMGPC",
-            "pmg_mg_levels_pc_type": "jacobi",
-            "pmg_mg_coarse_pc_type": "lu"
-        }
 
         nullspace = VectorSpaceBasis(constant=True)
 
         problem = LinearVariationalProblem(a, L, self.psi_soln)
-        solver = LinearVariationalSolver(
+        self.solver = LinearVariationalSolver(
             problem,
-            solver_parameters=firedrake_params,
+            solver_parameters=self.firedrake_params,
             nullspace=nullspace,
         )
-
-        # Make sure as much RAM is available as possible for the solver
-        math_utils._get_vertical_integral_solver.cache_clear()
-        gc.collect()
-
         PETSc.Sys.Print(f"Completed solver setup")
-        start_time = time.perf_counter()
-        solver.solve()
-        end_time = time.perf_counter()
-        PETSc.Sys.Print(f"Solve completed in {end_time - start_time:0.2f} sec")
 
-        return self.psi_soln
+    def solve_psi(self):
+        # Reset initial guess and clear cache
+        math_utils._get_vertical_integral_solver.cache_clear()
+        self.psi_soln.assign(0)
+
+        start_time = time.perf_counter()
+        self.solver.solve()
+        solve_time = time.perf_counter()-start_time
+        PETSc.Sys.Print(f"Solve completed in {solve_time:0.2f} sec")
+
+        return solve_time
