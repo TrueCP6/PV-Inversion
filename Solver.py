@@ -66,11 +66,14 @@ class Solver:
 
         nullspace = VectorSpaceBasis(constant=True)
 
-        problem = LinearVariationalProblem(a, L, self.psi_soln)
+        problem = LinearVariationalProblem(
+            a, L, self.psi_soln,
+            constant_jacobian=True
+        )
         self.solver = LinearVariationalSolver(
             problem,
             solver_parameters=self.firedrake_params,
-            nullspace=nullspace,
+            nullspace=nullspace
         )
         PETSc.Sys.Print(f"Completed solver setup")
 

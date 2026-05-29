@@ -1,6 +1,4 @@
 from firedrake import *
-import math_utils
-from MMSChecker import MMSChecker
 from Solver import Solver
 from barnes_atmosphere import BarnesAtmosphere
 from parameters import SolverParams, PhysicalParams
@@ -28,6 +26,7 @@ def main():
     PETSc.Sys.Print(f"Created function space with {total_dofs} degrees of freedom")
 
     firedrake_params = {  # todo temporary location for solver params
+        "mat_type": "aij",
         "ksp_type": "cg",
         "pc_type": "python",
         "ksp_rtol": 1e-6,
@@ -36,13 +35,6 @@ def main():
         "pmg_mg_levels_pc_type": "jacobi",
         "pmg_mg_coarse_pc_type": "lu"
     }
-
-    # firedrake_params = {
-    #     "ksp_type": "preonly",
-    #     "pc_type": "fdm",  # Fast Diagonalisation Method
-    #     "ksp_rtol": 1e-6,
-    #     "ksp_monitor": None
-    # }
 
     atmos = BarnesAtmosphere(mesh, V, phys_params)
     slver = Solver(atmos, solver_params, firedrake_params)
