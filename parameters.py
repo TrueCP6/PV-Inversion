@@ -28,9 +28,19 @@ class PhysicalParams:
 
 @dataclass
 class SolverParams:
-    nx: int = 25
-    ny: int = 25
-    nz: int = 25
-    check_flux: bool = False
+    nx: int = 40
+    ny: int = 40
+    nz: int = 40
+    check_flux: bool = True
     output_file: str = "output.pvd"
-    quadrilateral: bool = True
+    quadrilateral: bool = False
+    firedrake_params = {
+        "mat_type": "aij",
+        "ksp_type": "cg",
+        "pc_type": "python",
+        "ksp_rtol": 1e-6,
+        "ksp_monitor": None,
+        "pc_python_type": "firedrake.PMGPC",
+        "pmg_mg_levels_pc_type": "jacobi",
+        "pmg_mg_coarse_pc_type": "lu"
+    }

@@ -6,13 +6,13 @@ from parameters import SolverParams
 import gc
 
 class Solver:
-    def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams, firedrake_params):
+    def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams):
         self.atmos = atmos
         self.func_space = atmos.func_space
         self.solver_params = solver_params
         self.mesh = atmos.mesh
         self.phys_params = atmos.phys_params
-        self.firedrake_params = firedrake_params
+        self.firedrake_params = solver_params.firedrake_params
         self.phi = TestFunction(self.func_space)
         self.psi_soln = Function(self.func_space)  # Solution to system will be stored here
 
@@ -64,7 +64,7 @@ class Solver:
             flux = assemble(replace(L, {self.phi: Constant(1)}))
             PETSc.Sys.Print(f"Net flux is {flux}")
 
-        nullspace = VectorSpaceBasis(constant=True)
+        nullspace = VectorSpaceBasis(constant=True, comm=self.mesh.comm)
 
         problem = LinearVariationalProblem(
             a, L, self.psi_soln,

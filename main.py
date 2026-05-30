@@ -1,4 +1,5 @@
 from firedrake import *
+import math_utils
 from Solver import Solver
 from barnes_atmosphere import BarnesAtmosphere
 from parameters import SolverParams, PhysicalParams
@@ -20,24 +21,12 @@ def main():
     )
     PETSc.Sys.Print("Built extruded mesh")
 
-    # todo maybe fdm
     V = FunctionSpace(mesh, "Q", 4)
     total_dofs = V.dof_dset.layout_vec.getSize() # can also be calculated as (degree*N+1)^3
     PETSc.Sys.Print(f"Created function space with {total_dofs} degrees of freedom")
 
-    firedrake_params = {  # todo temporary location for solver params
-        "mat_type": "aij",
-        "ksp_type": "cg",
-        "pc_type": "python",
-        "ksp_rtol": 1e-6,
-        "ksp_monitor": None,
-        "pc_python_type": "firedrake.PMGPC",
-        "pmg_mg_levels_pc_type": "jacobi",
-        "pmg_mg_coarse_pc_type": "lu"
-    }
-
     atmos = BarnesAtmosphere(mesh, V, phys_params)
-    slver = Solver(atmos, solver_params, firedrake_params)
+    slver = Solver(atmos, solver_params)
 
     slver.solve_psi() # Run the solver once as spinup
     solve_times = []
