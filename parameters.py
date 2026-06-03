@@ -44,3 +44,5 @@ class SolverParams:
         "pmg_mg_levels_pc_type": "jacobi",
         "pmg_mg_coarse_pc_type": "lu"
     }
+    gamma: float = 0
+    polynomial_order: int = 4
