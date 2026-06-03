@@ -1,5 +1,4 @@
 from functools import cache
-
 from atmosphere_builder import AtmosphereBuilder
 from firedrake import *
 from parameters import PhysicalParams

@@ -1,6 +1,6 @@
 from firedrake import *
 import math_utils
-from Solver import Solver
+from solver import Solver
 from barnes_atmosphere import BarnesAtmosphere
 from parameters import SolverParams, PhysicalParams
 
