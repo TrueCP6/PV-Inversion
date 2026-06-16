@@ -9,7 +9,7 @@ def _get_vertical_integral_solver(main_func_space):
 
     # Create the temporary DQ space
     h_degree, v_degree = main_func_space.ufl_element().degree()
-    dq_space = FunctionSpace(mesh, "DQ", 0, vdegree=v_degree) # Use a horizontal degree of zero as there is no horizontal variation in the integrand
+    dq_space = FunctionSpace(mesh, "DQ", h_degree, vdegree=v_degree)
 
     # Setup placeholder functions
     integrand_placeholder = Function(main_func_space)
@@ -29,9 +29,7 @@ def _get_vertical_integral_solver(main_func_space):
 
     int_solver_params = {
         "ksp_type": "preonly",
-        "pc_type": "sor",
-        "snes_lag_jacobian": -2,  # -2 tells SNES to compute the matrix once and never rebuild it
-        "snes_lag_preconditioner": -2,
+        "pc_type": "sor"
     }
 
     problem = LinearVariationalProblem(a_I, L_I, solution_dq)

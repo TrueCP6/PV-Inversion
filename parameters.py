@@ -33,7 +33,6 @@ class SolverParams:
     nz: int = 40
     check_flux: bool = True
     output_file: str = "output.pvd"
-    quadrilateral: bool = False
     firedrake_params = {
         "mat_type": "aij",
         "ksp_type": "cg",

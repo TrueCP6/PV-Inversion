@@ -13,7 +13,7 @@ class DomainBuilder:
         temp_mesh = RectangleMesh(
             self.solver_params.nx, self.solver_params.ny,
             self.phys_params.Lx, self.phys_params.Ly,
-            quadrilateral=self.solver_params.quadrilateral
+            quadrilateral=True # This is crucial for the vertical integrator
         )
 
         # Extract reference to raw coordinates array
