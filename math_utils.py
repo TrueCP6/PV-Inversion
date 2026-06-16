@@ -76,7 +76,7 @@ def kink_function(x, delta):
 def scaled_kink(x, delta, left_val, right_val, kink_width, kink_centre):
     return (right_val - left_val) * kink_function((x-kink_centre)/kink_width + 0.5, delta) + left_val
 
-def plot_func_slice(func : Function):
+def plot_func_slice(func : Function, z_scale=50):
     file_name = "temp_func.pvd"
     func_name = "Provided Function"
     func.rename(func_name)
@@ -95,7 +95,13 @@ def plot_func_slice(func : Function):
     # Load file and create slice
     multiblock = pv.read(file_name)
     mesh = multiblock.combine()
-    slice_yz = mesh.slice(normal='x', origin=(500e3, 500e3, 10000))
+
+    x_min, x_max, y_min, y_max, z_min, z_max = mesh.bounds
+    x_mid = 0.5 * (x_min + x_max)
+    y_mid = 0.5 * (y_min + y_max)
+    z_mid = 0.5 * (z_min + z_max)
+
+    slice_yz = mesh.slice(normal='x', origin=(x_mid, y_mid, z_mid))
 
     # Do actual plotting
     plotter = pv.Plotter()
@@ -106,6 +112,6 @@ def plot_func_slice(func : Function):
         show_edges=True
     )
     plotter.camera_position = 'yz'
-    plotter.set_scale(zscale=25)
+    plotter.set_scale(zscale=z_scale)
     plotter.show()
 

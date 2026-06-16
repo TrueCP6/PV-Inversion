@@ -18,19 +18,19 @@ def main():
 
     slver.solve_psi() # Run the solver once as spinup
 
-    solve_times = []
-    for i in range(5):
-        solve_times.append(slver.solve_psi())
-    avg_solve_time = sum(solve_times)/len(solve_times)
-    PETSc.Sys.Print(f"Average solve completed in {avg_solve_time:0.2f} sec")
-
+    # Save and plot solution
     psi = slver.psi_soln
     u = -psi.dx(1)
     v = psi.dx(0)
-    speed = sqrt(u**2 + v**2)
+    speed = sqrt(u ** 2 + v ** 2)
     func = Function(V).interpolate(speed)
-
     math_utils.plot_func_slice(func)
+
+    # solve_times = []
+    # for i in range(5):
+    #     solve_times.append(slver.solve_psi())
+    # avg_solve_time = sum(solve_times)/len(solve_times)
+    # PETSc.Sys.Print(f"Average solve completed in {avg_solve_time:0.2f} sec")
 
 if __name__ == "__main__":
     main()

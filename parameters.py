@@ -3,8 +3,8 @@ from math import sin, pi
 
 @dataclass
 class PhysicalParams:
-    Lx: float = 2000e3
-    Ly: float = 2000e3
+    Lx: float = 7500e3
+    Ly: float = 5000e3
     H: float = 20e3
     f: float = 2 * 7.292e-5 * sin(-42 / 180 * pi)
     g: float = 9.80665
@@ -39,6 +39,7 @@ class SolverParams:
         "ksp_type": "cg",
         "pc_type": "python",
         "ksp_rtol": 1e-6,
+        "ksp_atol": 1e-8,
         "ksp_monitor": None,
         "pc_python_type": "firedrake.PMGPC",
         "pmg_mg_levels_pc_type": "jacobi",
