@@ -1,60 +1,58 @@
-from functools import cache
 from firedrake import *
 from mpi4py import MPI
 import pyvista as pv
+import numpy as np
+from scipy.interpolate import CubicSpline
+from firedrake import Function, interpolate, SpatialCoordinate
 
-@cache
-def _get_vertical_integral_solver(main_func_space):
-    mesh = main_func_space.mesh()
 
-    # Create the temporary DQ space
-    h_degree, v_degree = main_func_space.ufl_element().degree()
-    dq_space = FunctionSpace(mesh, "DQ", h_degree, vdegree=v_degree)
-
-    # Setup placeholder functions
-    integrand_placeholder = Function(main_func_space)
-    solution_dq = Function(dq_space)
-
-    I_trial = TrialFunction(dq_space)
-    W_test = TestFunction(dq_space)
-    n = FacetNormal(mesh)
-
-    # Specify weak form
-    vol = -I_trial * W_test.dx(2) * dx
-    interior_surf_flux = jump(W_test, n[2]) * I_trial('+') * dS_h  # Upwinding
-    top_exterior_surf_flux = W_test * I_trial * n[2] * ds_t
-
-    a_I = vol + top_exterior_surf_flux + interior_surf_flux
-    L_I = integrand_placeholder * W_test * dx
-
-    int_solver_params = {
-        "ksp_type": "preonly",
-        "pc_type": "sor"
-    }
-
-    problem = LinearVariationalProblem(a_I, L_I, solution_dq)
-    solver = LinearVariationalSolver(problem, solver_parameters=int_solver_params)
-
-    PETSc.Sys.Print("Cached vertical integral solver")
-
-    return solver, integrand_placeholder, solution_dq
-
-def compute_vertical_integral(integrand, main_func_space):
+def compute_vertical_integral(integrand, func_space):
     """
-    Computes the indefinite vertical integral of an arbitrary UFL integrand
-    from z=0 to z. Solves the ODE: dI/dz = integrand with I(z=0) = 0.
+    Computes the vertical integral int_{z_bottom}^z f(z') dz' using SciPy.
+    Uses CubicSpline antiderivatives to maintain high-order accuracy
+    compatible with higher-degree Firedrake function spaces.
     """
+    mesh = func_space.mesh()
 
-    solver, integrand_placeholder, solution_dq = _get_vertical_integral_solver(main_func_space)
-    integrand_placeholder.interpolate(integrand) # Write the integrand into the placeholder function
+    # 1. Extract exact DoF coordinates and values
+    z_expr = SpatialCoordinate(mesh)[2]
 
-    # Used for logging to profile how long each operation is taking
-    solve_event = PETSc.Log.Event("DG_Extruded_Solve")
+    z_fd = Function(func_space).interpolate(z_expr)
+    f_fd = Function(func_space).interpolate(integrand)
 
-    with solve_event:
-        solver.solve() # Solver writes to solution to solution_dq
+    z_data = z_fd.dat.data_ro
+    f_data = f_fd.dat.data_ro
 
-    return Function(main_func_space).interpolate(solution_dq)
+    # 2. Sort the data strictly by the z-coordinate
+    sort_idx = np.argsort(z_data)
+    z_sorted = z_data[sort_idx]
+    f_sorted = f_data[sort_idx]
+
+    # 3. Collapse into a strict 1D vertical profile
+    z_rounded = np.round(z_sorted, decimals=8)
+    _, unique_idx = np.unique(z_rounded, return_index=True)
+
+    z_1d = z_sorted[unique_idx]
+    f_1d = f_sorted[unique_idx]
+
+    # 4. Fit a Cubic Spline to the 1D integrand
+    # CubicSpline generates piecewise 3rd-degree polynomials
+    spline = CubicSpline(z_1d, f_1d)
+
+    # 5. Compute the exact analytical antiderivative of the spline
+    # This automatically steps the interpolation up to a 4th-degree polynomial
+    integral_spline = spline.antiderivative()
+
+    # 6. Evaluate the antiderivative at the Firedrake DoF coordinates
+    # We subtract integral_spline(z_1d[0]) to ensure the integral is exactly 0
+    # at the bottom boundary of the mesh.
+    integral_dofs = integral_spline(z_data) - integral_spline(z_1d[0])
+
+    # 7. Assign the data to a new Firedrake Function
+    result = Function(func_space, name="Vertical_Integral")
+    result.dat.data[:] = integral_dofs
+
+    return result
 
 def kink_function(x, delta):
     """

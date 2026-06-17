@@ -77,8 +77,7 @@ class Solver:
         PETSc.Sys.Print(f"Completed solver setup")
 
     def solve_psi(self):
-        # Reset initial guess and clear cache
-        math_utils._get_vertical_integral_solver.cache_clear()
+        # Reset initial guess
         self.psi_soln.assign(0)
 
         start_time = time.perf_counter()
