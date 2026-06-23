@@ -33,12 +33,31 @@ class SolverParams:
     nz: int = 40
     check_flux: bool = True
     output_file: str = "output.pvd"
-    firedrake_params = {
+    ksp_rtol: float = 1e-6
+    ksp_atol: float = 1e-8
+    matfree_params = {
+        "mat_type": "matfree",
+        "ksp_type": "cg",
+        "ksp_rtol": ksp_rtol,
+        "ksp_atol": ksp_atol,
+        # p-multigrid for outer preconditioner
+        "pc_type": "python",
+        "pc_python_type": "firedrake.PMGPC",
+        # For p=2,3,4
+        "pmg_mg_levels_ksp_type": "chebyshev",
+        "pmg_mg_levels_pc_type": "jacobi",
+        # Assemble the p=1 matrix and use solve directly using lu factorisation
+        "pmg_mg_coarse_ksp_type": "preonly",  # Don't iterate, just apply the direct solver once
+        "pmg_mg_coarse_pc_type": "python",
+        "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
+        "pmg_mg_coarse_assembled_pc_type": "lu"  # Apply LU to the explicitly assembled coarse matrix
+    }
+    assembled_mat_params = { # similar to above but use a fully assembled matrix instead - much faster but uses much more memory
         "mat_type": "aij",
         "ksp_type": "cg",
         "pc_type": "python",
-        "ksp_rtol": 1e-6,
-        "ksp_atol": 1e-8,
+        "ksp_rtol": ksp_rtol,
+        "ksp_atol": ksp_atol,
         "ksp_monitor": None,
         "pc_python_type": "firedrake.PMGPC",
         "pmg_mg_levels_pc_type": "jacobi",

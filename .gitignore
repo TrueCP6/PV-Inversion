@@ -188,3 +188,5 @@ fabric.properties
 *.pvd
 *.pvtu
 flamegraph.txt
+*.dat
+memory_log.txt

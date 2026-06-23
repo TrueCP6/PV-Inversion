@@ -14,7 +14,7 @@ def main():
     V = domain_builder.func_space()
 
     atmos = BarnesAtmosphere(mesh, V, phys_params)
-    slver = Solver(atmos, solver_params)
+    slver = Solver(atmos, solver_params, True)
 
     slver.solve_psi() # Run the solver once as spinup
 

@@ -5,15 +5,15 @@ from atmosphere_builder import AtmosphereBuilder
 from parameters import SolverParams
 
 class Solver:
-    def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams):
+    def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams, save_memory : bool):
         self.atmos = atmos
         self.func_space = atmos.func_space
         self.solver_params = solver_params
         self.mesh = atmos.mesh
         self.phys_params = atmos.phys_params
-        self.firedrake_params = solver_params.firedrake_params
         self.phi = TestFunction(self.func_space)
         self.psi_soln = Function(self.func_space)  # Solution to system will be stored here
+        self.save_memory = save_memory
 
         self._setup_solver()
 
@@ -63,22 +63,25 @@ class Solver:
             flux = assemble(replace(L, {self.phi: Constant(1)}))
             PETSc.Sys.Print(f"Net flux is {flux}")
 
-        nullspace = VectorSpaceBasis(constant=True, comm=self.mesh.comm)
-
         problem = LinearVariationalProblem(
             a, L, self.psi_soln,
-            constant_jacobian=True
+            constant_jacobian=True # Saves a lot of time with the assembled solver parameters
         )
+
+        # Use different solver parameters based on the user requirements
+        params = self.solver_params.matfree_params if self.save_memory else self.solver_params.matfree_params
+        nullspace = VectorSpaceBasis(constant=True, comm=self.mesh.comm)
+
         self.solver = LinearVariationalSolver(
             problem,
-            solver_parameters=self.firedrake_params,
+            solver_parameters=params,
             nullspace=nullspace
         )
         PETSc.Sys.Print(f"Completed solver setup")
 
-    def solve_psi(self):
-        # Reset initial guess
-        self.psi_soln.assign(0)
+    def solve_psi(self, zero_initial_guess : bool = True):
+        if zero_initial_guess: # Reset initial guess (used for benchmarking)
+            self.psi_soln.assign(0)
 
         start_time = time.perf_counter()
         self.solver.solve()
