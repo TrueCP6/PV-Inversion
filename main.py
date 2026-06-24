@@ -22,9 +22,8 @@ def main():
     psi = slver.psi_soln
     u = -psi.dx(1)
     v = psi.dx(0)
-    speed = sqrt(u ** 2 + v ** 2)
-    func = Function(V).interpolate(speed)
-    math_utils.plot_func_slice(func)
+    fun = Function(V).interpolate(u)
+    math_utils.plot_func_slice(fun, normal='x')
 
     # solve_times = []
     # for i in range(5):

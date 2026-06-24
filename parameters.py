@@ -25,6 +25,9 @@ class PhysicalParams:
     anomaly_x_size = 200e3
     anomaly_y_size = 200e3
     anomaly_z_size = 5000
+    jet_y_size = 500e3
+    jet_z_size = 2e3
+    jet_magnitude = 35
 
 @dataclass
 class SolverParams:

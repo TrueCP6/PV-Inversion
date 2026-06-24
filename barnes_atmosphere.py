@@ -14,13 +14,17 @@ class BarnesAtmosphere(AtmosphereBuilder):
         self.kappa = phys_params.R / phys_params.c_p
 
     @cache
-    def u(self):
-        return Constant(4)
+    def u(self): # Function of y and z
+        exponent = - ((self.y - self.phys_params.anomaly_y_pos) / self.phys_params.jet_y_size) ** 2 \
+            - ((self.z - self.phys_params.trop_height) / self.phys_params.jet_z_size) ** 2
+
+        return self.phys_params.jet_magnitude * exp(exponent)
 
     @cache
     def v(self):
-        return Constant(0)
+        return Function(self.func_space).assign(0)
 
+    # todo check I don't need to evaulate these at z=0,H
     @cache
     def top_boundary(self):
         return self.phys_params.g * self.theta_star() \
@@ -89,14 +93,16 @@ class BarnesAtmosphere(AtmosphereBuilder):
     @cache
     def ertel_pv(self):
         #Background state
+        vort = self.v().dx(0) - self.u().dx(1)
         background = self.phys_params.f * self.theta_bar() * self.N_bar()**2 \
-            / (self.phys_params.g * self.rho_bar())
+            / (self.phys_params.g * self.rho_bar()) \
+            * (1 + vort / self.phys_params.f)
 
         # Specify anomaly
         ANO_exponent = -((self.z - self.phys_params.anomaly_z_pos) / self.phys_params.anomaly_z_size) ** 2 \
                        - ((self.x - self.phys_params.anomaly_x_pos) / self.phys_params.anomaly_x_size) ** 2 \
                        - ((self.y - self.phys_params.anomaly_y_pos) / self.phys_params.anomaly_y_size) ** 2
-        ANO = min_value(-1.5, -4 * exp(ANO_exponent)) * 1e-6
+        ANO = -4 * exp(ANO_exponent) * 1e-6
 
         return background + ANO
 
