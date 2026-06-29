@@ -69,7 +69,7 @@ class Solver:
         )
 
         # Use different solver parameters based on the user requirements
-        params = self.solver_params.matfree_params if self.save_memory else self.solver_params.matfree_params
+        params = self.solver_params.matfree_params if self.save_memory else self.solver_params.assembled_mat_params
         nullspace = VectorSpaceBasis(constant=True, comm=self.mesh.comm)
 
         self.solver = LinearVariationalSolver(
