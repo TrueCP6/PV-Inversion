@@ -190,3 +190,4 @@ fabric.properties
 flamegraph.txt
 *.dat
 memory_log.txt
+*.Identifier

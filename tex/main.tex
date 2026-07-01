@@ -1,0 +1,57 @@
+\documentclass{article}
+
+% Language setting
+% Replace `english' with e.g. `spanish' to change the document language
+\usepackage[english]{babel}
+
+\usepackage[a4paper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{minted}
+
+\title{Your Paper}
+\author{You}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Your abstract.
+\end{abstract}
+
+\begin{enumerate}
+    \item Basic structure of the atmosphere
+    \item What is a stratospheric intrusion and how does it relate to cut off lows
+    \item Cut off lows in south africa
+    \item What is potential vorticity?
+    \item Introduce Ertel PV
+    \item Introduce QG PV
+    \item Explain basic derivation of QG PV equation
+    \item Goal of Thesis - initially reproduce barnes work, then add timestepping
+    \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting
+    \item Specify background states and plot them. Explain where necessary
+    \item Specify q and plot it
+    \item Why we will use finite element and firedrake
+    \item Building the mesh and function spacein Firedrake
+    \item Putting into weak form - why do we multiply by rho?
+    \item Solvability condition
+    \item Utility functions
+    \item Specifying the equation in Firedrake
+    \item Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp_rtol and ksp_atol
+    \item Running with MPI
+    \item Verify setup is correct using MMS
+    \item Calculate time complexity and order of accuracy
+    \item Calculating derived quantities such as pressure, velocity and relative vorticity
+    \item Reproduction of a few of Barnes' experiments
+    \item What happens if we change Brunt-Vaisala to be more realistic
+    \item Potentially investigate alternative backgrounds
+    \item Feasability of explicit timestepping - stability condition
+\end{enumerate}
+
+\bibliographystyle{alpha}
+\bibliography{sources}
+
+\end{document}
