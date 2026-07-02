@@ -11,6 +11,8 @@
 \usepackage{graphicx}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 \usepackage{minted}
+\usepackage{siunitx}
+\usepackage{tabularray}
 
 \title{Your Paper}
 \author{You}
@@ -22,25 +24,29 @@
 Your abstract.
 \end{abstract}
 
+\tableofcontents
+%\newpage
+
+\section{TEMP PLAN}
 \begin{enumerate}
     \item Basic structure of the atmosphere
-    \item What is a stratospheric intrusion and how does it relate to cut off lows
-    \item Cut off lows in south africa
     \item What is potential vorticity?
     \item Introduce Ertel PV
     \item Introduce QG PV
     \item Explain basic derivation of QG PV equation
+    \item What is a stratospheric intrusion and how does it relate to cut off lows
+    \item Cut off lows in south africa
     \item Goal of Thesis - initially reproduce barnes work, then add timestepping
     \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting
     \item Specify background states and plot them. Explain where necessary
     \item Specify q and plot it
     \item Why we will use finite element and firedrake
-    \item Building the mesh and function spacein Firedrake
+    \item Building the mesh and function space in Firedrake
     \item Putting into weak form - why do we multiply by rho?
     \item Solvability condition
     \item Utility functions
     \item Specifying the equation in Firedrake
-    \item Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp_rtol and ksp_atol
+    \item Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol
     \item Running with MPI
     \item Verify setup is correct using MMS
     \item Calculate time complexity and order of accuracy
@@ -50,6 +56,45 @@ Your abstract.
     \item Potentially investigate alternative backgrounds
     \item Feasability of explicit timestepping - stability condition
 \end{enumerate}
+
+\section{Basic Concepts}
+For readers who are not familiar with atmospheric science, but who are familiar with Applied Mathematics, a brief overview of terminology and atmospheric properties is given.
+
+\subsection{Layers of the Atmosphere}
+The atmosphere is divided into a number of distinct layers, a characteristic referred to as \textit{stratification}. We will focus on the two layers closest to the Earth's surface: the troposphere and the stratosphere. The boundary between these two layers is known as the \textit{tropopause} \cite{Vallis2017}.
+
+\begin{itemize}
+    \item The \textbf{troposphere} extends from the Earth's surface ($z=0$) up to the tropopause. This layer is mostly transparent to incoming solar (shortwave) radiation, meaning it is primarily heated from below by terrestrial (longwave) radiation emitted by the Earth's surface. This bottom-up heating results in a negative vertical temperature gradient ($\frac{\partial T}{\partial z} < 0$) \cite{Vallis2017}. As a practical example, as you climb higher up a mountain, the temperature decreases with increasing altitude. The warmer air close to the surface is less dense than the colder air at higher altitudes, which leads to convective instability \cite{danielson2003meteorology}. Consequently, this layer experiences high turbulence \cite{sprenger2007userguide} and substantial dissipation of energy; almost all typical weather phenomena occur here.
+
+    \item Above the troposphere lies the \textbf{stratosphere}. This layer contains a higher concentration of ozone, which absorbs high-energy ultraviolet (UV) solar radiation, heating the layer from within. Solar radiation first heats the ozone at higher altitudes, losing energy as it penetrates deeper into the lower stratosphere. This results in a positive temperature gradient ($\frac{\partial T}{\partial z} > 0$) \cite{Vallis2017}. Because warmer, less dense air sits atop cooler, denser air, the stratosphere is highly stable with respect to vertical convection \cite{Barnes2022main}.
+
+    \item The \textbf{tropopause} serves as the boundary between the negative temperature gradient of the troposphere and the positive temperature gradient of the stratosphere. At this boundary, the temperature gradient experiences a discontinuity \cite{Panchev1985-et}. The altitude of the tropopause primarily varies with latitude ($\varphi$), occurring at an altitude of about \qty{16}{\km} in equatorial regions and dropping to approximately \qty{8}{\km} in polar regions \cite{Vallis2017}.
+\end{itemize}
+
+\subsection{Terminology}
+The meaning of certain relevant terms that will be used later on is given:
+
+\begin{itemize}
+    \item An \textbf{adiabatic} process is where a system exchanges no heat with its surroundings. In the case of the movement of an air parcel, the process is adiabatic if temperature only changes due to changes in pressure.
+\end{itemize}
+We assume that the reader is familiar with the quantities temperature ($T$), pressure ($p$), density ($\rho$) and acceleration due to gravity ($g$).
+
+\begin{table}[H]
+    \centering
+    \begin{tblr}{colspec={X[1,l]|c|c|X[2,l]}}
+        \textbf{Name of quantity} & \textbf{Definition} & \textbf{Units} & \textbf{Description}\\
+        \hline
+        Specific gas constant for dry air & $R = 287.05$ & \unit{\joule\per\kg\per\kelvin} & Used to relate $p$, $\rho$ and $T$ using the ideal gas law $p=\rho RT$.\\
+        Specific heat capacity of dry air & $c_p \approx 1005$ & \unit{\joule\per\kg\per\kelvin} & The amount of heat necessary to heat up \qty{1}{\kg} of dry air by \qty{1}{\kelvin}.\\
+        Potential temperature & $\theta = T \left( \frac{p_0}{p}\right)^{R/c_p}$ & \unit{\kelvin} & The temperature an air parcel would attain if it were brought adiabatically to some reference pressure $p_0$. $p_0$ is usually taken to be \qty{1000}{\hecto\pascal}.\\
+        Brunt–Väisälä frequency & $N^2 = \frac{g}{\theta} \frac{d \theta}{dz}$ & \unit{\per\second} & A measure of the stability of an air parcel to vertical displacements such as those caused by convection.
+    \end{tblr}
+    \caption{Relevant quantities in atmospheric science}
+    \label{tab:quantities}
+\end{table}
+
+\subsection{Potential Vorticity}
+\subsubsection{Ertel's Potential Vorticity}
 
 \bibliographystyle{alpha}
 \bibliography{sources}

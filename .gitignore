@@ -191,3 +191,4 @@ flamegraph.txt
 *.dat
 memory_log.txt
 *.Identifier
+tex_out/*
