@@ -54,7 +54,7 @@ class SolverParams:
         "pmg_mg_coarse_pc_type": "python",
         "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
         "pmg_mg_coarse_assembled_pc_type": "lu"  # Apply LU to the explicitly assembled coarse matrix
-    }
+    } # TODO ensure firedrake is using sum factorisation and/or fast diagonalisation
     assembled_mat_params = { # similar to above but use a fully assembled matrix instead - much faster but uses much more memory
         "mat_type": "aij",
         "ksp_type": "cg",
