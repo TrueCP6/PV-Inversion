@@ -51,7 +51,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def N_bar(self):
         full_expr = scaled_kink(
             self.z,
-            2,
+            self.phys_params.delta,
             self.phys_params.N_trop,
             self.phys_params.N_strat,
             self.phys_params.trop_width,

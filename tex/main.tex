@@ -1,18 +1,14 @@
 \documentclass{article}
 
-% Language setting
-% Replace `english' with e.g. `spanish' to change the document language
+% Packages
 \usepackage[english]{babel}
-
-\usepackage[a4paper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
-
-% Useful packages
+\usepackage[a4paper,top=2cm,bottom=2cm,left=2.5cm,right=2.5cm,marginparwidth=1.75cm]{geometry}
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 \usepackage{minted}
 \usepackage{siunitx}
-\usepackage{tabularray}
+\usepackage{subcaption}
 
 \title{Your Paper}
 \author{You}
@@ -62,7 +58,7 @@ The meaning of certain relevant terms that will be used later on is given. We as
 
     \item \textbf{Relative vorticity} ($\zeta$) is defined as the curl of the wind velocity vector, i.e. $\zeta = \nabla \times \mathbf{u}$. It physically represents the local spin of a fluid element relative to the Earth's surface \cite{Vallis2017}.
 
-    \item The \textbf{Coriolis force} ($f$) is a local measure of the effect that the Earth's rotation has on the movement of fluids (such as the atmosphere) on the Earth's surface \cite{Vallis2017}. It is calculated as $f = 2 \Omega \sin (\varphi)$, where $\varphi$ is latitude, and $\Omega$ is the angular momentum of the Earth \cite{sprenger2007userguide}. By convention is is negative in the Southern Hemisphere \cite{Barnes2022main}.
+    \item The \textbf{Coriolis force} ($f$) is a local measure of the effect that the Earth's rotation has on the movement of fluids (such as the atmosphere) on the Earth's surface \cite{Vallis2017}. It is calculated as $f = 2 \Omega \sin (\varphi)$, where $\varphi$ is latitude, and $\Omega$ is the angular momentum of the Earth \cite{sprenger2007userguide}. By convention $f$ is negative in the Southern Hemisphere \cite{Barnes2022main}.
 \end{itemize}
 
 \subsection{Potential Vorticity}
@@ -73,7 +69,76 @@ In one of his most significant contributions, Ertel showed that under adiabatic 
 \end{equation}
 where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$.
 
-\section{TODO Many Sections}
+\section{TODO Many Sections to link above and below}
+
+\section{Background States}
+We will specify $\overline{N}(z)$ using the same values as Barnes et al. \cite{Barnes2022main}, from which we can calculate $\overline{\rho}(z)$ using the same methodology as Fehlmann \cite{fehlmann1997pvelements}.
+
+Barnes et al. specify a stability profile such that $\overline N_\text{strat} = \qty{0.03}{\per\second}$ in the stratosphere and $\overline N_\text{trop} = \qty{0.01}{\per\second}$ in the troposphere \cite{Barnes2022main}. This discontinuity at the tropopause is smoothed out by the following family of kink functions \cite{fehlmann1997pvelements}:
+
+\begin{equation}
+    \kappa_\delta (x) = \begin{cases}
+        0 & x \leq 0 \\
+        \frac12 (2x)^\delta & 0 < x \leq\frac12 \\
+        1-\frac12 [2(1-x)]^\delta & \frac12 < x \leq 1 \\
+        1  & x>1
+    \end{cases}
+\end{equation}
+where $\delta >1$ is a parameter which determines the 'sharpness' of the kink. We can then rescale and translate $\kappa_\delta$ to specify our reference Brunt–Väisälä frequency profile, where $z_\text{trop}$ is the altitude of the centre of the tropopause and $w_\text{trop}$ is the total vertical width of the smoothing zone. Initially we will take $\delta = 2$, $z_\text{trop}=\qty{12500}{\meter}$ \cite{Barnes2022main} and $w_\text{trop}=\qty{1000}{\meter}$ \cite{fehlmann1997pvelements}.
+
+\begin{equation}\label{N_bar}
+    \overline{N}(z)=\left(\overline{N}_\text{strat} - \overline{N}_\text{trop}\right) \kappa _\delta \left( \frac{z-z_\text{trop}}{w_\text{trop}} + \frac12\right) + \overline{N}_\text{strat}
+\end{equation}
+We can then determine the reference potential temperature profile by solving for $\overline{\theta}$  in the definition of the Brunt–Väisälä frequency \eqref{brunt_vaisala},
+
+\begin{equation}\label{theta_bar}
+    \overline{\theta}(z) = \overline{\theta}_\text{bot} \exp \left( \frac{1}{g} \int _0 ^z \overline{N}(\xi)^2 \, d\xi\right)
+\end{equation}
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{reference_brunt–väisälä_frequency.pdf}
+        \caption{Reference Brunt–Väisälä frequency \eqref{N_bar}}
+        \label{fig:N_bar}
+    \end{minipage}
+    \hfill % Adds flexible space between the two minipages
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{reference_potential_temperature_profile.pdf}
+        \caption{Reference potential temperature profile \eqref{theta_bar}}
+        \label{fig:theta_bar}
+    \end{minipage}
+\end{figure}
+
+We combine the ideal gas law $p = \rho R T$ and the the definition of $\theta$ \eqref{pot_temp} to express the reference density profile:
+
+\begin{equation}\label{rho_bar}
+    \overline{\rho}(z) = \frac{\overline{p}}{R \overline{\theta}} \left( \frac{p_s}{\overline{p}}\right)^\kappa
+\end{equation}
+To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assumption that $d\overline{p}/dz = -g \overline{\rho}$, substitute in equation \eqref{rho_bar}, and solve the ODE to yield \cite{fehlmann1997pvelements}:
+
+\begin{equation}\label{p_bar}
+    \overline{p}(z) = \overline {p}_\text{bot} \left( 1- \frac{\kappa g}{R} \left( \frac{p_s}{\overline{p}_\text{bot}}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
+\end{equation}
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{reference_density_profile.pdf}
+        \caption{Reference density profile \eqref{rho_bar}}
+        \label{fig:brunt_vaisala}
+    \end{minipage}
+    \hfill % Adds flexible space between the two minipages
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{reference_pressure_profile.pdf}
+        \caption{Reference pressure profile \eqref{p_bar}}
+        \label{fig:theta_bar}
+    \end{minipage}
+\end{figure}
 
 \bibliographystyle{alpha}
 \bibliography{sources}
@@ -85,10 +150,10 @@ where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$.
     \item What is potential vorticity?
     \item Introduce Ertel PV
     \item Introduce QG PV
-    \item Explain basic derivation of QG PV equation
+    \item Explain basic derivation of QG PV equation, including splitting into reference and peturbation
     \item What is a stratospheric intrusion and how does it relate to cut off lows
     \item Cut off lows in south africa
-    \item Goal of Thesis - initially reproduce barnes work, then add timestepping
+    \item Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping
     \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting
     \item Specify background states and plot them. Explain where necessary
     \item Specify q and plot it
