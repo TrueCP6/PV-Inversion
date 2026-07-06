@@ -59,6 +59,8 @@ The meaning of certain relevant terms that will be used later on is given. We as
     \item \textbf{Relative vorticity} ($\zeta$) is defined as the curl of the wind velocity vector, i.e. $\zeta = \nabla \times \mathbf{u}$. It physically represents the local spin of a fluid element relative to the Earth's surface \cite{Vallis2017}.
 
     \item The \textbf{Coriolis force} ($f$) is a local measure of the effect that the Earth's rotation has on the movement of fluids (such as the atmosphere) on the Earth's surface \cite{Vallis2017}. It is calculated as $f = 2 \Omega \sin (\varphi)$, where $\varphi$ is latitude, and $\Omega$ is the angular momentum of the Earth \cite{sprenger2007userguide}. By convention $f$ is negative in the Southern Hemisphere \cite{Barnes2022main}.
+
+    %TODO define zonally and meridonially
 \end{itemize}
 
 \subsection{Potential Vorticity}
@@ -67,11 +69,14 @@ In one of his most significant contributions, Ertel showed that under adiabatic 
 \begin{equation}\label{epv}
     \frac{DQ}{Dt} = \frac{D}{Dt} \left( \frac{(\zeta + f \mathbf{\hat {k}}) \cdot \nabla \theta}{\rho} \right) =0
 \end{equation}
-where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$.
+where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$. $Q$ has units of \unit{\kelvin \meter \squared \per \second \per \kg} \cite{Barnes2022main}.
 
 \section{TODO Many Sections to link above and below}
 
-\section{Background States}
+
+% TODO specify geostrophic vorticity
+\section{Specifying QGPV Equation Coefficients}
+\subsection{Background States}
 We will specify $\overline{N}(z)$ using the same values as Barnes et al. \cite{Barnes2022main}, from which we can calculate $\overline{\rho}(z)$ using the same methodology as Fehlmann \cite{fehlmann1997pvelements}.
 
 Barnes et al. specify a stability profile such that $\overline N_\text{strat} = \qty{0.03}{\per\second}$ in the stratosphere and $\overline N_\text{trop} = \qty{0.01}{\per\second}$ in the troposphere \cite{Barnes2022main}. This discontinuity at the tropopause is smoothed out by the following family of kink functions \cite{fehlmann1997pvelements}:
@@ -95,7 +100,7 @@ We can then determine the reference potential temperature profile by solving for
     \overline{\theta}(z) = \overline{\theta}_\text{bot} \exp \left( \frac{1}{g} \int _0 ^z \overline{N}(\xi)^2 \, d\xi\right)
 \end{equation}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
@@ -123,7 +128,7 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
     \overline{p}(z) = \overline {p}_\text{bot} \left( 1- \frac{\kappa g}{R} \left( \frac{p_s}{\overline{p}_\text{bot}}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
 \end{equation}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
@@ -139,6 +144,26 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
         \label{fig:theta_bar}
     \end{minipage}
 \end{figure}
+
+\subsection{Boundary Conditions}
+To specify the horizontal boundary conditions, we need to choose values of $u$ and $v$. We will define a jet stream aiming to recreate the one shown in \cite{Barnes2022main}. The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the tropopause vertically, is centred about the middle of the domain meridionally, has a Gaussian shape, and has a similar overall size to the one shown in \cite{Barnes2022main} ($y_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{2000}{\meter}$). We will let
+
+\begin{equation}\label{u_boundary}
+    u(y,z) = u_\text{jet} \exp\left[ - \left(\frac{y - L_y /2}{y_\text{jet}}\right)^2 - \left(\frac{z - z_\text{trop}}{z_\text{jet}} \right)^2\right]
+\end{equation}
+\begin{equation}\label{v_boundary}
+    v(x,z) = 0
+\end{equation}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.96\linewidth]{jet_stream.pdf}
+    \caption{Jet stream specified in equation \eqref{u_boundary}}
+    \label{fig:jet_stream}
+\end{figure}
+You may notice that we have not yet defined $\theta^*$. It will be calculated later on to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
+
+\subsection{Source term}
+To calculate the source term $q(x,y,z)$
 
 \bibliographystyle{alpha}
 \bibliography{sources}
@@ -163,7 +188,7 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
     \item Solvability condition
     \item Utility functions
     \item Specifying the equation in Firedrake
-    \item Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol - why matrix free is slower (check notebooklm)
+    \item Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol - why matrix free is slower (check notebooklm) - why are the coefficients not analytically expressible
     \item Running with MPI
     \item Verify setup is correct using MMS
     \item Calculate time complexity and order of accuracy
@@ -171,7 +196,7 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
     \item Reproduction of a few of Barnes' experiments
     \item What happens if we change Brunt-Vaisala to be more realistic
     \item Potentially investigate alternative backgrounds
-    \item Feasability of explicit timestepping - stability condition
+    \item Feasibility of explicit timestepping - stability condition
 \end{enumerate}
 
 \end{document}
