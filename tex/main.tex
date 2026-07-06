@@ -64,7 +64,8 @@ The meaning of certain relevant terms that will be used later on is given. We as
 \end{itemize}
 
 \subsection{Potential Vorticity}
-In one of his most significant contributions, Ertel showed that under adiabatic and frictionless conditions, there exists a conserved quantity in the idealised atmosphere. We will call this quantity Ertel's potential vorticity (EPV) and denote it as $Q$ \cite{fehlmann1997pvelements}:
+In one of his most significant contributions, Ertel showed that under adiabatic and frictionless conditions, there exists a conserved quantity in the idealised atmosphere.
+We will call this quantity Ertel's potential vorticity (EPV) and denote it as $Q$ \cite{fehlmann1997pvelements}:
 
 \begin{equation}\label{epv}
     \frac{DQ}{Dt} = \frac{D}{Dt} \left( \frac{(\zeta + f \mathbf{\hat {k}}) \cdot \nabla \theta}{\rho} \right) =0
@@ -72,14 +73,14 @@ In one of his most significant contributions, Ertel showed that under adiabatic 
 where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$. $Q$ has units of \unit{\kelvin \meter \squared \per \second \per \kg} \cite{Barnes2022main}.
 
 \section{TODO Many Sections to link above and below}
-
-
 % TODO specify geostrophic vorticity
-\section{Specifying QGPV Equation Coefficients}
-\subsection{Background States}
+
+\section{Fully Specifying the QGPV Equation}
+\subsection{Background States and Coefficients}
 We will specify $\overline{N}(z)$ using the same values as Barnes et al. \cite{Barnes2022main}, from which we can calculate $\overline{\rho}(z)$ using the same methodology as Fehlmann \cite{fehlmann1997pvelements}.
 
-Barnes et al. specify a stability profile such that $\overline N_\text{strat} = \qty{0.03}{\per\second}$ in the stratosphere and $\overline N_\text{trop} = \qty{0.01}{\per\second}$ in the troposphere \cite{Barnes2022main}. This discontinuity at the tropopause is smoothed out by the following family of kink functions \cite{fehlmann1997pvelements}:
+Barnes et al. specify a stability profile such that $\overline N_\text{strat} = \qty{0.03}{\per\second}$ in the stratosphere and $\overline N_\text{trop} = \qty{0.01}{\per\second}$ in the troposphere \cite{Barnes2022main}.
+This discontinuity at the tropopause is smoothed out by the following family of kink functions \cite{fehlmann1997pvelements}:
 
 \begin{equation}
     \kappa_\delta (x) = \begin{cases}
@@ -89,12 +90,16 @@ Barnes et al. specify a stability profile such that $\overline N_\text{strat} = 
         1  & x>1
     \end{cases}
 \end{equation}
-where $\delta >1$ is a parameter which determines the 'sharpness' of the kink. We can then rescale and translate $\kappa_\delta$ to specify our reference Brunt–Väisälä frequency profile, where $z_\text{trop}$ is the altitude of the centre of the tropopause and $w_\text{trop}$ is the total vertical width of the smoothing zone. Initially we will take $\delta = 2$, $z_\text{trop}=\qty{12500}{\meter}$ \cite{Barnes2022main} and $w_\text{trop}=\qty{1000}{\meter}$ \cite{fehlmann1997pvelements}.
+
+where $\delta >1$ is a parameter which determines the 'sharpness' of the kink.
+We can then rescale and translate $\kappa_\delta$ to specify our reference Brunt–Väisälä frequency profile, where $z_\text{trop}$ is the altitude of the centre of the tropopause and $w_\text{trop}$ is the total vertical width of the smoothing zone.
+Initially we will take $\delta = 2$, $z_\text{trop}=\qty{12500}{\meter}$ \cite{Barnes2022main} and $w_\text{trop}=\qty{1000}{\meter}$ \cite{fehlmann1997pvelements}.
 
 \begin{equation}\label{N_bar}
     \overline{N}(z)=\left(\overline{N}_\text{strat} - \overline{N}_\text{trop}\right) \kappa _\delta \left( \frac{z-z_\text{trop}}{w_\text{trop}} + \frac12\right) + \overline{N}_\text{strat}
 \end{equation}
-We can then determine the reference potential temperature profile by solving for $\overline{\theta}$  in the definition of the Brunt–Väisälä frequency \eqref{brunt_vaisala},
+
+We can then determine the reference potential temperature profile by solving for $\overline{\theta}$ in the definition of the Brunt–Väisälä frequency \eqref{brunt_vaisala},
 
 \begin{equation}\label{theta_bar}
     \overline{\theta}(z) = \overline{\theta}_\text{bot} \exp \left( \frac{1}{g} \int _0 ^z \overline{N}(\xi)^2 \, d\xi\right)
@@ -117,15 +122,16 @@ We can then determine the reference potential temperature profile by solving for
     \end{minipage}
 \end{figure}
 
-We combine the ideal gas law $p = \rho R T$ and the the definition of $\theta$ \eqref{pot_temp} to express the reference density profile:
+We combine the ideal gas law $p = \rho R T$ and the the definition of $\theta$ \eqref{pot_temp} to express the reference density profile, where $\kappa = R/c_p$:
 
 \begin{equation}\label{rho_bar}
     \overline{\rho}(z) = \frac{\overline{p}}{R \overline{\theta}} \left( \frac{p_s}{\overline{p}}\right)^\kappa
 \end{equation}
-To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assumption that $d\overline{p}/dz = -g \overline{\rho}$, substitute in equation \eqref{rho_bar}, and solve the ODE to yield \cite{fehlmann1997pvelements}:
+
+To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assumption that $d\overline{p}/dz = -g \overline{\rho}$, substitute in equation \eqref{rho_bar}, and solve the ODE to yield \cite{fehlmann1997pvelements}.
 
 \begin{equation}\label{p_bar}
-    \overline{p}(z) = \overline {p}_\text{bot} \left( 1- \frac{\kappa g}{R} \left( \frac{p_s}{\overline{p}_\text{bot}}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
+    \overline{p}(z) = \overline {p}_\text{bot} \left( 1- \frac{\kappa g}{R} \left( \frac{p_\text{surf}}{\overline{p}(0)}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
 \end{equation}
 
 \begin{figure}[htbp]
@@ -145,25 +151,50 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
     \end{minipage}
 \end{figure}
 
+The approximation $\overline{p}(0) = p_\text{surf} = \qty{1000}{\hecto\pascal}$ will be made for simplicity.
+
 \subsection{Boundary Conditions}
-To specify the horizontal boundary conditions, we need to choose values of $u$ and $v$. We will define a jet stream aiming to recreate the one shown in \cite{Barnes2022main}. The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the tropopause vertically, is centred about the middle of the domain meridionally, has a Gaussian shape, and has a similar overall size to the one shown in \cite{Barnes2022main} ($y_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{2000}{\meter}$). We will let
+To specify the horizontal boundary conditions, we need to choose values of $u$ and $v$. We will define a jet stream aiming to recreate the one shown in \cite{Barnes2022main}.
+The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the tropopause vertically, is centred about the middle of the domain meridionally, has a Gaussian shape, and has a similar overall size to the one shown in \cite{Barnes2022main} ($y_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{2000}{\meter}$).
+We will let
 
 \begin{equation}\label{u_boundary}
     u(y,z) = u_\text{jet} \exp\left[ - \left(\frac{y - L_y /2}{y_\text{jet}}\right)^2 - \left(\frac{z - z_\text{trop}}{z_\text{jet}} \right)^2\right]
 \end{equation}
+
 \begin{equation}\label{v_boundary}
     v(x,z) = 0
 \end{equation}
+
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.96\linewidth]{jet_stream.pdf}
     \caption{Jet stream specified in equation \eqref{u_boundary}}
     \label{fig:jet_stream}
 \end{figure}
+
 You may notice that we have not yet defined $\theta^*$. It will be calculated later on to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
 
 \subsection{Source term}
-To calculate the source term $q(x,y,z)$
+To calculate the source term $q(x,y,z)$ we must first specify the background state $\overline{Q}$. This is given by \cite{fehlmann1997pvelements}:
+
+\begin{equation}\label{Q_bar} %TODO check relative vorticity is not necessary here
+    \overline{Q}(z) = \frac{f \overline{N}^2\overline{\theta}}{\overline{\rho} g}
+\end{equation}
+
+We will specify the same PV anomaly as the one used in \cite{Barnes2022main} minus the obvious typographical errors:
+
+\begin{equation}\label{Q_star}
+    Q^*(x,y,z) = -4 \times10^{-6} \exp \left[- \left(\frac{x - x_\text{ano}}{x_\text{size}}\right)^2 - \left(\frac{y - y_\text{ano}}{y_\text{size}}\right)^2 - \left(\frac{z - z_\text{ano}}{z_\text{size}}\right)^2\right]
+\end{equation}
+
+The anomaly will initially be placed at the centre of the domain ($x_\text{ano} = L_x/2$ and $y_\text{ano} = L_y/2$), with an anomaly height that corresponds to the troposphere height ($z_\text{ano}=z_\text{trop}$).
+For the first experiment the anomaly sizes $x_\text{size} = y_\text{size} = \qty{200}{\km}$ and $z_\text{size} = \qty{2000}{\meter}$ will be used.
+To convert $Q=\overline{Q}+Q^*$ into quasigeostrophic PV, we employ the following approximation \cite{fehlmann1997pvelements}:
+
+\begin{equation}\label{full_q} %TODO plots of q and Q
+    q \approx \frac{\overline{\rho} g}{\overline{N}^2 \overline{\theta}} Q - f
+\end{equation}
 
 \bibliographystyle{alpha}
 \bibliography{sources}
@@ -196,7 +227,7 @@ To calculate the source term $q(x,y,z)$
     \item Reproduction of a few of Barnes' experiments
     \item What happens if we change Brunt-Vaisala to be more realistic
     \item Potentially investigate alternative backgrounds
-    \item Feasibility of explicit timestepping - stability condition
+    \item Feasability of explicit timestepping - stability condition
 \end{enumerate}
 
 \end{document}
