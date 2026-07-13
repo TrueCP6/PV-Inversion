@@ -143,7 +143,8 @@ def plot_yz_heatmap(f, plot_title, cbar_title, x_coord=None, num_points_y=200, n
         heatmap = plt.pcolormesh(Y, Z, F, cmap='viridis', shading='auto', rasterized=True)
 
         # Superimposed solid contours
-        plt.contour(Y, Z, F, levels=10, colors='black', linewidths=0.5, alpha=0.5)
+        levels = np.arange(0, 35, 5)
+        plt.contour(Y, Z, F, levels=levels, colors='black', linewidths=0.5, alpha=0.5)
 
         # Add colorbar
         cbar = plt.colorbar(heatmap)

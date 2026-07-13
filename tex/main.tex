@@ -70,7 +70,7 @@ We will call this quantity Ertel's potential vorticity (EPV) and denote it as $Q
 \begin{equation}\label{epv}
     \frac{DQ}{Dt} = \frac{D}{Dt} \left( \frac{(\zeta + f \mathbf{\hat {k}}) \cdot \nabla \theta}{\rho} \right) =0
 \end{equation}
-where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$. $Q$ has units of \unit{\kelvin \meter \squared \per \second \per \kg} \cite{Barnes2022main}.
+where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$ and $Q$ has units of \unit{\kelvin \meter \squared \per \second \per \kg} \cite{Barnes2022main}.
 
 \section{TODO Many Sections to link above and below}
 % TODO specify geostrophic vorticity
@@ -102,7 +102,7 @@ Initially we will take $\delta = 2$, $z_\text{trop}=\qty{12500}{\meter}$ \cite{B
 We can then determine the reference potential temperature profile by solving for $\overline{\theta}$ in the definition of the Brunt–Väisälä frequency \eqref{brunt_vaisala},
 
 \begin{equation}\label{theta_bar}
-    \overline{\theta}(z) = \overline{\theta}_\text{bot} \exp \left( \frac{1}{g} \int _0 ^z \overline{N}(\xi)^2 \, d\xi\right)
+    \overline{\theta}(z) = \overline{\theta}(0) \exp \left( \frac{1}{g} \int _0 ^z \overline{N}(\xi)^2 \, d\xi\right)
 \end{equation}
 
 \begin{figure}[htbp]
@@ -125,13 +125,13 @@ We can then determine the reference potential temperature profile by solving for
 We combine the ideal gas law $p = \rho R T$ and the the definition of $\theta$ \eqref{pot_temp} to express the reference density profile, where $\kappa = R/c_p$:
 
 \begin{equation}\label{rho_bar}
-    \overline{\rho}(z) = \frac{\overline{p}}{R \overline{\theta}} \left( \frac{p_s}{\overline{p}}\right)^\kappa
+    \overline{\rho}(z) = \frac{\overline{p}}{R \overline{\theta}} \left( \frac{p_\text{surf}}{\overline{p}}\right)^\kappa
 \end{equation}
 
 To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assumption that $d\overline{p}/dz = -g \overline{\rho}$, substitute in equation \eqref{rho_bar}, and solve the ODE to yield \cite{fehlmann1997pvelements}.
 
 \begin{equation}\label{p_bar}
-    \overline{p}(z) = \overline {p}_\text{bot} \left( 1- \frac{\kappa g}{R} \left( \frac{p_\text{surf}}{\overline{p}(0)}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
+    \overline{p}(z) = \overline {p}(0) \left( 1- \frac{\kappa g}{R} \left( \frac{p_\text{surf}}{\overline{p}(0)}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
 \end{equation}
 
 \begin{figure}[htbp]
@@ -169,17 +169,21 @@ We will let
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.96\linewidth]{jet_stream.pdf}
-    \caption{Jet stream specified in equation \eqref{u_boundary}}
+    \caption{Jet stream specified in equation \eqref{u_boundary}. A contour interval of \qty{5}{\meter\per\second} is used.}
     \label{fig:jet_stream}
 \end{figure}
 
 You may notice that we have not yet defined $\theta^*$. It will be calculated later on to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
 
 \subsection{Source term}
-To calculate the source term $q(x,y,z)$ we must first specify the background state $\overline{Q}$. This is given by \cite{fehlmann1997pvelements}:
+To calculate the source term $q(x,y,z)$ we must first specify the background state $\overline{Q}$. We will derive this from the full formulation of EPV \eqref{epv} and the Brunt–Väisälä frequency \eqref{brunt_vaisala}. %TODO reference \zeta_g
 
-\begin{equation}\label{Q_bar} %TODO check relative vorticity is not necessary here
-    \overline{Q}(z) = \frac{f \overline{N}^2\overline{\theta}}{\overline{\rho} g}
+\begin{equation}\label{Q_bar}
+\begin{aligned}
+    \overline{Q} &= \frac{(\zeta + f \mathbf{\hat {k}}) \cdot \nabla \overline\theta}{\overline\rho} \\
+    &= \frac{d \overline \theta}{dz} \cdot\frac{\mathbf{\hat {k}} \cdot (\zeta + f \mathbf{\hat {k}})}{\overline\rho} \\
+    &= \frac{\overline{N}^2 \overline{\theta}}{g}  \cdot\frac{\zeta_g + f}{\overline\rho}
+\end{aligned}
 \end{equation}
 
 We will specify the same PV anomaly as the one used in \cite{Barnes2022main} minus the obvious typographical errors:
