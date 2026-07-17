@@ -192,3 +192,4 @@ flamegraph.txt
 memory_log.txt
 *.Identifier
 tex_out/*
+tex/*.pdf

@@ -87,10 +87,11 @@ def plot_function_vs_z(f, plot_title, x_title, x_coord=None, y_coord=None, num_p
         plt.close()
 
 
-def plot_yz_heatmap(f, plot_title, cbar_title, x_coord=None, num_points_y=200, num_points_z=200):
+def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_coord=None,
+                       num_points_h=200, num_points_v=200, figsize=(3.15*2, 4.0)):
     """
     Evaluates and plots a 2D heatmap (with contours) of a 3D Firedrake function
-    along the y-z plane at a constant x coordinate.
+    along a plane normal to the specified axis (x, y, or z).
 
     Parameters
     ----------
@@ -100,12 +101,19 @@ def plot_yz_heatmap(f, plot_title, cbar_title, x_coord=None, num_points_y=200, n
         The title for the resulting plot.
     cbar_title : str
         The label for the colorbar (function value).
-    x_coord : float, optional
-        The x-coordinate of the vertical plane. Defaults to the global mesh center.
-    num_points_y : int, optional
-        Number of sampling points along the y-axis. Defaults to 100.
-    num_points_z : int, optional
-        Number of sampling points along the z-axis. Defaults to 100.
+    levels : int or array-like
+        Determines the number and positions of the contour lines.
+    normal_dir : str, optional
+        The axis normal to the slice plane ('x', 'y', or 'z'). Defaults to 'x'.
+    slice_coord : float, optional
+        The coordinate of the slice plane along the normal_dir.
+        Defaults to the global mesh center for that axis.
+    num_points_h : int, optional
+        Number of sampling points along the horizontal axis of the plot. Defaults to 200.
+    num_points_v : int, optional
+        Number of sampling points along the vertical axis of the plot. Defaults to 200.
+    figsize : tuple, optional
+        Figure size.
     """
     mesh = f.function_space().mesh()
     comm = mesh.comm
@@ -113,45 +121,65 @@ def plot_yz_heatmap(f, plot_title, cbar_title, x_coord=None, num_points_y=200, n
     # 1. Get global bounds using the helper
     (x_min, x_max), (y_min, y_max), (z_min, z_max) = get_global_mesh_bounds(mesh)
 
-    if x_coord is None:
-        x_coord = (x_max + x_min) / 2.0
+    normal_dir = normal_dir.lower()
+    if normal_dir not in ['x', 'y', 'z']:
+        raise ValueError("normal_dir must be 'x', 'y' or 'z'.")
 
-    # 2. Generate meshgrid for Y and Z
-    y_values = np.linspace(y_min, y_max, num_points_y)
-    z_values = np.linspace(z_min, z_max, num_points_z)
-    Y, Z = np.meshgrid(y_values, z_values)
+    # 2. Determine bounds, labels, and slice coordinate based on normal direction
+    if normal_dir == 'x':
+        if slice_coord is None:
+            slice_coord = (x_max + x_min) / 2.0
+        h_min, h_max = y_min, y_max
+        v_min, v_max = z_min, z_max
+        h_label, v_label = r'$y$ [\unit{\meter}]', r'$z$ [\unit{\meter}]'
+    elif normal_dir == 'y':
+        if slice_coord is None:
+            slice_coord = (y_max + y_min) / 2.0
+        h_min, h_max = x_min, x_max
+        v_min, v_max = z_min, z_max
+        h_label, v_label = r'$x$ [\unit{\meter}]', r'$z$ [\unit{\meter}]'
+    else:  # normal_dir == 'z'
+        if slice_coord is None:
+            slice_coord = (z_max + z_min) / 2.0
+        h_min, h_max = x_min, x_max
+        v_min, v_max = y_min, y_max
+        h_label, v_label = r'$x$ [\unit{\meter}]', r'$y$ [\unit{\meter}]'
 
-    # 3. Flatten the grid and append constant x to build an (N, 3) array of coordinates
-    points = np.column_stack((
-        np.full(Y.size, x_coord),
-        Y.flatten(),
-        Z.flatten()
-    ))
+    # 3. Generate meshgrid for the horizontal (H) and vertical (V) axes of the plot
+    h_values = np.linspace(h_min, h_max, num_points_h)
+    v_values = np.linspace(v_min, v_max, num_points_v)
+    H, V = np.meshgrid(h_values, v_values)
 
-    # 4. Evaluate the function using PointEvaluator
+    # 4. Flatten the grid and insert the constant slice coordinate
+    if normal_dir == 'x':
+        points = np.column_stack((np.full(H.size, slice_coord), H.flatten(), V.flatten()))
+    elif normal_dir == 'y':
+        points = np.column_stack((H.flatten(), np.full(H.size, slice_coord), V.flatten()))
+    else:  # normal_dir == 'z'
+        points = np.column_stack((H.flatten(), V.flatten(), np.full(H.size, slice_coord)))
+
+    # 5. Evaluate the function using PointEvaluator
     evaluator = PointEvaluator(mesh, points)
     f_values_flat = evaluator.evaluate(f)
 
-    # 5. Plot only on the root rank
+    # 6. Plot only on the root rank
     if comm.rank == 0:
         # Reshape evaluated 1D array back to 2D meshgrid shape
-        F = f_values_flat.reshape(Y.shape)
+        F = f_values_flat.reshape(H.shape)
 
-        # Make figure slightly wider than the 1D profile to accommodate the colorbar
-        plt.figure(figsize=(3.15*2, 4.0))
+        plt.figure(figsize=figsize)
 
-        heatmap = plt.pcolormesh(Y, Z, F, cmap='viridis', shading='auto', rasterized=True)
+        heatmap = plt.pcolormesh(H, V, F, cmap='viridis', shading='auto', rasterized=True)
 
         # Superimposed solid contours
-        levels = np.arange(0, 35, 5)
-        plt.contour(Y, Z, F, levels=levels, colors='black', linewidths=0.5, alpha=0.5)
+        plt.contour(H, V, F, levels=levels, colors='black', linewidths=0.5, alpha=0.5)
 
         # Add colorbar
         cbar = plt.colorbar(heatmap)
         cbar.set_label(cbar_title)
 
-        plt.xlabel(r'$y$ [\unit{\meter}]')
-        plt.ylabel(r'$z$ [\unit{\meter}]')
+        plt.xlabel(h_label)
+        plt.ylabel(v_label)
 
         plt.tight_layout()
 
@@ -170,6 +198,25 @@ if __name__ == "__main__":
     V = domain_builder.func_space()
 
     atmos = BarnesAtmosphere(mesh, V, phys_params)
+
+    epv_cbar_title = r"$Q$ [\unit{PVU} = \qty{e-6}{\kelvin \meter \squared \per \second \per \kg}]"
+
+    plot_slice_heatmap(
+        Function(V).interpolate(atmos.ertel_pv() * 1e6),
+        "EPV_X",
+        epv_cbar_title,
+        levels=np.arange(-5, 0, 0.5),
+        normal_dir='x'
+    )
+
+    plot_slice_heatmap(
+        Function(V).interpolate(atmos.ertel_pv() * 1e6),
+        "EPV_Y",
+        epv_cbar_title,
+        levels=np.arange(-5, 0, 0.5),
+        normal_dir='y'
+    )
+    PETSc.Sys.Print("Saved EPV plots")
 
     plot_function_vs_z(
         atmos.N_bar(),
@@ -195,8 +242,16 @@ if __name__ == "__main__":
         r"$\overline{\theta}$ [\unit{\kelvin}]"
     )
 
-    plot_yz_heatmap(
+    plot_slice_heatmap(
         Function(V).interpolate(atmos.u()),
         "Jet Stream",
-        r"$u$ [\unit{\meter\per\second}]"
+        r"$u$ [\unit{\meter\per\second}]",
+        levels=np.arange(0, 35, 5)
+    )
+
+    plot_slice_heatmap(
+        Function(V).interpolate(atmos.geostrophic_vorticity()),
+        "Background Geostrophic Vorticity",
+        r"$\zeta_g$ [\unit{\per\second}]",
+        levels=10
     )

@@ -91,12 +91,21 @@ class BarnesAtmosphere(AtmosphereBuilder):
         return fn
 
     @cache
+    def geostrophic_vorticity(self):
+        return self.v().dx(0) - self.u().dx(1)
+
+    @cache
+    def Q_bar(self):
+        # Background state
+        vort = self.geostrophic_vorticity()
+        background = self.phys_params.f * self.theta_bar() * self.N_bar() ** 2 \
+                     / (self.phys_params.g * self.rho_bar()) \
+                     * (1 + vort / self.phys_params.f)
+        return background
+
+    @cache
     def ertel_pv(self):
-        #Background state
-        vort = self.v().dx(0) - self.u().dx(1)
-        background = self.phys_params.f * self.theta_bar() * self.N_bar()**2 \
-            / (self.phys_params.g * self.rho_bar()) \
-            * (1 + vort / self.phys_params.f)
+        background = self.Q_bar()
 
         # Specify anomaly
         ANO_exponent = -((self.z - self.phys_params.anomaly_z_pos) / self.phys_params.anomaly_z_size) ** 2 \
