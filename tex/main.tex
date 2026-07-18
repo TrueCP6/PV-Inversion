@@ -9,6 +9,8 @@
 \usepackage{minted}
 \usepackage{siunitx}
 \usepackage{subcaption}
+\usepackage{cleveref}
+\usepackage{float}
 
 \title{Your Paper}
 \author{You}
@@ -24,7 +26,6 @@ Your abstract.
 %\newpage
 
 \section{Basic Concepts}
-%TODO check the implementation of the jet stream is correct with regards to the geostrophic relative vorticity calculation
 For readers who are not familiar with atmospheric science, but who are familiar with Applied Mathematics, a brief overview of terminology and atmospheric properties is given.
 
 \subsection{Layers of the Atmosphere}
@@ -74,6 +75,12 @@ where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$ and
 
 \section{TODO Many Sections to link above and below}
 % TODO specify geostrophic vorticity
+\begin{equation}\label{qgpv}
+    q(x,y,z,t) = \psi_{xx} + \psi_{yy} + \frac{f^2}{\overline{\rho}(z)} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}(z)}{\overline{N}(z)^2}  \psi_z\right)
+\end{equation}
+\begin{equation}\label{qgpv_time}%TODO specify more rigourosly
+    \frac{Dq}{Dt}=0
+\end{equation}
 
 \section{Fully Specifying the QGPV Equation}
 \subsection{Background States and Coefficients}
@@ -82,7 +89,7 @@ We will specify $\overline{N}(z)$ using the same values as Barnes et al. \cite{B
 Barnes et al. specify a stability profile such that $\overline N_\text{strat} = \qty{0.03}{\per\second}$ in the stratosphere and $\overline N_\text{trop} = \qty{0.01}{\per\second}$ in the troposphere \cite{Barnes2022main}.
 This discontinuity at the tropopause is smoothed out by the following family of kink functions \cite{fehlmann1997pvelements}:
 
-\begin{equation}
+\begin{equation}\label{kappa_delta}
     \kappa_\delta (x) = \begin{cases}
         0 & x \leq 0 \\
         \frac12 (2x)^\delta & 0 < x \leq\frac12 \\
@@ -105,7 +112,7 @@ We can then determine the reference potential temperature profile by solving for
     \overline{\theta}(z) = \overline{\theta}(0) \exp \left( \frac{1}{g} \int _0 ^z \overline{N}(\xi)^2 \, d\xi\right)
 \end{equation}
 
-\begin{figure}[htbp]
+\begin{figure}[hbtp]
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
@@ -134,7 +141,7 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
     \overline{p}(z) = \overline {p}(0) \left( 1- \frac{\kappa g}{R} \left( \frac{p_\text{surf}}{\overline{p}(0)}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
 \end{equation}
 
-\begin{figure}[htbp]
+\begin{figure}[hbtp]
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
@@ -166,7 +173,7 @@ We will let
     v(x,z) = 0
 \end{equation}
 
-\begin{figure}[htbp]
+\begin{figure}[hbtp]
     \centering
     \includegraphics[width=0.96\linewidth]{jet_stream.pdf}
     \caption{Jet stream specified in equation \eqref{u_boundary}. A contour interval of \qty{5}{\meter\per\second} is used.}
@@ -176,7 +183,7 @@ We will let
 You may notice that we have not yet defined $\theta^*$. It will be calculated later on to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
 
 \subsection{Source term}
-To calculate the source term $q(x,y,z)$ we must first specify the background state $\overline{Q}$. We will derive this from the full formulation of EPV \eqref{epv} and the Brunt–Väisälä frequency \eqref{brunt_vaisala}. %TODO reference \zeta_g
+To calculate the source term $q$ we must first specify the background state $\overline{Q}$. We will derive this from the full formulation of EPV \eqref{epv} and the Brunt–Väisälä frequency \eqref{brunt_vaisala}. %TODO reference \zeta_g
 
 \begin{equation}\label{Q_bar}
 \begin{aligned}
@@ -192,13 +199,51 @@ We will specify the same PV anomaly as the one used in \cite{Barnes2022main} min
     Q^*(x,y,z) = -4 \times10^{-6} \exp \left[- \left(\frac{x - x_\text{ano}}{x_\text{size}}\right)^2 - \left(\frac{y - y_\text{ano}}{y_\text{size}}\right)^2 - \left(\frac{z - z_\text{ano}}{z_\text{size}}\right)^2\right]
 \end{equation}
 
+\begin{figure}[hbtp]
+    \centering
+    \begin{subfigure}{\linewidth}
+        \centering
+        \includegraphics[width=0.96\linewidth]{epv_x.pdf}
+        \caption{Cross-section in the $x$-direction}
+        \label{fig:epv_x}
+    \end{subfigure}
+
+    \vspace{1em} % Adds vertical space between the stacked images
+
+    \begin{subfigure}{\linewidth}
+        \centering
+        \includegraphics[width=0.96\linewidth]{epv_y.pdf}
+        \caption{Cross-section in the $y$-direction}
+        \label{fig:epv_y}
+    \end{subfigure}
+
+    \caption{EPV specified in \cref{Q_bar,Q_star}. A contour interval of \qty{0.5}{PVU} (Potential Vorticity Units) is used.}
+    \label{fig:epv_combined}
+\end{figure}
+
 The anomaly will initially be placed at the centre of the domain ($x_\text{ano} = L_x/2$ and $y_\text{ano} = L_y/2$), with an anomaly height that corresponds to the troposphere height ($z_\text{ano}=z_\text{trop}$).
 For the first experiment the anomaly sizes $x_\text{size} = y_\text{size} = \qty{200}{\km}$ and $z_\text{size} = \qty{2000}{\meter}$ will be used.
 To convert $Q=\overline{Q}+Q^*$ into quasigeostrophic PV, we employ the following approximation \cite{fehlmann1997pvelements}:
 
-\begin{equation}\label{full_q} %TODO plots of q and Q
+\begin{equation}\label{full_q}
     q \approx \frac{\overline{\rho} g}{\overline{N}^2 \overline{\theta}} Q - f
 \end{equation}
+
+\section{Numerical Solution}
+By adopting a smoothing value of $\delta = 2$ for \cref{kappa_delta}, the integral in \cref{theta_bar} is of the following general form \cite{Mathematica}:
+
+\begin{equation}\label{nonelementary}
+    \int e^{z^4}\,dz = - \frac{z \Gamma \left( \frac{1}{4}, -z^4\right)}{4 \sqrt[4]{-z^4}} + C
+\end{equation}
+
+Because this integral lacks a closed-form solution, the coefficients \eqref{rho_bar} and the source term \eqref{full_q} cannot be readily expressed analytically.
+Consequently, numerical integration is required.
+
+While spectral methods offer exponential convergence and efficient memory usage, they trigger non-physical oscillations, known as the Gibbs phenomenon, when applied to localised functions \eqref{full_q} or kink functions \eqref{N_bar} \cite{Trefethen2000}.
+Finite difference schemes are straightforward to implement, but they struggle with the unstructured grids necessary for resolving irregular lower boundaries, such as real-world topography \cite{BLAZEK201529}.
+Furthermore, although finite volume methods excel at tracking fluxes in hyperbolic conservation laws (such as \cref{qgpv_time}), scaling to higher-order accuracy requires implementing more complex schemes \cite{Durran2010}.
+To overcome these limitations, we employ a finite element method (FEM).
+FEM natively handles unstructured meshes with irregular boundaries, effortlessly scales to higher-order accuracy, and supports formulations (such as Discontinuous Galerkin) that strictly enforce flux conservation \cite{FiredrakeUserManual}.
 
 \bibliographystyle{alpha}
 \bibliography{sources}

@@ -200,13 +200,15 @@ if __name__ == "__main__":
     atmos = BarnesAtmosphere(mesh, V, phys_params)
 
     epv_cbar_title = r"$Q$ [\unit{PVU} = \qty{e-6}{\kelvin \meter \squared \per \second \per \kg}]"
+    epv_plot_size = (3.15*2, 3)
 
     plot_slice_heatmap(
         Function(V).interpolate(atmos.ertel_pv() * 1e6),
         "EPV_X",
         epv_cbar_title,
         levels=np.arange(-5, 0, 0.5),
-        normal_dir='x'
+        normal_dir='x',
+        figsize=epv_plot_size
     )
 
     plot_slice_heatmap(
@@ -214,7 +216,8 @@ if __name__ == "__main__":
         "EPV_Y",
         epv_cbar_title,
         levels=np.arange(-5, 0, 0.5),
-        normal_dir='y'
+        normal_dir='y',
+        figsize=epv_plot_size
     )
     PETSc.Sys.Print("Saved EPV plots")
 
