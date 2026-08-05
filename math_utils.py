@@ -5,7 +5,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from firedrake import Function, interpolate, SpatialCoordinate
 
-
+# this will only work with extruded meshes, as MPI ranks only take vertical chunks and do not do any splitting in the z-direction
 def compute_vertical_integral(integrand, func_space):
     """
     Computes the vertical integral int_{z_bottom}^z f(z') dz' using SciPy.

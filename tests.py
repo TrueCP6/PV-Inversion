@@ -25,10 +25,12 @@ class UtilTests(unittest.TestCase):
         for integrand, exact in test_cases:
             num_soln = compute_vertical_integral(integrand, V)
             error = errornorm(exact, num_soln)
+            PETSc.Sys.Print(f"Vertical integration error: {error}")
             self.assertLess(error, 1e-6)
 
 class MMSTests(unittest.TestCase):
     def test_mms(self):
+        PETSc.Sys.Print("Testing solution lines up with MMS")
         N = 20
         solver_params = SolverParams(
             check_flux=False,
@@ -52,7 +54,8 @@ class MMSTests(unittest.TestCase):
 
 class StabilityTests(unittest.TestCase):
     def test_peclet(self):
-        solver_params = SolverParams(nx=1, ny=1, nz=10000)
+        PETSc.Sys.Print("Testing the peclet number is sufficiently small")
+        solver_params = SolverParams(nx=1, ny=8, nz=10000)
         phys_params = PhysicalParams()
 
         domain_builder = DomainBuilder(solver_params, phys_params)
