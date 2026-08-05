@@ -14,8 +14,8 @@ class BarnesAtmosphere(AtmosphereBuilder):
         self.kappa = phys_params.R / phys_params.c_p
 
     @cache
-    def u(self): # Function of y and z
-        exponent = - ((self.y - self.phys_params.anomaly_y_pos) / self.phys_params.jet_y_size) ** 2 \
+    def u(self): # Function of x and z
+        exponent = - ((self.x - self.phys_params.anomaly_x_pos) / self.phys_params.jet_x_size) ** 2 \
             - ((self.z - self.phys_params.trop_height) / self.phys_params.jet_z_size) ** 2
 
         return self.phys_params.jet_magnitude * exp(exponent)

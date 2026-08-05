@@ -4,6 +4,7 @@ from math_utils import *
 from parameters import *
 from solver import *
 from mms_checker import *
+from barnes_atmosphere import *
 
 class UtilTests(unittest.TestCase):
     def test_vertical_integral(self):
@@ -49,6 +50,27 @@ class MMSTests(unittest.TestCase):
             error = atmos.calc_error(solver.psi_soln)
             self.assertLess(error, 1e-6)
 
+class StabilityTests(unittest.TestCase):
+    def test_peclet(self):
+        solver_params = SolverParams(nx=1, ny=1, nz=10000)
+        phys_params = PhysicalParams()
+
+        domain_builder = DomainBuilder(solver_params, phys_params)
+        mesh = domain_builder.mesh()
+        V = domain_builder.func_space()
+
+        atmos = BarnesAtmosphere(mesh, V, phys_params)
+
+        N2 = atmos.N_bar() ** 2
+        rho = atmos.rho_bar()
+        expr = abs(ln(rho / N2).dx(2))
+        fun = Function(V).interpolate(expr)
+
+        with fun.dat.vec_ro as v:
+            global_max = v.max()[1]
+
+        PETSc.Sys.Print(f"Max ratio between advection and diffusion coefficients: {global_max}")
+        self.assertLess(global_max, 0.01)
 
 if __name__ == '__main__':
     unittest.main()

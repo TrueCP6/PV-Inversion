@@ -199,7 +199,7 @@ if __name__ == "__main__":
 
     atmos = BarnesAtmosphere(mesh, V, phys_params)
 
-    epv_cbar_title = r"$Q$ [\unit{PVU} = \qty{e-6}{\kelvin \meter \squared \per \second \per \kg}]"
+    epv_cbar_title = r"$Q$ [\unit{PVU}]"
     epv_plot_size = (3.15*2, 3)
 
     plot_slice_heatmap(
@@ -249,7 +249,8 @@ if __name__ == "__main__":
         Function(V).interpolate(atmos.u()),
         "Jet Stream",
         r"$u$ [\unit{\meter\per\second}]",
-        levels=np.arange(0, 35, 5)
+        levels=np.arange(0, 35, 5),
+        normal_dir='y'
     )
 
     plot_slice_heatmap(
