@@ -32,18 +32,16 @@ class PhysicalParams:
 
 @dataclass
 class SolverParams:
-    nx: int = 40
-    ny: int = 40
-    nz: int = 40
+    nx: int = 35
+    ny: int = 35
+    nz: int = 35
     check_flux: bool = True
     output_file: str = "output.pvd"
-    ksp_rtol: float = 1e-6
-    ksp_atol: float = 1e-8
+    ksp_rtol: float = 1e-9
     matfree_params = {
         "mat_type": "matfree",
         "ksp_type": "cg",
         "ksp_rtol": ksp_rtol,
-        "ksp_atol": ksp_atol,
         # p-multigrid for outer preconditioner
         "pc_type": "python",
         "pc_python_type": "firedrake.PMGPC",
@@ -54,18 +52,20 @@ class SolverParams:
         "pmg_mg_coarse_ksp_type": "preonly",  # Don't iterate, just apply the direct solver once
         "pmg_mg_coarse_pc_type": "python",
         "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
-        "pmg_mg_coarse_assembled_pc_type": "lu"  # Apply LU to the explicitly assembled coarse matrix
-    } # TODO ensure firedrake is using sum factorisation and/or fast diagonalisation
+        "pmg_mg_coarse_assembled_pc_type": "lu",  # Apply LU to the explicitly assembled coarse matrix
+        "ksp_monitor" : None,
+        "ksp_converged_reason" : None
+    }
     assembled_mat_params = { # similar to above but use a fully assembled matrix instead - much faster but uses much more memory
         "mat_type": "aij",
         "ksp_type": "cg",
         "pc_type": "python",
         "ksp_rtol": ksp_rtol,
-        "ksp_atol": ksp_atol,
-        "ksp_monitor": None,
         "pc_python_type": "firedrake.PMGPC",
         "pmg_mg_levels_pc_type": "jacobi",
-        "pmg_mg_coarse_pc_type": "lu"
+        "pmg_mg_coarse_pc_type": "lu",
+        "ksp_monitor": None,
+        "ksp_converged_reason": None
     }
     gamma: float = 0
     polynomial_order: int = 4
