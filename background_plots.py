@@ -5,6 +5,7 @@ from firedrake import PointEvaluator, Function
 from parameters import *
 from barnes_atmosphere import *
 from domain_builder import *
+from solver import *
 
 # 1. Global parameters for academic styling
 plt.rcParams.update({
@@ -190,7 +191,11 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
 
 
 if __name__ == "__main__":
-    solver_params = SolverParams()
+    N = 40
+    solver_params = SolverParams(
+        nx=N,ny=N,nz=N,
+        check_flux=False
+    )
     phys_params = PhysicalParams()
 
     domain_builder = DomainBuilder(solver_params, phys_params)
@@ -198,6 +203,47 @@ if __name__ == "__main__":
     V = domain_builder.func_space()
 
     atmos = BarnesAtmosphere(mesh, V, phys_params)
+
+    psi_cbar_title = r"$\psi$ [\unit{\meter \squared \per \second}]"
+
+    solver = Solver(atmos, solver_params, True)
+    solver.solve_psi()
+    psi = solver.psi_soln
+
+    plot_slice_heatmap(
+        psi,
+        "psi_x",
+        psi_cbar_title,
+        levels=30,
+        normal_dir="x"
+    )
+
+    plot_slice_heatmap(
+        psi,
+        "psi_y",
+        psi_cbar_title,
+        levels=30,
+        normal_dir="y"
+    )
+
+    plot_slice_heatmap(
+        psi,
+        "psi_z",
+        psi_cbar_title,
+        levels=30,
+        normal_dir="z"
+    )
+
+    speed = sqrt(psi.dx(0)**2 + psi.dx(1)**2)
+
+    plot_slice_heatmap(
+        Function(V).interpolate(speed),
+        "surface_wind",
+        r"$\left|\mathbf{u}\right|$ [\unit{\meter \per \second}]",
+        levels=np.arange(0, 3, 0.2),
+        normal_dir="z",
+        slice_coord=0
+    )
 
     epv_cbar_title = r"$Q$ [\unit{PVU}]"
     epv_plot_size = (3.15*2, 3)

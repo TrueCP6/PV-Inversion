@@ -67,10 +67,12 @@ class Solver:
             a, L, self.psi_soln,
             constant_jacobian=True # Saves a lot of time with the assembled solver parameters
         )
+        PETSc.Sys.Print("Created problem")
 
         # Use different solver parameters based on the user requirements
         params = self.solver_params.matfree_params if self.save_memory else self.solver_params.assembled_mat_params
         nullspace = VectorSpaceBasis(constant=True, comm=self.mesh.comm)
+        PETSc.Sys.Print("Created nullspace")
 
         self.solver = LinearVariationalSolver(
             problem,
