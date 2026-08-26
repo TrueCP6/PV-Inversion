@@ -1,4 +1,4 @@
-from functools import cache
+from functools import lru_cache
 from firedrake import *
 from parameters import SolverParams, PhysicalParams
 import numpy as np
@@ -8,7 +8,7 @@ class DomainBuilder:
         self.solver_params = solver_params
         self.phys_params = phys_params
 
-    @cache
+    @lru_cache(maxsize=1)
     def mesh(self):
         temp_mesh = RectangleMesh(
             self.solver_params.nx, self.solver_params.ny,
@@ -47,7 +47,7 @@ class DomainBuilder:
         # Scale back to [0,L]
         return 0.5 * L * (xi_new + 1)
 
-    @cache
+    @lru_cache(maxsize=1)
     def func_space(self):
         mesh = self.mesh()
         p = self.solver_params.polynomial_order

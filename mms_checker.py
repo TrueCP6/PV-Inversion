@@ -1,4 +1,4 @@
-from functools import cache
+from functools import lru_cache
 from atmosphere_builder import AtmosphereBuilder
 from firedrake import *
 from parameters import PhysicalParams
@@ -43,7 +43,7 @@ class MMSChecker(AtmosphereBuilder):
     def q(self):
         return (-5 * (pi**2) / (self.L**2)) * cos(pi * self.x / self.L) * sin(2 * pi * self.y / self.L) + self.c_5 * (2*self.A + self.c_4 * (2 * self.A * self.z + self.B))
 
-    @cache
+    @lru_cache(maxsize=1)
     def psi(self):
         return cos(pi * self.x / self.L) * sin(2*pi*self.y / self.L) + self.A * (self.z**2) + self.B * self.z
 

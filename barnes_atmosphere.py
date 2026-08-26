@@ -1,4 +1,4 @@
-from functools import cache
+from functools import lru_cache
 from atmosphere_builder import *
 from firedrake import *
 from math_utils import *
@@ -13,28 +13,28 @@ class BarnesAtmosphere(AtmosphereBuilder):
         self.H = phys_params.H
         self.kappa = phys_params.R / phys_params.c_p
 
-    @cache
+    @lru_cache(maxsize=1)
     def u(self): # Function of x and z
         exponent = - ((self.x - self.phys_params.anomaly_x_pos) / self.phys_params.jet_x_size) ** 2 \
             - ((self.z - self.phys_params.trop_height) / self.phys_params.jet_z_size) ** 2
 
         return self.phys_params.jet_magnitude * exp(exponent)
 
-    @cache
+    @lru_cache(maxsize=1)
     def v(self):
         return Function(self.func_space).assign(0)
 
     # todo check I don't need to evaulate these at z=0,H
-    @cache
+    @lru_cache(maxsize=1)
     def top_boundary(self):
         return self.phys_params.g * self.theta_star() \
             / (self.phys_params.f * self.theta_bar())
 
-    @cache
+    @lru_cache(maxsize=1)
     def bottom_boundary(self):
         return self.top_boundary()
 
-    @cache
+    @lru_cache(maxsize=1)
     def rho_bar(self):
         p_bar = self.p_bar()
         theta_bar = self.theta_bar()
@@ -47,7 +47,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         PETSc.Sys.Print("Computed reference density profile")
         return fn
 
-    @cache
+    @lru_cache(maxsize=1)
     def N_bar(self):
         full_expr = scaled_kink(
             self.z,
@@ -61,7 +61,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         PETSc.Sys.Print("Computed reference Brunt-Vaisala frequency profile")
         return fn
 
-    @cache
+    @lru_cache(maxsize=1)
     def theta_bar(self):
         integral = compute_vertical_integral(self.N_bar()**2, self.func_space)
         full_expr = self.phys_params.theta_bar_bottom * exp(integral / self.phys_params.g)
@@ -69,7 +69,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         PETSc.Sys.Print("Computed reference potential temperature profile")
         return fn
 
-    @cache
+    @lru_cache(maxsize=1)
     def p_bar(self):
         integral = compute_vertical_integral(1/self.theta_bar(), self.func_space)
         inner_term = (
@@ -79,7 +79,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
             )
         return self.phys_params.p_bottom * (1 - inner_term)**(1/self.kappa)
 
-    @cache
+    @lru_cache(maxsize=1)
     def q(self):
         full_expr = ( # convert from ertel pv to qg pv
             self.ertel_pv() * self.rho_bar() * self.phys_params.g
@@ -90,11 +90,11 @@ class BarnesAtmosphere(AtmosphereBuilder):
         PETSc.Sys.Print("Computed q(x,y,z)")
         return fn
 
-    @cache
+    @lru_cache(maxsize=1)
     def geostrophic_vorticity(self):
         return self.v().dx(0) - self.u().dx(1)
 
-    @cache
+    @lru_cache(maxsize=1)
     def Q_bar(self):
         # Background state
         vort = self.geostrophic_vorticity()
@@ -103,7 +103,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
                      * (1 + vort / self.phys_params.f)
         return background
 
-    @cache
+    @lru_cache(maxsize=1)
     def ertel_pv(self):
         background = self.Q_bar()
 
@@ -115,7 +115,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
         return background + ANO
 
-    @cache
+    @lru_cache(maxsize=1)
     def theta_star(self):
         q = self.q()
         N_bar = self.N_bar()
@@ -138,4 +138,3 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
         PETSc.Sys.Print("theta_star = ", theta_star)
         return theta_star
-
