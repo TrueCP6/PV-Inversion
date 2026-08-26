@@ -146,8 +146,8 @@ def main():
     parser.add_argument('-md', '--max_dofs_matfree', type=int, default=6e6)
     parser.add_argument('-nr', '--num_resolutions', type=int, default=5)
     parser.add_argument('-j', '--job_id', type=int, default=0)
-    parser.add_argument('-r', '--ranks', type=int, default=1,
-                        help='MPI ranks to use for each data point (each point runs in its own mpiexec process)')
+    parser.add_argument('-ni', '--num_initial_solves', type=int, default=1)
+    parser.add_argument('-r', '--ranks', type=int, default=1, help='MPI ranks to use for each data point (each point runs in its own mpiexec process)')
     # Internal re-exec entry point for a single (N, matfree) point - not for direct use.
     parser.add_argument('--single-point', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('-N', type=int, help=argparse.SUPPRESS)
@@ -187,8 +187,10 @@ def main():
     n_assembled = np.round(n_assembled).astype(int)
     n_matfree = np.round(n_matfree).astype(int)
 
-    records = eval_ns(n_assembled, p, False, num_solves, args.ranks)
-    records.extend(eval_ns(n_matfree, p, True, num_solves, args.ranks))
+    records = []
+    for _ in range(args.num_initial_solves):
+        records.extend(eval_ns(n_assembled, p, False, num_solves, args.ranks))
+        records.extend(eval_ns(n_matfree, p, True, num_solves, args.ranks))
 
     with open(f"time_complexity_{args.job_id}.json", "w") as f:
         json.dump([asdict(record) for record in records], f, indent=2)

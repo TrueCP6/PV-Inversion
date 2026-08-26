@@ -29,10 +29,11 @@ export APPTAINERENV_PYOP2_CACHE_DIR=${HOST_CACHE_DIR}/pyop2
 apptainer exec \
     --bind /scratch/eltrob002 \
     --bind $HOST_CACHE_DIR \
-    ~/firedrake.sif python3 -u Thesis/time_complexity.py \
-    -j ${SLURM_JOB_ID} \
-    -ns 4 \
-    -ad 12000000 \
-    -md 12000000 \
-    -nr 20 \
-    -r 40
+    ~/firedrake.sif python3 Thesis/time_complexity.py \
+    --job_id ${SLURM_JOB_ID} \
+    --num_solves 2 \
+    --max_dofs_assembled 12000000 \
+    --max_dofs_matfree 12000000 \
+    --num_resolutions 20 \
+    --ranks 40 \
+    --num_initial_solves 3

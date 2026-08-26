@@ -111,3 +111,40 @@ def plot_func_slice(func : Function, z_scale : float = 50, normal = 'x'):
     plotter.set_scale(zscale=z_scale)
     plotter.show()
 
+def relative_error(exact, numerical : Function, norm_type='L2'):
+    # Make sure exact is not a plain UFL expression
+    if not isinstance(exact, Function):
+        exact = Function(numerical.function_space()).interpolate(exact)
+
+    # If the two function spaces are not the same, we interpolate the coarser function onto the finer mesh
+    if exact.function_space() != numerical.function_space():
+        if exact.function_space().dim() > numerical.function_space().dim():
+            fine_func_space = exact.function_space()
+            numerical = Function(fine_func_space).interpolate(numerical)
+        else:
+            fine_func_space = numerical.function_space()
+            exact = Function(fine_func_space).interpolate(exact)
+    else:
+        fine_func_space = exact.function_space()
+
+    # Define a mesh-specific measure on the fine mesh to prevent integration ambiguity
+    dx_fine = dx(domain=fine_func_space.mesh())
+
+    # calculate mean offset between numerical and analytical solutions, as we don't know what constant the solver added to psi
+    total_offset = assemble((numerical - exact) * dx_fine)
+    volume = assemble(Constant(1) * dx_fine)
+    mean_offset = total_offset / volume
+
+    # shift the numerical solution by that constant we have worked out
+    numerical_shifted = Function(fine_func_space).interpolate(numerical - mean_offset)
+
+    absolute_error = errornorm(exact, numerical_shifted, norm_type=norm_type)
+
+    # compute mean of exact solution
+    exact_mean = assemble(exact * dx_fine) / volume
+    # shift exact solution, to prevent similar problem to before
+    exact_shifted = Function(fine_func_space).interpolate(exact - exact_mean)
+
+    exact_norm = norm(exact_shifted, norm_type=norm_type)
+
+    return absolute_error / exact_norm
