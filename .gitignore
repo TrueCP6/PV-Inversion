@@ -194,3 +194,4 @@ memory_log.txt
 tex_out/*
 tex/*.pdf
 *.json
+.claude/*

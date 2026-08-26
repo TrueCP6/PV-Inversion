@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from collections import defaultdict
 from dataclasses import dataclass, asdict
 
 import numpy as np
@@ -82,6 +83,61 @@ def eval_ns(Ns, p : int, matfree : bool, num_solves : int, ranks : int):
                 records.extend(TimeRecord(**r) for r in json.load(f))
     return records
 
+def _dofs_vs_time(records):
+    """Average solve time per degrees-of-freedom value across a list of TimeRecords."""
+    grouped = defaultdict(list)
+    for r in records:
+        grouped[r.dofs()].append(r.time)
+    dofs = sorted(grouped)
+    times = [np.mean(grouped[d]) for d in dofs]
+    return np.array(dofs), np.array(times)
+
+def plot_time_complexity(json_path, output_path="tex/time_complexity.pdf"):
+    """
+    Create a log-log plot of solve time vs degrees of freedom from a
+    time_complexity_*.json results file, styled to match background_plots.py.
+    """
+    from firedrake.petsc import PETSc
+    PETSc.Options().setValue("options_left", "false")
+
+    import background_plots  # noqa: F401 - applies the shared matplotlib rcParams styling
+    import matplotlib.pyplot as plt
+
+    with open(json_path) as f:
+        records = [TimeRecord(**r) for r in json.load(f)]
+
+    series = [
+        ("Assembled matrix, initial solve", False, True, '#004488', 'o', '-'),
+        ("Assembled matrix, subsequent solves", False, False, '#004488', 's', '--'),
+        ("Matrix free, initial solve", True, True, '#BB5566', 'o', '-'),
+        ("Matrix free, subsequent solves", True, False, '#BB5566', 's', '--'),
+    ]
+
+    plt.figure(figsize=(3.15 * 2, 4.0))
+
+    for label, matfree, initial_run, color, marker, linestyle in series:
+        subset = [r for r in records if r.matfree == matfree and r.initial_run == initial_run]
+        if not subset:
+            continue
+        dofs, times = _dofs_vs_time(subset)
+        plt.loglog(dofs, times, color=color, marker=marker, linestyle=linestyle,
+                   linewidth=1.5, markersize=4, label=label)
+
+        if len(dofs) >= 2:
+            slope, _ = np.polyfit(np.log(dofs), np.log(times), 1)
+            print(f"{label}: average log-log slope = {slope:.3f}")
+        else:
+            print(f"{label}: not enough points to fit a slope")
+
+    plt.xlabel(r'Degrees of freedom')
+    plt.ylabel(r'Solve time [\unit{\second}]')
+    plt.grid(True, which='both', linestyle=':', alpha=0.5)
+    plt.legend()
+    plt.tight_layout()
+
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close()
+
 def main():
     parser = argparse.ArgumentParser(description='Get performance results for ')
     parser.add_argument('-p', '--polynomial_order', type=int, default=4)
@@ -97,6 +153,9 @@ def main():
     parser.add_argument('-N', type=int, help=argparse.SUPPRESS)
     parser.add_argument('--matfree', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('-o', '--out', help=argparse.SUPPRESS)
+    parser.add_argument('--plot', metavar='JSON_PATH',
+                        help='Plot solve time vs degrees of freedom from a time_complexity_*.json '
+                             'results file instead of generating new data, then exit')
     args = parser.parse_args()
 
     if args.single_point:
@@ -109,7 +168,11 @@ def main():
     min_dofs = 50000 * args.ranks # Use at least 50k dofs per rank
     if min_dofs > args.max_dofs_matfree or min_dofs > args.max_dofs_assembled:
         print("Less than 50k DoFs per rank. Use less ranks.")
-        sys.exit(0)
+        return
+
+    if args.plot:
+        plot_time_complexity(args.plot)
+        return
 
     # Get a logarithmically spaced distribution of dofs between min and max
     dofs_assembled = np.geomspace(min_dofs, args.max_dofs_assembled, args.num_resolutions)
