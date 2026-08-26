@@ -23,7 +23,6 @@ plt.rcParams.update({
     "ytick.direction": "in"
 })
 
-
 def get_global_mesh_bounds(mesh):
     """
     Helper function to safely compute the global bounding box of a 3D mesh
@@ -189,11 +188,10 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
         plt.savefig(f"tex/{lwr_case}.pdf", bbox_inches='tight')
         plt.close()
 
-
-if __name__ == "__main__":
+def main():
     N = 40
     solver_params = SolverParams(
-        nx=N,ny=N,nz=N,
+        nx=N, ny=N, nz=N,
         check_flux=False
     )
     phys_params = PhysicalParams()
@@ -210,31 +208,7 @@ if __name__ == "__main__":
     solver.solve_psi()
     psi = solver.psi_soln
 
-    plot_slice_heatmap(
-        psi,
-        "psi_x",
-        psi_cbar_title,
-        levels=30,
-        normal_dir="x"
-    )
-
-    plot_slice_heatmap(
-        psi,
-        "psi_y",
-        psi_cbar_title,
-        levels=30,
-        normal_dir="y"
-    )
-
-    plot_slice_heatmap(
-        psi,
-        "psi_z",
-        psi_cbar_title,
-        levels=30,
-        normal_dir="z"
-    )
-
-    speed = sqrt(psi.dx(0)**2 + psi.dx(1)**2)
+    speed = sqrt(psi.dx(0) ** 2 + psi.dx(1) ** 2)
 
     plot_slice_heatmap(
         Function(V).interpolate(speed),
@@ -246,7 +220,7 @@ if __name__ == "__main__":
     )
 
     epv_cbar_title = r"$Q$ [\unit{PVU}]"
-    epv_plot_size = (3.15*2, 3)
+    epv_plot_size = (3.15 * 2, 3)
 
     plot_slice_heatmap(
         Function(V).interpolate(atmos.ertel_pv() * 1e6),
@@ -305,3 +279,6 @@ if __name__ == "__main__":
         r"$\zeta_g$ [\unit{\per\second}]",
         levels=10
     )
+
+if __name__ == "__main__":
+    main()

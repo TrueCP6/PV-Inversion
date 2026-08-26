@@ -1,11 +1,13 @@
 import time
 from firedrake import *
+from firedrake import matrix_free
+
 import math_utils
 from atmosphere_builder import AtmosphereBuilder
 from parameters import SolverParams
 
 class Solver:
-    def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams, save_memory : bool):
+    def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams, mat_free : bool):
         self.atmos = atmos
         self.func_space = atmos.func_space
         self.solver_params = solver_params
@@ -13,7 +15,7 @@ class Solver:
         self.phys_params = atmos.phys_params
         self.phi = TestFunction(self.func_space)
         self.psi_soln = Function(self.func_space)  # Solution to system will be stored here
-        self.save_memory = save_memory
+        self.mat_free = mat_free
 
         self._setup_solver()
 
@@ -70,7 +72,7 @@ class Solver:
         PETSc.Sys.Print("Created problem")
 
         # Use different solver parameters based on the user requirements
-        params = self.solver_params.matfree_params if self.save_memory else self.solver_params.assembled_mat_params
+        params = self.solver_params.matfree_params if self.mat_free else self.solver_params.assembled_mat_params
         nullspace = VectorSpaceBasis(constant=True, comm=self.mesh.comm)
         PETSc.Sys.Print("Created nullspace")
 

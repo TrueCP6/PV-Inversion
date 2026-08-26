@@ -3,7 +3,7 @@ from math import sin, pi, sqrt
 
 @dataclass
 class PhysicalParams:
-    Lx: float = 7500e3
+    Lx: float = 5000e3
     Ly: float = 5000e3
     H: float = 20e3
     f: float = 2 * 7.292e-5 * sin(-42 / 180 * pi)
