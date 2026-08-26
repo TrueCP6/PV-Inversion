@@ -5,35 +5,61 @@
 \usepackage[a4paper,top=2cm,bottom=2cm,left=2.5cm,right=2.5cm,marginparwidth=1.75cm]{geometry}
 \usepackage{amsmath}
 \usepackage{graphicx}
-\usepackage[colorlinks=true, allcolors=blue]{hyperref}
 \usepackage{minted} %TODO improve formatting
 \setminted{linenos, frame=single, breaklines}
 \usepackage{siunitx}
 \usepackage{subcaption}
-\usepackage{cleveref}
 \usepackage{float}
+\usepackage{booktabs}
+\usepackage{bm}
+\usepackage{soul}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[title,titletoc,page]{appendix}
+\usepackage[
+    colorlinks=true,
+    linkcolor=Maroon,       % Internal links (sections, equations, figures)
+    citecolor=ForestGreen,  % Citations from your bibliography
+    urlcolor=NavyBlue,      % External website links
+    filecolor=Mulberry      % Links to local files
+]{hyperref}
+\usepackage[noabbrev]{cleveref}
 
-\title{Your Paper}
-\author{You}
+\title{Idealised simulation of a symmetric cut-off low through quasi-geostrophic potential vorticity inversion and the finite element method}
+\author{Robert Eliott}
 
 \begin{document}
 \maketitle
 
-\begin{abstract}
-Your abstract.
-\end{abstract}
+% \begin{abstract}
+% Your abstract. %TODO
+% \end{abstract}
 
 \tableofcontents
-%\newpage
+\newpage
 
-\section{Basic Concepts}
+\section{Introduction}
+
+The intersection of applied mathematics and atmospheric science provides a rigorous framework for modelling complex meteorological phenomena.
+This work introduces foundational atmospheric concepts -- such as atmospheric stratification, potential vorticity, stratospheric intrusions, and cut-off lows -- from an applied mathematics perspective, with a specific focus on their dynamics and significant weather impacts in South Africa.
+
+The theoretical core of this project is governed by the quasigeostrophic potential vorticity (QGPV) equation \cite{Hoskins1985}.
+We specify the mathematical formulation of the QGPV equation, detailing its inherent limitations, physical assumptions, and the requisite background states.
+To approximate solutions to this equation, we design and implement an efficient numerical solver.
+This solver is designed to scale effectively in parallel computational environments and remain computationally tractable for time-stepping, with its mathematical correctness rigorously verified.
+
+A primary objective of this research is to construct an idealised model of stratospheric intrusions caused by cut-off lows, building directly upon the foundational work of Fehlmann \cite{fehlmann1997pvelements}, Sprenger \cite{sprenger2007userguide}, and Barnes et al. \cite{Barnes2022main}.
+We aim to replicate their time-independent experiments to validate our computational approach, subsequently comparing results and conducting additional numerical experiments to expand on their findings.
+Finally, this project investigates the computational feasibility of time-stepping the QGPV equation.
+By implementing time-dependent simulations, we seek to explore the time-evolution and dynamic lifecycle of these idealised atmospheric systems.
+
+\section{Atmospheric Science Concepts}
 For readers who are not familiar with atmospheric science, but who are familiar with Applied Mathematics, a brief overview of terminology and atmospheric properties is given.
 
 \subsection{Layers of the Atmosphere}
 The atmosphere is divided into a number of distinct layers, a characteristic referred to as \textit{stratification}. We will focus on the two layers closest to the Earth's surface: the troposphere and the stratosphere. The boundary between these two layers is known as the \textit{tropopause} \cite{Vallis2017}.
 
 \begin{itemize}
-    \item The \textbf{troposphere} extends from the Earth's surface ($z=0$) up to the tropopause. This layer is mostly transparent to incoming solar (shortwave) radiation, meaning it is primarily heated from below by terrestrial (longwave) radiation emitted by the Earth's surface. This bottom-up heating results in a negative vertical temperature gradient ($\frac{\partial T}{\partial z} < 0$) \cite{Vallis2017}. As a practical example, as you climb higher up a mountain, the temperature decreases with increasing altitude. The warmer air close to the surface is less dense than the colder air at higher altitudes, which leads to convective instability \cite{danielson2003meteorology}. Consequently, this layer experiences high turbulence \cite{sprenger2007userguide} and substantial dissipation of energy; almost all typical weather phenomena occur here.
+    \item The \textbf{troposphere} extends from the Earth's surface ($z=0$) up to the tropopause. This layer is mostly transparent to incoming solar (shortwave) radiation, meaning it is primarily heated from below by terrestrial (longwave) radiation emitted by the Earth's surface. This bottom-up heating results in a negative vertical temperature gradient ($\frac{\partial T}{\partial z} < 0$) \cite{Vallis2017}. As a practical example, as you climb higher up a mountain, the temperature tends to decrease with increasing altitude. The warmer air close to the surface is less dense than the colder air at higher altitudes, which leads to convective instability \cite{danielson2003meteorology}. Consequently, this layer experiences high turbulence \cite{sprenger2007userguide} and substantial dissipation of energy; almost all typical weather phenomena occur here.
 
     \item Above the troposphere lies the \textbf{stratosphere}. This layer contains a higher concentration of ozone, which absorbs high-energy ultraviolet (UV) solar radiation, heating the layer from within. Solar radiation first heats the ozone at higher altitudes, losing energy as it penetrates deeper into the lower stratosphere. This results in a positive temperature gradient ($\frac{\partial T}{\partial z} > 0$) \cite{Vallis2017}. Because warmer, less dense air sits atop cooler, denser air, the stratosphere is highly stable with respect to vertical convection \cite{Barnes2022main}.
 
@@ -44,46 +70,151 @@ The atmosphere is divided into a number of distinct layers, a characteristic ref
 The meaning of certain relevant terms that will be used later on is given. We assume that the reader is familiar with the quantities temperature ($T$), pressure ($p$), density ($\rho$) and acceleration due to gravity ($g$).
 
 \begin{itemize}
-    \item An \textbf{adiabatic} process is where a system exchanges no heat with its surroundings. In the case of the movement of an air parcel, the process is adiabatic if temperature only changes due to changes in pressure \cite{Vallis2017}.
+    \item An \textbf{adiabatic} process involves a system exchanging no heat with its surroundings. In the case of the movement of an air parcel, the process is adiabatic if temperature only changes due to changes in pressure \cite{Vallis2017}.
 
-    \item The \textbf{specific gas constant for dry air} ($R$) is \qty{287.05}{\joule\per\kg\per\kelvin}. It is used to relate $p$, $\rho$ and $T$ using the ideal gas law $p=\rho RT$ \cite{Vallis2017}.
+    \item The \textbf{specific gas constant for dry air} ($R$) is \qty{287.05}{\joule\per\kg\per\kelvin}. It is used to relate $p$, $\rho$ and $T$ using the bulk ideal gas law $p=\rho RT$ \cite{Vallis2017}.
 
     \item The \textbf{specific heat capacity of dry air} ($c_p$) is the amount of heat necessary to heat up \qty{1}{\kg} of dry air by \qty{1}{\kelvin}. We will take it to be \qty{1005}{\joule\per\kg\per\kelvin}
 
-    \item \textbf{Potential temperature} ($\theta$) is the temperature an air parcel would attain if it were brought adiabatically to some reference pressure $p_0$. $p_0$ is usually taken to be \qty{1000}{\hecto\pascal} \cite{sprenger2007userguide}. \begin{equation}\label{pot_temp}
+    \item
+    \textbf{Potential temperature} ($\theta$) is the temperature an air parcel would attain if it were brought adiabatically to some reference pressure $p_0$.
+    $p_0$ is usually taken to be \qty{1000}{\hecto\pascal} \cite{sprenger2007userguide}.
+
+    \begin{equation}\label{pot_temp}
         \theta = T \left( \frac{p_0}{p}\right)^{R/c_p}
     \end{equation}
 
-    \item The \textbf{Brunt–Väisälä frequency} ($N$) is a measure of the stability of an air parcel to vertical displacements, such as those caused by convection \cite{sprenger2007userguide}. \begin{equation}\label{brunt_vaisala}
+    In a purely adiabatic process potential temperature is conserved.
+
+    \begin{equation}\label{pot_temp_conserved}
+        \frac{D\theta}{Dt} = \frac{\partial \theta}{\partial t} + \bm{u} \cdot \nabla \theta = 0
+    \end{equation}
+
+    \item
+    The \textbf{Brunt–Väisälä frequency} ($N$) is a measure of the stability of an air parcel to vertical displacements, such as those caused by convection \cite{sprenger2007userguide}.
+    The stratosphere tends to have larger values of $N^2$ than the troposphere \cite{Barnes2022main}, representing greater stability and less turbulent flow.
+
+    \begin{equation}\label{brunt_vaisala}
         N^2 = \frac{g}{\theta} \frac{\partial \theta}{\partial z}
     \end{equation}
 
-    \item \textbf{Relative vorticity} ($\zeta$) is defined as the curl of the wind velocity vector, i.e. $\zeta = \nabla \times \mathbf{u}$. It physically represents the local spin of a fluid element relative to the Earth's surface \cite{Vallis2017}.
+    \item \textbf{Relative vorticity} ($\bm{\omega}$) is defined as the curl of the wind velocity vector, i.e. $\bm{\omega} = \nabla \times \bm{u}$. It physically represents the local spin of a fluid element relative to the Earth's surface \cite{Vallis2017}.
 
-    \item The \textbf{Coriolis force} ($f$) is a local measure of the effect that the Earth's rotation has on the movement of fluids (such as the atmosphere) on the Earth's surface \cite{Vallis2017}. It is calculated as $f = 2 \Omega \sin (\varphi)$, where $\varphi$ is latitude, and $\Omega$ is the angular momentum of the Earth \cite{sprenger2007userguide}. By convention $f$ is negative in the Southern Hemisphere \cite{Barnes2022main}.
+    \item The \textbf{Coriolis parameter} ($f$) is a local measure of the effect that the Earth's rotation has on the movement of fluids (such as the atmosphere) on the Earth's surface \cite{Vallis2017}. It is calculated as $f = 2 |\Omega| \sin (\varphi)$, where $\varphi$ is latitude, and $\bm\Omega$ is the angular momentum of the Earth \cite{sprenger2007userguide}. By convention $f$ is negative in the Southern Hemisphere \cite{Barnes2022main}.
 
-    %TODO define zonally and meridonially
+    \item The \textbf{zonal} and \textbf{meridional} directions refer to the west-to-east and south-to-north directions respectively. This text will use the convention that the $x$-axis points south and the $y$-axis points east \cite{fehlmann1997pvelements}.
+
+    \item \textbf{Hydrostatic equilibrium} is an assumption often made to simplify large-scale atmospheric models. It presumes that the downward gravitational force on a fluid parcel is precisely balanced by the upward force due to the pressure gradient. It can be written as \cite{Vallis2017}:
+
+    \begin{equation}\label{hydrostatic_equilibrium}
+        \frac{\partial p}{\partial z} = - \rho g
+    \end{equation}
+
 \end{itemize}
 
 \subsection{Potential Vorticity}
 In one of his most significant contributions, Ertel showed that under adiabatic and frictionless conditions, there exists a conserved quantity in the idealised atmosphere.
-We will call this quantity Ertel's potential vorticity (EPV) and denote it as $Q$ \cite{fehlmann1997pvelements}:
+We will call this quantity Ertel's potential vorticity (EPV) and denote it as $Q$ \cite{fehlmann1997pvelements,ertel_english}:
 
 \begin{equation}\label{epv}
-    \frac{DQ}{Dt} = \frac{D}{Dt} \left( \frac{(\zeta + f \mathbf{\hat {k}}) \cdot \nabla \theta}{\rho} \right) =0
+    \frac{DQ}{Dt} = \frac{D}{Dt} \left( \frac{(\bm{\omega} + 2 \bm{\Omega}) \cdot \nabla \theta}{\rho} \right) =0
 \end{equation}
-where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$ and $Q$ has units of \unit{\kelvin \meter \squared \per \second \per \kg} \cite{Barnes2022main}.
+where the material derivative $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$ is used and $Q$ has dimensions of $M^{-1} L^2 T^{-1} \Theta$ \cite{Barnes2022main}.
 
-\section{TODO Many Sections to link above and below}
-% TODO specify geostrophic vorticity
+% If stable air is pulled into troposphere
+% Stability 'stripped' away and traded for cyclonic rotation
+% Requires a lot of energy so where does this come from
+% Creates a cut off low
+% Quick overview of rossby waves
+% 99.3 % of cutoff lows caused by rossby wave breaking
+% Rossby wave breaking is irreversible and highly nonlinear (like nonlinear transport equation?)
+% High PV filaments detach from the main stratospheric resevoir - tropopause fold
+% Stratospheric intrusion causes wind all the way down to the surface
+% Disturbs latituduninal temperature gradient
+% The invertibility principle - if bcs and pv is known, all other fields can be recovered
+% Warm surface anomaly, cold stratospheric intrusion (I think) increases temperature gradient and baroclinic instability
+% Both induce cyclonic rotation if overlapping horizontally and they strengthen each other
+% Combination of the two
+% Deep COLs (57% reach to surface) vs Shallow COLs (fade out at 500hPa)
+% Most shallow in the subtropics and most deep south of 30 degrees (extra tropics)
+% Depth of stratospheric intrusion is important in determining depth of COL
+% But the phase of the surface theta anomaly lowkey needs to align
+% If they don't align you usually get a shallow COL because they destructively interfere
+% COLs responsible for 16% of total rainfall on cape south coast - 20% of all flash flooding events in the whole country
+% Only 49% of COLs in SA reach the surface
+% Usually shallow cols in summer
+% Deep cols peak in autumn
+% Because tropopause goes higher
+% dCOL pulls up cold air from the poles on its western flank - increases density - higher pressure - anticyclone (ridging high)
+% Brings a lot of moisture air into steep topography causing uplift
+% Plus cyclonic forcing of COL causes fucked up rain
+% 57% are d1acols - stratospheric intrusion cause storm to form out of undisturbed air - hard to predict because they spontaneously generate
+% Also stratospheric intrusions put a lot of dry air into the troposphere
+% COLs move slowly so if lamming over warm oceans shit can hit the fan in the form of a surface theta anomaly
+
+\section{The Quasigeostrophic Potential Vorticity Equation}
+
+\subsection{Derivation}
+%TODO beta plane approximation
+By assuming hydrostatic equilibrium (\cref{hydrostatic_equilibrium}) and that the vertical velocity is negligible ($\bm{\hat k} \cdot \bm {u} =w \approx 0$), a change of variables can be made to rewrite \cref{epv} with pressure as the vertical coordinate.
+Since we have $p(x,y,z)$, $x$ and $p$ may be deformed by the change of variables.
+New coordinates in the horizontal directions $x_p$ and $y_p$ must be introduced.
+The notation $\nabla_p = \left(\frac{\partial}{\partial x_p}, \frac{\partial}{\partial y_p}, \frac{\partial}{\partial p}\right)$ will be used for the pressure gradient operator \cite{Hoskins1985}.
+
+\begin{equation}\label{epv_pressure}
+\begin{aligned}
+    Q &= -g \left[ \left(f + \frac{\partial v}{\partial x_p } - \frac{\partial u}{\partial y_p}\right)\frac{\partial \theta}{\partial p} - \frac{\partial v}{\partial p} \frac{\partial \theta}{\partial x_p} + \frac{\partial u}{\partial p} \frac{\partial \theta}{\partial y_p}\right] \\
+    &= -g (f \bm{\hat k} + \nabla_p \times \bm{u} ) \cdot \nabla_p \theta
+\end{aligned}
+\end{equation}
+
+It is assumed that $\theta$ can be split into two components, one horizontally uniform and called the 'reference potential temperature profile' $\overline \theta$ and the potential temperature anomaly $\theta$.
+It is assumed that the perturbation $\theta^* \ll \theta$.
+
+\begin{equation}
+    \theta(x_p,y_p,p,t) = \overline \theta (z) + \theta^* (x_p,y_p,p,t)
+\end{equation}
+
+The same simplification is performed in the same way with other quantities such as $\rho$, $p$ and $N$.
+The corresponding reference profiles $\overline \rho$, $\overline p$ and $\overline N$ are also taken to vary solely with $z$.
+We also denote the background velocity fields as $\overline u$ and $\overline v$. % TODO put this line somewhere doper
+
+%TODO more detailed derivation with explanation of q, and streamfunction velocity components, geostrophic vorticity
+
+It can be shown that \cref{epv_pressure} may be manipulated by various change of variables and linearisations into the quasigeostrophic potential vorticity equation \cite{Hoskins1985}:
+
 \begin{equation}\label{qgpv}
-    q(x,y,z,t) = \psi_{xx} + \psi_{yy} + \frac{f^2}{\overline{\rho}(z)} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}(z)}{\overline{N}(z)^2}  \psi_z\right)
-\end{equation}
-\begin{equation}\label{qgpv_time}%TODO specify more rigourosly
-    \frac{Dq}{Dt}=0
+    \boxed{ q(x,y,z,t) = \frac{\partial^2 \psi}{\partial x^2} + \frac{\partial^2 \psi}{\partial y^2} + \frac{f^2}{\overline{\rho}(z)} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}(z)}{\overline{N}(z)^2}  \frac{\partial \psi}{\partial z} \right) }
 \end{equation}
 
-\section{Fully Specifying the QGPV Equation}
+Where the quasigeostrophic potential vorticity $q$ follows the conservation property \cite{Hoskins1985}:
+
+\begin{equation}\label{qgpv_time}
+    \boxed{\frac{\partial q}{\partial t} - \frac{\partial \psi}{\partial y} \frac{\partial q}{\partial x} + \frac{\partial \psi}{\partial x} \frac{\partial q}{\partial y} = 0}
+\end{equation}
+
+It is shown that the boundary conditions become % TODO show
+
+\begin{equation}\label{qgpv_bcs_hor}
+\boxed{
+\begin{aligned}
+    \psi_x(0,y, z) &= \psi_x(L_x,y, z) = \overline v(y,z) \\
+    \psi_y(x,0, z) &= \psi_y(x,L_y, z) =-\overline u(x,z)
+\end{aligned}
+}
+\end{equation}
+
+\begin{equation}\label{qgpv_bcs_vert}
+\boxed{
+\begin{aligned}
+    \psi_z(x,y,0) &= \frac{g\theta ^*}{f\overline{\theta}(0)} \\
+    \psi_z(x,y,H) &=\frac{g\theta ^*}{f\overline{\theta}\left(H\right)}
+\end{aligned}
+}
+\end{equation}
+
+The primary focus of this text is solutions of \cref{qgpv,qgpv_time,qgpv_bcs_hor,qgpv_bcs_vert} and their physical implications by building off the work of Fehlmann \cite{fehlmann1997pvelements}, Sprenger \cite{sprenger2007userguide} and Barnes et Al. \cite{Barnes2022main}.
+
 \subsection{Background States and Coefficients}
 We will specify $\overline{N}(z)$ using the same values as Barnes et al. \cite{Barnes2022main}, from which we can calculate $\overline{\rho}(z)$ using the same methodology as Fehlmann \cite{fehlmann1997pvelements}.
 
@@ -104,10 +235,10 @@ We can then rescale and translate $\kappa_\delta$ to specify our reference Brunt
 Initially we will take $\delta = 2$, $z_\text{trop}=\qty{12500}{\meter}$ \cite{Barnes2022main} and $w_\text{trop}=\qty{1000}{\meter}$ \cite{fehlmann1997pvelements}.
 
 \begin{equation}\label{N_bar}
-    \overline{N}(z)=\left(\overline{N}_\text{strat} - \overline{N}_\text{trop}\right) \kappa _\delta \left( \frac{z-z_\text{trop}}{w_\text{trop}} + \frac12\right) + \overline{N}_\text{strat}
+    \overline{N}(z)=\left(\overline{N}_\text{strat} - \overline{N}_\text{trop}\right) \kappa _\delta \left( \frac{z-z_\text{trop}}{w_\text{trop}} + \frac12\right) + \overline{N}_\text{trop}
 \end{equation}
 
-We can then determine the reference potential temperature profile by solving for $\overline{\theta}$ in the definition of the Brunt–Väisälä frequency \eqref{brunt_vaisala},
+We can then determine the reference potential temperature profile by solving for $\overline{\theta}$ in the definition of the Brunt–Väisälä frequency from \cref{brunt_vaisala},
 
 \begin{equation}\label{theta_bar}
     \overline{\theta}(z) = \overline{\theta}(0) \exp \left( \frac{1}{g} \int _0 ^z \overline{N}(\xi)^2 \, d\xi\right)
@@ -118,25 +249,25 @@ We can then determine the reference potential temperature profile by solving for
     \begin{minipage}[t]{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{reference_brunt–väisälä_frequency.pdf}
-        \caption{Reference Brunt–Väisälä frequency \eqref{N_bar}}
+        \caption{Reference Brunt–Väisälä frequency -- \cref{N_bar}}
         \label{fig:N_bar}
     \end{minipage}
     \hfill % Adds flexible space between the two minipages
     \begin{minipage}[t]{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{reference_potential_temperature_profile.pdf}
-        \caption{Reference potential temperature profile \eqref{theta_bar}}
+        \caption{Reference potential temperature profile -- \cref{theta_bar}}
         \label{fig:theta_bar}
     \end{minipage}
 \end{figure}
 
-We combine the ideal gas law $p = \rho R T$ and the the definition of $\theta$ \eqref{pot_temp} to express the reference density profile, where $\kappa = R/c_p$:
+We combine the ideal gas law $p = \rho R T$ and the the definition of $\theta$ (\cref{pot_temp}) to express the reference density profile, where $\kappa = R/c_p$:
 
 \begin{equation}\label{rho_bar}
     \overline{\rho}(z) = \frac{\overline{p}}{R \overline{\theta}} \left( \frac{p_\text{surf}}{\overline{p}}\right)^\kappa
 \end{equation}
 
-To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assumption that $d\overline{p}/dz = -g \overline{\rho}$, substitute in equation \eqref{rho_bar}, and solve the ODE to yield \cite{fehlmann1997pvelements}.
+To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assumption (\cref{hydrostatic_equilibrium}), substitute in equation \eqref{rho_bar}, and solve the ODE to yield \cite{fehlmann1997pvelements}.
 
 \begin{equation}\label{p_bar}
     \overline{p}(z) = \overline {p}(0) \left( 1- \frac{\kappa g}{R} \left( \frac{p_\text{surf}}{\overline{p}(0)}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
@@ -147,15 +278,15 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
     \begin{minipage}[t]{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{reference_density_profile.pdf}
-        \caption{Reference density profile \eqref{rho_bar}}
+        \caption{Reference density profile -- \cref{rho_bar}}
         \label{fig:brunt_vaisala}
     \end{minipage}
     \hfill % Adds flexible space between the two minipages
     \begin{minipage}[t]{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{reference_pressure_profile.pdf}
-        \caption{Reference pressure profile \eqref{p_bar}}
-        \label{fig:theta_bar}
+        \caption{Reference pressure profile -- \cref{p_bar}}
+        \label{fig:p_bar}
     \end{minipage}
 \end{figure}
 
@@ -163,41 +294,41 @@ The approximation $\overline{p}(0) = p_\text{surf} = \qty{1000}{\hecto\pascal}$ 
 
 \subsection{Boundary Conditions}
 To specify the horizontal boundary conditions, we need to choose values of $u$ and $v$. We will define a jet stream aiming to recreate the one shown in \cite{Barnes2022main}.
-The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the tropopause vertically, is centred about the middle of the domain meridionally, has a Gaussian shape, and has a similar overall size to the one shown in \cite{Barnes2022main} ($y_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{2000}{\meter}$).
+The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the middle of the tropopause vertically, is centred about the middle of the domain in the $x$-direction, is uniform in the $y$-direction, has a Gaussian shape, and has a similar overall size to the one shown in \cite{Barnes2022main} ($x_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{2000}{\meter}$).
 We will let
 
 \begin{equation}\label{u_boundary}
-    u(y,z) = u_\text{jet} \exp\left[ - \left(\frac{y - L_y /2}{y_\text{jet}}\right)^2 - \left(\frac{z - z_\text{trop}}{z_\text{jet}} \right)^2\right]
+    \overline u(x,y,z) = u_\text{jet} \exp\left[ - \left(\frac{x - L_x /2}{x_\text{jet}}\right)^2 - \left(\frac{z - z_\text{trop}}{z_\text{jet}} \right)^2\right]
 \end{equation}
 
 \begin{equation}\label{v_boundary}
-    v(x,z) = 0
+    \overline v(x,y,z) = 0
 \end{equation}
 
 \begin{figure}[hbtp]
     \centering
-    \includegraphics[width=0.96\linewidth]{jet_stream.pdf}
-    \caption{Jet stream specified in equation \eqref{u_boundary}. A contour interval of \qty{5}{\meter\per\second} is used.}
+    \includegraphics[width=0.96\linewidth]{jet_stream.pdf}%TODO change to \overline u
+    \caption{Jet stream specified in \cref{u_boundary}. A contour interval of \qty{5}{\meter\per\second} is used.}
     \label{fig:jet_stream}
 \end{figure}
 
-You may notice that we have not yet defined $\theta^*$. It will be calculated later on to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
+The potential temperature anomaly $\theta^*$ will be calculated in \cref{sec:solv_cond} to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
 
 \subsection{Source term}
-To calculate the source term $q$ we must first specify the background state $\overline{Q}$. We will derive this from the full formulation of EPV \eqref{epv} and the Brunt–Väisälä frequency \eqref{brunt_vaisala}. %TODO reference \zeta_g
+To calculate the source term $q$ we must first specify the background state $\overline{Q}$. We will derive this from the full formulation of EPV (\cref{epv}) and the Brunt–Väisälä frequency (\cref{brunt_vaisala}). %TODO reference \zeta_g
 
 \begin{equation}\label{Q_bar}
 \begin{aligned}
-    \overline{Q} &= \frac{(\zeta + f \mathbf{\hat {k}}) \cdot \nabla \overline\theta}{\overline\rho} \\
-    &= \frac{d \overline \theta}{dz} \cdot\frac{\mathbf{\hat {k}} \cdot (\zeta + f \mathbf{\hat {k}})}{\overline\rho} \\
+    \overline{Q} &= \frac{(\bm{\omega} + 2 \bm{\Omega}) \cdot \nabla \overline\theta}{\overline\rho} \\
+    &= \frac{d \overline \theta}{dz} \cdot\frac{\mathbf{\hat {k}} \cdot (\bm{\omega} + 2 \bm{\Omega})}{\overline\rho} \\
     &= \frac{\overline{N}^2 \overline{\theta}}{g}  \cdot\frac{\zeta_g + f}{\overline\rho}
 \end{aligned}
 \end{equation}
 
-We will specify the same PV anomaly as the one used in \cite{Barnes2022main} minus the obvious typographical errors:
+We will specify the same PV anomaly as the one used by Barnes et Al. \cite{Barnes2022main} bar the apparent typographical errors. We initially take $Q^*_\text{mag} = \num{-4e-6}$.
 
 \begin{equation}\label{Q_star}
-    Q^*(x,y,z) = -4 \times10^{-6} \exp \left[- \left(\frac{x - x_\text{ano}}{x_\text{size}}\right)^2 - \left(\frac{y - y_\text{ano}}{y_\text{size}}\right)^2 - \left(\frac{z - z_\text{ano}}{z_\text{size}}\right)^2\right]
+    Q^*(x,y,z) = Q^*_\text{mag} \exp \left[- \left(\frac{x - x_\text{ano}}{x_\text{size}}\right)^2 - \left(\frac{y - y_\text{ano}}{y_\text{size}}\right)^2 - \left(\frac{z - z_\text{ano}}{z_\text{size}}\right)^2\right]
 \end{equation}
 
 \begin{figure}[hbtp]
@@ -218,12 +349,13 @@ We will specify the same PV anomaly as the one used in \cite{Barnes2022main} min
         \label{fig:epv_y}
     \end{subfigure}
 
-    \caption{EPV specified in \cref{Q_bar,Q_star}. A contour interval of \qty{0.5}{PVU} (Potential Vorticity Units) is used.}
+    \caption{EPV distribution specified in \cref{Q_bar,Q_star}. A contour interval of \qty{0.5}{PVU} (Potential Vorticity Units) is used. $\qty{1}{PVU} = \qty{e-6}{\kelvin \meter \squared \per \second \per \kg}$.}
     \label{fig:epv_combined}
 \end{figure}
 
 The anomaly will initially be placed at the centre of the domain ($x_\text{ano} = L_x/2$ and $y_\text{ano} = L_y/2$), with an anomaly height that corresponds to the troposphere height ($z_\text{ano}=z_\text{trop}$).
 For the first experiment the anomaly sizes $x_\text{size} = y_\text{size} = \qty{200}{\km}$ and $z_\text{size} = \qty{2000}{\meter}$ will be used.
+Later these will be altered to investigate the effects of various PV anomalies.
 To convert $Q=\overline{Q}+Q^*$ into quasigeostrophic PV, we employ the following approximation \cite{fehlmann1997pvelements}:
 
 \begin{equation}\label{full_q}
@@ -233,38 +365,375 @@ To convert $Q=\overline{Q}+Q^*$ into quasigeostrophic PV, we employ the followin
 \section{Numerical Solution}
 By adopting a smoothing value of $\delta = 2$ for \cref{kappa_delta}, the integral in \cref{theta_bar} is of the following general form \cite{Mathematica}:
 
-\begin{equation}\label{nonelementary}
+\begin{equation}\label{nonelementary_integral}
     \int e^{z^4}\,dz = - \frac{z \Gamma \left( \frac{1}{4}, -z^4\right)}{4 \sqrt[4]{-z^4}} + C
 \end{equation}
 
-Because this integral lacks a closed-form solution, the coefficients \eqref{rho_bar} and the source term \eqref{full_q} cannot be readily expressed analytically.
-Consequently, numerical integration is required.
+Because this integral lacks a closed-form solution, the coefficients (\cref{rho_bar}) and the source term (\cref{full_q}) cannot be readily expressed analytically.
+Consequently, numerical integration is required, for the vertical integrals in \cref{theta_bar,p_bar}, as well as solving for $\psi$ in \cref{qgpv}.
+The solver set-up for \cref{qgpv} is given in the following subsections.
+
+Unfortunately the framework used does not offer a simple way to evaluate the vertical integrals in \cref{theta_bar,p_bar} efficiently, so a non-trivial alternative method is explained in full in \cref{app:vert_int}.
 
 \subsection{Choice of Solver Framework}
 
-While spectral methods offer exponential convergence and efficient memory usage, they trigger non-physical oscillations, known as the Gibbs phenomenon, when applied to localised functions \eqref{full_q} or kink functions \eqref{N_bar} \cite{Trefethen2000}.
+While spectral methods offer exponential convergence and efficient memory usage, they trigger non-physical oscillations, known as the Gibbs phenomenon, when applied to localised functions (such as \cref{full_q}) or kink functions (such as \cref{N_bar}) \cite{Trefethen2000}.
 Finite difference schemes are straightforward to implement, but they struggle with the unstructured grids necessary for resolving irregular lower boundaries, such as real-world topography \cite{BLAZEK201529}.
 Furthermore, although finite volume methods excel at tracking fluxes in hyperbolic conservation laws (such as \cref{qgpv_time}), scaling to higher-order accuracy requires implementing more complex schemes \cite{Durran2010}.
 To overcome these limitations, we employ a finite element method (FEM).
 FEM natively handles unstructured meshes with irregular boundaries, effortlessly scales to higher-order accuracy, and supports formulations (such as Discontinuous Galerkin) that strictly enforce flux conservation \cite{FiredrakeUserManual}.
 
-This work will use the Python library \href{https://www.firedrakeproject.org/}{Firedrake} as the computational framework to build up the numerical solver.
+This work will use the Python library \href{https://www.firedrakeproject.org/}{Firedrake} as the computational framework to build up the numerical solver \cite{FiredrakeFirstPaper}.
 It allows a high level specification of PDEs, automatic highly optimised C code generation and automatic Jacobian computation.
 These features significantly reduce development time, ensuring the project remains within the scope of an honours thesis.
-Furthermore, Firedrake provides access to some of the most efficient matrix solvers and precondtioners, such as conjugate gradient and polynomial multigrid, by simply changing one line in the solver parameters \cite{FiredrakeUserManual}.
+Furthermore, Firedrake provides access to some of the most efficient matrix solvers and precondtioners, such as conjugate gradient and polynomial multigrid, by simply changing a few lines in the solver parameters \cite{FiredrakeUserManual}.
 
-Firedrake has a more involved installation process than most Python libraries. The instructions for which can be found \href{https://www.firedrakeproject.org/install.html}{here}.
+\subsection{Building the Mesh}\label{sec:mesh}
+To optimize mesh generation, a two-dimensional base mesh is extruded into a three-dimensional domain.
+This extrusion methodology was found to significantly reduce the computational cost of mesh creation compared to direct three-dimensional mesh initialization.
+The corresponding implementation is detailed in \cref{app:mesh}.
 
-\subsection{Building the Mesh} %TODO decide if to include grid stretching
-Before we set up the mesh, we specify a \href{https://github.com/TrueCP6/PV-Inversion/blob/master/parameters.py}{\mintinline{python}{SolverParams} and \mintinline{python}{PhysicalParams} class} to store our parameters for the simulation. These objects will be passed through each part of the solver.
+By restricting the base mesh to quadrilateral elements, the vertical extrusion produces a mesh composed exclusively of hexahedral cells.
+This hexahedral topology facilitates the construction of tensor-product function spaces across the elements.
+Consequently, during form assembly and the application of matrix-free operators, the framework inherently leverages sum factorisation \cite{FiredrakeUserManual}.
+This technique decomposes multi-dimensional integrals into a sequence of one-dimensional operations, thereby reducing the computational complexity from $\mathcal{O}(p^6)$ to $\mathcal{O}(p^4)$ for matrix-free evaluations, and from $\mathcal{O}(p^9)$ to $\mathcal{O}(p^7)$ for explicit sparse matrix assembly, where $p$ denotes the polynomial degree of the function space.
 
-To construct the mesh more efficiently, we employ Firedrake's capability to extrude a flat 2D mesh into 3D, which was found to be significantly less computationally expensive than directly creating a 3D mesh. %TODO explain tensor product and check if it was used, why quadrilateral is necessary and the benefits of using and extruded mesh
+It should be noted that the asymptotic complexity advantages conferred by sum factorisation during matrix-free matrix-vector multiplications do not fully translate to assembled matrix methods.
+For explicitly assembled matrices, these performance improvements are strictly confined to the assembly phase \cite{Homolya2017}.
+
+\subsection{Defining the Function Space}\label{sec:func_space}
+
+Firedrake offers a large number of supported finite elements, each with its own advantages and disadvantages.
+The two options which are the simplest and suited to our use case are the continuous and discontinuous Galerkin finite elements.
+The specific Firedrake variants that are used for meshes constructed with tensor products are the \mintinline{python}{'Q'} and \mintinline{python}{'DQ'} function spaces \cite{FiredrakeUserManual}.
+
+Equation \eqref{qgpv} is essentially an advection-diffusion equation with a source term.
+If the equation is advection-dominated we need to take care that the selected function space does not result in non-physical oscillations.
+The \mintinline{python}{'Q'} function space simply handles diffusion, but can result in non-physical oscillations if the flow is advection-dominated \cite{Durran2010}.
+The \mintinline{python}{'DQ'} function space allows for stable upwinding and explicit conservation of flux between cells, but introduces a larger number of degrees of freedom for the same mesh and requires a more complex formulation such as the Symmetric Interior Penalty Galerkin (SIPG) method to handle diffusion \cite{FiredrakeUserManual}.
+
+Since there is no advection in the $x$ and $y$ directions in \cref{qgpv}, we expand the vertical derivative term to determine which process dominates:
+
+\begin{equation}\label{advection_order}
+    \frac{f^2}{\overline{\rho}}\frac{\partial}{\partial z} \left( \frac{\overline{\rho}}{\overline{N}^2}  \psi_z\right) = \psi_z \underbrace{\frac{f^2}{\overline{\rho}}\frac{\partial}{\partial z}\frac{\overline{\rho}}{\overline{N}^2}}_{C_1(z)} + \psi_{zz} \underbrace{\frac{f^2}{\overline{N}^2}}_{C_2(z)}
+\end{equation}
+
+We compute the ratio of advection to diffusion:
+
+\begin{equation}\label{adv_diff_ratio}
+     \frac{C_1(z)}{C_2(z)} = \frac{\overline{N}^2}{\overline{\rho}}\frac{\partial}{\partial z}\frac{\overline{\rho}}{\overline{N}^2} = \frac{\partial}{\partial z} \ln \left( \frac{\overline{\rho}}{\overline{N}^2}\right)
+\end{equation}
+
+Numerically calculating the maximum value of \cref{adv_diff_ratio} for $z \in [0, H]$ reveals that $|C_1/C_2| < 0.005$, meaning that in the vertical direction \cref{qgpv} is heavily dominated by diffusion.
+
+It is likely that increasing $p$ will stabilise these oscillations on a 3D mesh (as it does on a 1D and 2D mesh \cite{CAI2014}).
+Nevertheless, we calculate a \textbf{heuristic} stability parameter based on the concept of a mesh Péclet number \cite{Donea2003}. Here $h$ is the local mesh spacing.
+
+\begin{equation}\label{peclet_def}
+    \mathrm{Pe}= \frac{hC_1}{2C_2}
+\end{equation}
+
+For linear ($p=1$) continuous Galerkin formulations, the constraint $\mathrm{Pe} \le 1$ ensures that spurious oscillations will not occur .
+We will adopt this constraint as 'a best guess' of the stability bound of the \mintinline{python}{'Q'} function space, as no optimal analytical definition of the stabilisation parameter exists for $p>2$ \cite{Donea2003}.
+
+When calculating $\mathrm{Pe}$ \eqref{peclet_def}, $h$ can not be taken to be constant.
+Even though we take $\Delta z$ as constant, Firedrake by default places nodes at Gauss-Lobatto-Legendre (GLL) points.
+These points are not equally spaced to improve numerical conditioning \cite{FiredrakeUserManual} and mitigate the Runge phenomenon \cite{Trefethen2000}.
+The maximum spacing between GLL nodes for some $p$ is given by \cref{tab:gll_max_spacing}.
+
+\begin{table}[hbtp]
+    \centering
+    \caption{Position of smallest non-zero positive GLL node for various polynomial degrees \cite[Table 25.6]{abramowitz1965handbook}. For even $p$ this corresponds exactly to the maximum spacing between points on the interval $[-1,1]$. For odd $p$ it corresponds to half the spacing.}
+    \label{tab:gll_max_spacing}
+    \begin{tabular}{ccc}
+        \toprule
+        $p$ & $x_\text{min}(p)$ & $\Delta x _\text{max} (p)$ \\
+        \midrule
+        1 & 1.0000 & 2.0000 \\
+        2 & 1.0000 & 1.0000 \\
+        3 & 0.44721 & 0.89443 \\
+        4 & 0.65465 & 0.65465 \\
+        5 & 0.28523 & 0.57046 \\
+        6 & 0.46885 & 0.46885 \\
+        7 & 0.20930 & 0.41860 \\
+        8 & 0.36312 & 0.36312 \\
+        9 & 0.16528 & 0.33056 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Consequently, the maximum spacing of nodes in a cell of size $\Delta z$ can be expressed as $h_\text{max} = \Delta x _\text{max} (p) \Delta z / 2$, and $\mathrm{Pe}$ \eqref{peclet_def} for $p=4$ can be bounded by
+
+\begin{equation}\label{peclet_bound}
+    \mathrm{Pe}_{p=4} \leq \frac{h_\text{max}}{2} \left| \frac{C_1}{C_2}\right| <  \frac{\Delta z}{1222}
+\end{equation}
+
+We have the strictly heuristic stability constraint $\Delta z < \qty{1222}{\meter}$, however the smallest feature we wish to capture is the smoothed tropopause which has a vertical thickness of $w_\text{trop} = \qty{1000}{\meter}$, so a safer limit would be $\Delta z \leq \qty{500}{\meter}$.
+
+It is shown that a solution using the \mintinline{python}{'Q'} function space will likely not be polluted by spurious oscillations caused by high advection.
+Since the solutions to \cref{qgpv} appear to be reasonably smooth \cite{Barnes2022main}, we will initially take $p=4$, and later find a more optimal polynomial order once the solver is fully developed.
+The definition with Firedrake is written as
+
+\begin{minted}{python}
+p = solver_params.polynomial_order # For now p=4
+func_space = FunctionSpace(mesh, 'Q', p) # Sometimes called 'V'
+\end{minted}
+
+Note that the total number of degrees of freedom can be retrieved programatically with \mintinline{python}{V.dim()} \cite{FiredrakeUserManual} or analytically: %todo cite
+
+\begin{equation}\label{degrees_of_freedom}
+    \text{DOFs} = (N_x p+1)(N_y p +1 )(N_z p + 1)
+\end{equation}
+
+where if $N_x = N_y=N_z=40$ and $p=4$, the total number of degrees of freedom is $\approx 4 \times 10^6$. Barnes et Al. used a second order finite difference scheme and a total of $12 \times 10^6$ mesh points \cite{Barnes2022main}.
+
+\subsection{Weak Form}
+To set up \cref{qgpv} to be solvable with the finite element method, we multiply by a test function $\phi$ and integrate over the 3D domain $V$.
+Before integrating we also multiply the whole equation by $\overline\rho$, in order to allow for additional optimisations later on.
+We use the horizontal Laplace operator $\nabla^2_h=\frac{\partial^2}{\partial x^2}+\frac{\partial^2}{\partial y^2}$ to make this process more concise.
+
+\begin{equation}\label{weak_form_1}
+    \int_V { \overline\rho \phi q  \,dV} = \underbrace{\int_V {\overline\rho \phi \nabla_h^2 \psi  \,dV}}_{I_h} + f^2 \underbrace{\int_V { \phi\frac{\partial}{\partial z} \left( \frac{\overline \rho}{\overline N^2} \psi _z \right) \,dV}}_{I_z}
+\end{equation}
+
+Now we apply Green's first identity \cite{kellogg2026foundations}, which can be written as equation \eqref{greens_1st_identity} for a general number of spatial dimensions.
+Here $A$ is the surface that encloses $V$.
+
+\begin{equation}\label{greens_1st_identity}
+    \int_V {\phi \nabla^2 \psi \,dV} = \oint_A {\phi \nabla \psi \cdot \bm {\hat {n}} \,dA} - \int_V {\nabla \psi \cdot \nabla \phi \,dV}
+\end{equation}
+
+This yields the following when applied to $I_h$ and $I_z$ \eqref{weak_form_1}.
+The horizontal normal vector is denoted as $\bm {\hat n_{xy}} = (n_x, n_y, 0)$.
+
+\begin{equation}\label{i_h}
+    I_h = \underbrace{\oint_A {\overline\rho \phi \nabla_h \psi \cdot \bm {\hat n_{xy}} \, dA}}_{I_{hb}} - \int_V {\overline\rho\,\nabla_h \psi \cdot \nabla_h  \phi \, dV}
+\end{equation}
+\begin{equation}\label{i_z}
+    I_z = \underbrace{\oint _A {\frac{\overline \rho}{\overline N^2} \phi \psi_z n_z \, dA}}_{I_{zb}} - \int_V {\frac{\overline \rho}{\overline N^2} \phi_z \psi_z \,dV}
+\end{equation}
+
+We can then expand the boundary integrals $I_{hb}$ and $I_{zb}$ to implement the boundary conditions
+(\cref{qgpv_bcs_hor,qgpv_bcs_vert}):
+\begin{equation}
+    I_{hb} = \oint_A {\overline \rho \phi \left( \psi_x n_x + \psi_y n_y\right)\,dA}
+    = \oint_A {\overline \rho \phi \left( v n_x - u n_y\right)\,dA}
+\end{equation}
+\begin{equation}
+    I_{zb} = \oint _A {\phi\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA}
+\end{equation}
+
+We then substitute everything into equation \eqref{weak_form_1} and move terms around to get the form $a(\psi,\phi) = L(\phi)$:
+
+\begin{equation}\label{final_weak_form}
+    \underbrace{\oint_A {\overline \rho \phi \left( v n_x - u n_y\right)\,dA} + f^2 \oint _A {\phi\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA} - \int_V { \overline\rho \phi q  \,dV}}_{L(\phi)} = \underbrace{\int_V {\overline\rho\,\nabla_h \psi \cdot \nabla_h \phi \, dV} + \int_V {\frac{ f^2\overline \rho}{\overline N^2} \phi_z \psi_z \,dV}}_{a(\psi, \phi)}
+\end{equation}
+
+Now \cref{qgpv}, with the boundary conditions embedded, is in a weak form that can easily be expressed in Firedrake's syntax as seen in \cref{app:weak_form}.
+
+Establishing certain properties of the matrix arising from $\alpha$ will aid in optimising the numerical solver later on.
+We notice that $\alpha$ is symmetric, as $\alpha(\psi, \phi) = \alpha(\phi, \psi)$.
+It can be shown that $\alpha$ is positive semi-definite by evaluating
+
+\begin{equation}\label{alpha_phi_phi}
+    \alpha(\phi, \phi) = \int_V {\,(\phi_x^2 + \phi_y^2) \overline\rho \, dV} + \int_V {\frac{ f^2\overline \rho}{\overline N^2} \phi_z^2 \,dV}
+\end{equation}
+
+Since every term in \cref{alpha_phi_phi} is $\geq 0$, it follows that $\alpha (\phi,\phi) \geq 0$ for all real $\phi$.
+These properties are transferred to the matrix arising from \cref{final_weak_form} \cite{larson2013finite}.
+
+\subsection{Solvability Condition}\label{sec:solv_cond}
+
+Equation \eqref{qgpv} and its boundary conditions (\cref{qgpv_bcs_hor,qgpv_bcs_vert}) only contain derivatives of $\psi$. This means that if $\psi$ is a solution, $\psi + C$ will also be a solution.
+To ensure the weak form \eqref{final_weak_form} is solvable, we calculate $\theta^*$ such that the constant solution is valid.
+This is called the Neumann solvability condition, and it requires that the test function $\phi=C$ satisfies \cref{final_weak_form} \cite{larson2013finite}.
+In other words, we solve for $\theta ^*$ in the equation $\alpha(\psi, C) = L(C)$.
+As the bilinear form only contains derivatives of the test function, it follows that $\alpha(\psi, C)=0$.
+Additionally, $C$ can be pulled out of the integrals in $L(C)$ and divided away, leaving the following solution condition:
+
+\begin{equation}\label{solve_cond_1}
+    \oint_A {\overline \rho \left( \overline v n_x -  \overline u n_y\right)\,dA}
+    + \underbrace{f^2\oint _A {\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA}}_{I_1}
+    - \int_V { \overline\rho q  \,dV} = 0
+\end{equation}
+
+The integrand of $I_1$ exclusively depends on $z$, meaning the integral can be evaluated directly.
+
+\begin{equation}
+    I_1 = \theta ^*L_x L_y fg \left(\frac{\overline \rho (H)}{\overline N(H)^2 \overline \theta(H) } - \frac{\overline \rho (0)}{\overline N(0)^2 \overline \theta(0) }\right)
+\end{equation}
+
+Rearranging \cref{solve_cond_1} yields the formula for $\theta^*$:
+
+\begin{equation}\label{general_solv_cond}
+    \theta^* = \frac{\displaystyle \int_V { \overline\rho q  \,dV} - \overbrace{\oint_A {\overline \rho \left( \overline v n_x - \overline u n_y\right)\,dA}}^{I_2}}{ \displaystyle L_x L_y fg \left(\frac{\overline \rho (H)}{\overline N(H)^2 \overline \theta(H) } - \frac{\overline \rho (0)}{\overline N(0)^2 \overline \theta(0) }\right)}
+\end{equation}
+
+If $\overline u(x,0,z)=\overline u(x,L_y, z)$ and $\overline v(0,y,z)=\overline v(L_x,y,z)$, the term $I_2$ vanishes. This occurs if the jet stream defined in \cref{u_boundary,v_boundary} is used.
+
+Experimentally it was found that $\theta^* \sim \qty{-0.1}{\kelvin}$, representing a very small anomaly in potential temperature, smaller than the approximate \qty{-2}{\kelvin} from \cite{sprenger2007userguide}.
+
+To check if \cref{general_solv_cond} is correct, the flux of the linear form can be numerically calculated by comparing how close $L(1)-\alpha(\psi, 1)$ is to zero.
+As shown above, $\alpha(\psi, 1)=0$, so only $L(1)$ needs to be evaluated.
+This is done by making the substitution $\phi = 1$ and evaluating \mintinline{python}{L} (defined in \cref{app:weak_form}) \cite{UFL}:
+
+\begin{minted}{python}
+flux = assemble(replace(L, {phi: Constant(1)}))
+\end{minted}
+
+Executing the above expression shows that the net flux across the whole domain is $\sim 10^{-2}$. Given the domain volume of $\sim \qty{e17}{\meter \cubed}$, a net flux of $\sim 10^{-2}$ is on the order of machine precision, confirming that \cref{general_solv_cond} is satisfied up to floating-point truncation error.
+
+\subsection{Solver Settings}\label{sec:solver_settings}
+
+With the equation fully specified in Firedrake's syntax, we can proceed with the solver setup and parameter selection.
+
+Since the coefficients of the bilinear form in \cref{final_weak_form} are time-independent and \cref{qgpv} is linear, the Jacobian remains constant.
+Explicitly instructing Firedrake to retain this constant Jacobian resulted in significant speed improvements during repeated solves.
+
+As discussed previously, this is a pure Neumann problem, making it necessary to pass a constant nullspace to Firedrake.
+This prevents the solver from attempting to invert a singular matrix with a rank deficiency of one.
+
+To finally solve the quasigeostrophic potential vorticity equation (\cref{qgpv}), an efficient set of solver parameters must be specified.
+A benchmarking search was conducted across over 30 permutations of theoretically reasonable solver parameters.
+Pre-conditioners such as Fast Diagonalisation (the \mintinline{python}{'firedrake.FDMPC'} pre-conditioner \cite{FiredrakeUserManual}) and polynomial multigrid ($p$-multigrid) were evaluated, alongside a wide variety of smoothers and solvers for the coarse $p=1$ mesh.
+The performance of matrix-free methods was also compared against assembled matrix methods.
+From this reasonably extensive search, the fastest combination of solver parameters was found to be:
+
+\begin{itemize}
+    \item \textbf{Matrix Format:} A fully assembled sparse matrix (AIJ format) \cite{PETScUserManual}.
+    \item \textbf{Krylov Subspace Solver:} The Conjugate Gradient (CG) method. This can be used because it was shown that the matrix arising from the bilinear weak form (\cref{final_weak_form}) is symmetric and positive semi-definite \cite{Saad2003}.
+    \item \textbf{Pre-conditioner:} A $p$-multigrid scheme using the \mintinline{python}{'firedrake.PMGPC'} pre-conditioner \cite{FiredrakeUserManual}.
+    \item \textbf{Multigrid Smoother:} A Jacobi pre-conditioner is applied across the refined multigrid levels.
+    \item \textbf{Coarse Grid Solver:} LU factorisation is conducted exactly once at the first solve of the $p=1$ coarse mesh. Each subsequent solve using the constant Jacobian is a highly efficient $\mathcal{O}(\text{non-zero entries})$ operation \cite{Davis2006}.
+\end{itemize}
+
+A detailed implementation of the solver set-up is given in \cref{app:solver_params}.
+
+Matrix-free methods are typically faster than assembled matrix methods for $p \geq 4$, because memory bandwidth and capacity generally become bottlenecks at these higher orders.
+Additionally, assembled sparse matrix-vector multiplication requires $\mathcal{O}(n^{2p})$ operations per cell, whereas matrix-free methods using sum-factorisation reduce the operation count to $\mathcal{O}(n^{p+1})$ per cell \cite{Homolya2017}.
+
+Despite these theoretical advantages, practical experiments involving repeated solutions of \cref{final_weak_form} showed that matrix-free methods were consistently half an order of magnitude slower than the assembled solver configuration described above.
+Matrix-free methods were developed largely because solving massive systems of equations demands significant memory \cite{Muench2024}.
+On modern computer architectures, fetching data from main memory causes the processor to stall, wasting valuable CPU cycles.
+The CPU must wait for data to propagate from RAM through the L3, L2, and L1 caches before finally reaching the registers \cite{hennessy2017computer}.
+Matrix-free methods aim to minimize these stalls by performing technically redundant or duplicate operations on the fly.
+Because modern CPUs can compute operations much faster than memory can supply data, this trade-off is often highly performant \cite{Muench2024}.
+
+However, in the specific case of solving the quasigeostrophic potential vorticity equation, \cref{final_weak_form} relies on spatially varying coefficients that lack an analytical expression (as discussed alongside \cref{nonelementary_integral}).
+Consequently, these coefficients must be stored in memory.
+For a mesh where $N_x=N_y=N_z=35$ and $p=4$, the system has \num{2803221} degrees of freedom (see \cref{degrees_of_freedom}).
+Storing the source term (\cref{full_q}) with double precision floating poitns requires $\qty{8}{\byte} \times \num{2803221} \approx \qty{22}{\mega\byte}$ of memory.
+This exceeds the L3 cache capacity of the primary testing hardware (see \cref{app:hardware}), meaning the source term must be fetched entirely from RAM every time it is evaluated.
+
+In essence, matrix-free methods typically excel by minimizing slow memory accesses \cite{Muench2024}.
+However, our specific application requires heavy memory access regardless of whether the matrix is assembled.
+As a result, matrix-free methods underperform compared to fully assembled sparse matrices in this context.
+
+Nevertheless, the following caveats should be noted:
+\begin{itemize}
+    \item
+    If \cref{final_weak_form} is solved only once, matrix-free methods actually outperform the assembled approach.
+    The assembled matrix method only becomes significantly faster during subsequent solves, once the Jacobian has already been computed.
+
+    \item
+    The memory footprint of the assembled matrix solver is substantially larger than that of the matrix-free alternative.
+    This severely limits the maximum mesh sizes that can be simulated on consumer-grade hardware (see \cref{app:solver_params}).
+
+    \item
+    A transformation for \cref{qgpv} might exist that absorbs the spatially varying coefficients into $\psi$ itself, or into a rescaled vertical coordinate $z'$.
+    Such a formulation could eliminate the memory bottleneck, potentially reversing the performance conclusions drawn here.
+
+    \item
+    On systems with abundant L1 and L2 cache -- such as High-Performance Computing (HPC) clusters with dozens of cores per node -- the performance gap between matrix-free and assembled methods may narrow or even invert.
+\end{itemize}
+
+\subsection{Solver Verification}
+
+To verify the solver itself is correct, the method of manufactured solutions will be used.
+We arbitrarily choose some analytically expressible function $\psi_a(x,y,z)$ that has similar properties to the true solution to \cref{qgpv}.
+The source term and boundary conditions that arise from $\psi_a$ can then be directly calculated.
+These boundary conditions and source term are then provided to the numerical solver we defined above.
+If the solver's numerical solution matches $\psi_a$ to some high degree of precision, the solver is likely correctly implemented.
+
+Some simplifications to the coefficients of \cref{qgpv,qgpv_bcs_hor,qgpv_bcs_vert} are made to make this process more concise and readable:
+
+\begin{itemize}
+    \item A square horizontal domain: $L_x = L_y = L$
+    \item Constant reference stability profile: $\overline{N}(z)=N$
+    \item An exponential density profile $\overline{\rho}(z)=c_3 \exp (c_4 z)$, with arbitrary constants $c_3 > 0$ and $c_4 < 0$.
+\end{itemize}
+
+Equation \eqref{qgpv} then reduces to a simple advection-diffusion equation with constant coefficients, where $c_5 = f^2 / N^2$:
+
+\begin{equation}
+    q = \frac{\partial ^2 \psi_a}{\partial x^2} + \frac{\partial ^2 \psi_a}{\partial y^2} + c_5 \left( c_4 \frac{\partial \psi_a}{\partial z} + \frac{\partial ^2 \psi_a}{\partial z^2}\right)
+\end{equation}
+
+
+
+\bibliographystyle{alphaurl}
+\bibliography{sources}
+
+\section{TEMP}
+\subsection{Plan}
+\begin{enumerate}
+    \item Introduction
+    \item \st{Basic structure of the atmosphere}
+    \item What is potential vorticity?
+    \item Introduce Ertel PV
+    \item What is a stratospheric intrusion and how does it relate to cut off lows
+    \item Cut off lows in south africa
+    \item Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping
+    \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting
+    \item Explain basic derivation of QG PV equation, including splitting into reference and peturbation
+    \item \st{Specify background states and plot them. Explain where necessary}
+    \item \st{Specify q and plot it}
+    \item \st{Why we will use finite element and firedrake}
+    \item \st{Building the mesh and function space in Firedrake}
+    \item \st{Putting into weak form - why do we multiply by rho? Get symmetric semipositive definite so we can use conjugate gradient}
+    \item \st{Solvability condition}
+    \item \st{Utility functions}
+    \item \st{Specifying the equation in Firedrake}
+    \item \st{Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol - why matrix free is slower (check notebooklm) - why are the coefficients not analytically expressible}
+    \item \st{Running with MPI}
+    \item Verify setup is correct using MMS
+    \item Calculate time complexity and order of accuracy
+    \item Calculating derived quantities such as pressure, velocity and relative vorticity
+    \item Reproduction of a few of Barnes' experiments
+    \item What happens if we change Brunt-Vaisala to be more realistic
+    \item Potentially investigate alternative backgrounds
+    \item Potentially frame as an optimisation problem to maximise the surface cyclogenetic forcing to parameterise worst-case scenarios (requires code refactor to allow changing parameters without rebuilding solver)
+    \item Feasability of explicit timestepping - stability condition
+\end{enumerate}
+
+\newpage
+\begin{appendices}
+
+\section{Table of Assumptions}\label{app:assumptions} % TODO flesh out
+
+\begin{itemize}
+    \item Frictionless/nondivergent wind
+    \item Purely adiabatic
+    \item Dry air
+    \item Hydrostatic assumption
+    \item Reference states
+\end{itemize}
+
+\section{Firedrake}
+
+Firedrake has a more involved installation process than most Python libraries.
+The instructions for which can be found \href{https://www.firedrakeproject.org/install.html}{here}.
+
+\subsection{Mesh Implementation}\label{app:mesh}
+Before setting up the mesh, we specify a \href{https://github.com/TrueCP6/PV-Inversion/blob/master/parameters.py}{\mintinline{python}{SolverParams} and \mintinline{python}{PhysicalParams} class} to store parameters for the simulation. These objects will be passed through each part of the solver.
+
+The Firedrake implementation for generating the extruded mesh according to \cref{sec:mesh} is as follows:
 
 \begin{minted}{python}
 temp_mesh = RectangleMesh(
     solver_params.nx, solver_params.ny, # Specify the number of elements in the x and y direction
     phys_params.Lx, phys_params.Ly, # Specify the size of the domain in the x and y directions
-    quadrilateral=True # Enables use of the 'Q' function space
+    quadrilateral=True # Enables use of the 'Q' function space (crucial)
 )
 
 # Extrude the flat 2D mesh upwards in 3D
@@ -275,365 +744,213 @@ mesh = ExtrudedMesh(
 )
 \end{minted}
 
-Forcing the base mesh to have quadrilateral elements, and then extruding it vertically means each cell is hexahedral.
-This allows Firedrake to build the function space on these cells using tensor products.
-When assembling forms or running matrix-free operators, Firedrake will automatically make use of sum factorisation \cite{FiredrakeUserManual}.
-This decouples the multi-dimensional integrals into a sequence of 1D operations, reducing the computational complexity to $\mathcal{O}(p^4)$ from $\mathcal{O}(p^6)$ for matrix-free operators and from $\mathcal{O}(p^9)$ to $\mathcal{O}(p^7)$ when explicitly assembling sparse matrices \cite{Homolya2017}. $p$ is the polynomial order of the Function Space.
+\subsection{Numerical Vertical Integrator}\label{app:vert_int}
 
-\subsection{Defining the Function Space}
-Firedrake offers a large number of finite elements, each with its own pros and cons.
+Firedrake does not provide a simple way to evaluate integrals of the form:
 
-\bibliographystyle{alpha}
-\bibliography{sources}
-
-\section{TEMP}
-\subsection{Plan}
-\begin{enumerate}
-    \item Basic structure of the atmosphere
-    \item What is potential vorticity?
-    \item Introduce Ertel PV
-    \item Introduce QG PV
-    \item Explain basic derivation of QG PV equation, including splitting into reference and peturbation
-    \item What is a stratospheric intrusion and how does it relate to cut off lows
-    \item Cut off lows in south africa
-    \item Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping
-    \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting
-    \item Specify background states and plot them. Explain where necessary
-    \item Specify q and plot it
-    \item Why we will use finite element and firedrake
-    \item Building the mesh and function space in Firedrake
-    \item Putting into weak form - why do we multiply by rho?
-    \item Solvability condition
-    \item Utility functions
-    \item Specifying the equation in Firedrake
-    \item Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol - why matrix free is slower (check notebooklm) - why are the coefficients not analytically expressible
-    \item Running with MPI
-    \item Verify setup is correct using MMS
-    \item Calculate time complexity and order of accuracy
-    \item Calculating derived quantities such as pressure, velocity and relative vorticity
-    \item Reproduction of a few of Barnes' experiments
-    \item What happens if we change Brunt-Vaisala to be more realistic
-    \item Potentially investigate alternative backgrounds
-    \item Feasability of explicit timestepping - stability condition
-\end{enumerate}
-
-\end{document}\documentclass{article}
-
-% Packages
-\usepackage[english]{babel}
-\usepackage[a4paper,top=2cm,bottom=2cm,left=2.5cm,right=2.5cm,marginparwidth=1.75cm]{geometry}
-\usepackage{amsmath}
-\usepackage{graphicx}
-\usepackage[colorlinks=true, allcolors=blue]{hyperref}
-\usepackage{minted} %TODO improve formatting
-\setminted{linenos, frame=single, breaklines}
-\usepackage{siunitx}
-\usepackage{subcaption}
-\usepackage{cleveref}
-\usepackage{float}
-
-\title{Your Paper}
-\author{You}
-
-\begin{document}
-\maketitle
-
-\begin{abstract}
-Your abstract.
-\end{abstract}
-
-\tableofcontents
-%\newpage
-
-\section{Basic Concepts}
-For readers who are not familiar with atmospheric science, but who are familiar with Applied Mathematics, a brief overview of terminology and atmospheric properties is given.
-
-\subsection{Layers of the Atmosphere}
-The atmosphere is divided into a number of distinct layers, a characteristic referred to as \textit{stratification}. We will focus on the two layers closest to the Earth's surface: the troposphere and the stratosphere. The boundary between these two layers is known as the \textit{tropopause} \cite{Vallis2017}.
-
-\begin{itemize}
-    \item The \textbf{troposphere} extends from the Earth's surface ($z=0$) up to the tropopause. This layer is mostly transparent to incoming solar (shortwave) radiation, meaning it is primarily heated from below by terrestrial (longwave) radiation emitted by the Earth's surface. This bottom-up heating results in a negative vertical temperature gradient ($\frac{\partial T}{\partial z} < 0$) \cite{Vallis2017}. As a practical example, as you climb higher up a mountain, the temperature decreases with increasing altitude. The warmer air close to the surface is less dense than the colder air at higher altitudes, which leads to convective instability \cite{danielson2003meteorology}. Consequently, this layer experiences high turbulence \cite{sprenger2007userguide} and substantial dissipation of energy; almost all typical weather phenomena occur here.
-
-    \item Above the troposphere lies the \textbf{stratosphere}. This layer contains a higher concentration of ozone, which absorbs high-energy ultraviolet (UV) solar radiation, heating the layer from within. Solar radiation first heats the ozone at higher altitudes, losing energy as it penetrates deeper into the lower stratosphere. This results in a positive temperature gradient ($\frac{\partial T}{\partial z} > 0$) \cite{Vallis2017}. Because warmer, less dense air sits atop cooler, denser air, the stratosphere is highly stable with respect to vertical convection \cite{Barnes2022main}.
-
-    \item The \textbf{tropopause} serves as the boundary between the negative temperature gradient of the troposphere and the positive temperature gradient of the stratosphere. At this boundary, the temperature gradient experiences a discontinuity \cite{Panchev1985-et}. The altitude of the tropopause primarily varies with latitude ($\varphi$), occurring at an altitude of about \qty{16}{\km} in equatorial regions and dropping to approximately \qty{8}{\km} in polar regions \cite{Vallis2017}.
-\end{itemize}
-
-\subsection{Terminology}
-The meaning of certain relevant terms that will be used later on is given. We assume that the reader is familiar with the quantities temperature ($T$), pressure ($p$), density ($\rho$) and acceleration due to gravity ($g$).
-
-\begin{itemize}
-    \item An \textbf{adiabatic} process is where a system exchanges no heat with its surroundings. In the case of the movement of an air parcel, the process is adiabatic if temperature only changes due to changes in pressure \cite{Vallis2017}.
-
-    \item The \textbf{specific gas constant for dry air} ($R$) is \qty{287.05}{\joule\per\kg\per\kelvin}. It is used to relate $p$, $\rho$ and $T$ using the ideal gas law $p=\rho RT$ \cite{Vallis2017}.
-
-    \item The \textbf{specific heat capacity of dry air} ($c_p$) is the amount of heat necessary to heat up \qty{1}{\kg} of dry air by \qty{1}{\kelvin}. We will take it to be \qty{1005}{\joule\per\kg\per\kelvin}
-
-    \item \textbf{Potential temperature} ($\theta$) is the temperature an air parcel would attain if it were brought adiabatically to some reference pressure $p_0$. $p_0$ is usually taken to be \qty{1000}{\hecto\pascal} \cite{sprenger2007userguide}. \begin{equation}\label{pot_temp}
-        \theta = T \left( \frac{p_0}{p}\right)^{R/c_p}
-    \end{equation}
-
-    \item The \textbf{Brunt–Väisälä frequency} ($N$) is a measure of the stability of an air parcel to vertical displacements, such as those caused by convection \cite{sprenger2007userguide}. \begin{equation}\label{brunt_vaisala}
-        N^2 = \frac{g}{\theta} \frac{\partial \theta}{\partial z}
-    \end{equation}
-
-    \item \textbf{Relative vorticity} ($\zeta$) is defined as the curl of the wind velocity vector, i.e. $\zeta = \nabla \times \mathbf{u}$. It physically represents the local spin of a fluid element relative to the Earth's surface \cite{Vallis2017}.
-
-    \item The \textbf{Coriolis force} ($f$) is a local measure of the effect that the Earth's rotation has on the movement of fluids (such as the atmosphere) on the Earth's surface \cite{Vallis2017}. It is calculated as $f = 2 \Omega \sin (\varphi)$, where $\varphi$ is latitude, and $\Omega$ is the angular momentum of the Earth \cite{sprenger2007userguide}. By convention $f$ is negative in the Southern Hemisphere \cite{Barnes2022main}.
-
-    %TODO define zonally and meridonially
-\end{itemize}
-
-\subsection{Potential Vorticity}
-In one of his most significant contributions, Ertel showed that under adiabatic and frictionless conditions, there exists a conserved quantity in the idealised atmosphere.
-We will call this quantity Ertel's potential vorticity (EPV) and denote it as $Q$ \cite{fehlmann1997pvelements}:
-
-\begin{equation}\label{epv}
-    \frac{DQ}{Dt} = \frac{D}{Dt} \left( \frac{(\zeta + f \mathbf{\hat {k}}) \cdot \nabla \theta}{\rho} \right) =0
-\end{equation}
-where $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$ and $Q$ has units of \unit{\kelvin \meter \squared \per \second \per \kg} \cite{Barnes2022main}.
-
-\section{TODO Many Sections to link above and below}
-% TODO specify geostrophic vorticity
-\begin{equation}\label{qgpv}
-    q(x,y,z,t) = \psi_{xx} + \psi_{yy} + \frac{f^2}{\overline{\rho}(z)} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}(z)}{\overline{N}(z)^2}  \psi_z\right)
-\end{equation}
-\begin{equation}\label{qgpv_time}%TODO specify more rigourosly
-    \frac{Dq}{Dt}=0
+\begin{equation}
+    I(z) = \int_0^z f(\xi) \,d\xi
 \end{equation}
 
-\section{Fully Specifying the QGPV Equation}
-\subsection{Background States and Coefficients}
-We will specify $\overline{N}(z)$ using the same values as Barnes et al. \cite{Barnes2022main}, from which we can calculate $\overline{\rho}(z)$ using the same methodology as Fehlmann \cite{fehlmann1997pvelements}.
+$I(z)$ could be solved with Firedrake by rewriting it as an initial value problem (IVP):
 
-Barnes et al. specify a stability profile such that $\overline N_\text{strat} = \qty{0.03}{\per\second}$ in the stratosphere and $\overline N_\text{trop} = \qty{0.01}{\per\second}$ in the troposphere \cite{Barnes2022main}.
-This discontinuity at the tropopause is smoothed out by the following family of kink functions \cite{fehlmann1997pvelements}:
-
-\begin{equation}\label{kappa_delta}
-    \kappa_\delta (x) = \begin{cases}
-        0 & x \leq 0 \\
-        \frac12 (2x)^\delta & 0 < x \leq\frac12 \\
-        1-\frac12 [2(1-x)]^\delta & \frac12 < x \leq 1 \\
-        1  & x>1
-    \end{cases}
+\begin{equation}
+    \frac{\partial I}{\partial z} = f(z), \quad I(0)=0
 \end{equation}
 
-where $\delta >1$ is a parameter which determines the 'sharpness' of the kink.
-We can then rescale and translate $\kappa_\delta$ to specify our reference Brunt–Väisälä frequency profile, where $z_\text{trop}$ is the altitude of the centre of the tropopause and $w_\text{trop}$ is the total vertical width of the smoothing zone.
-Initially we will take $\delta = 2$, $z_\text{trop}=\qty{12500}{\meter}$ \cite{Barnes2022main} and $w_\text{trop}=\qty{1000}{\meter}$ \cite{fehlmann1997pvelements}.
+On our 3D mesh defined in \cref{sec:mesh}, we would be wasting an enormous amount of CPU time and memory by repeatedly solving an identical IVP in every vertical column, when the integrand depends exclusively on $z$.
+Additionally, the IVP consists of only advection, which is unsuitable for the \mintinline{python}{'Q'} function space we chose in \cref{sec:func_space}.
 
-\begin{equation}\label{N_bar}
-    \overline{N}(z)=\left(\overline{N}_\text{strat} - \overline{N}_\text{trop}\right) \kappa _\delta \left( \frac{z-z_\text{trop}}{w_\text{trop}} + \frac12\right) + \overline{N}_\text{strat}
-\end{equation}
-
-We can then determine the reference potential temperature profile by solving for $\overline{\theta}$ in the definition of the Brunt–Väisälä frequency \eqref{brunt_vaisala},
-
-\begin{equation}\label{theta_bar}
-    \overline{\theta}(z) = \overline{\theta}(0) \exp \left( \frac{1}{g} \int _0 ^z \overline{N}(\xi)^2 \, d\xi\right)
-\end{equation}
-
-\begin{figure}[hbtp]
-    \centering
-    \begin{minipage}[t]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{reference_brunt–väisälä_frequency.pdf}
-        \caption{Reference Brunt–Väisälä frequency \eqref{N_bar}}
-        \label{fig:N_bar}
-    \end{minipage}
-    \hfill % Adds flexible space between the two minipages
-    \begin{minipage}[t]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{reference_potential_temperature_profile.pdf}
-        \caption{Reference potential temperature profile \eqref{theta_bar}}
-        \label{fig:theta_bar}
-    \end{minipage}
-\end{figure}
-
-We combine the ideal gas law $p = \rho R T$ and the the definition of $\theta$ \eqref{pot_temp} to express the reference density profile, where $\kappa = R/c_p$:
-
-\begin{equation}\label{rho_bar}
-    \overline{\rho}(z) = \frac{\overline{p}}{R \overline{\theta}} \left( \frac{p_\text{surf}}{\overline{p}}\right)^\kappa
-\end{equation}
-
-To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assumption that $d\overline{p}/dz = -g \overline{\rho}$, substitute in equation \eqref{rho_bar}, and solve the ODE to yield \cite{fehlmann1997pvelements}.
-
-\begin{equation}\label{p_bar}
-    \overline{p}(z) = \overline {p}(0) \left( 1- \frac{\kappa g}{R} \left( \frac{p_\text{surf}}{\overline{p}(0)}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
-\end{equation}
-
-\begin{figure}[hbtp]
-    \centering
-    \begin{minipage}[t]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{reference_density_profile.pdf}
-        \caption{Reference density profile \eqref{rho_bar}}
-        \label{fig:brunt_vaisala}
-    \end{minipage}
-    \hfill % Adds flexible space between the two minipages
-    \begin{minipage}[t]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{reference_pressure_profile.pdf}
-        \caption{Reference pressure profile \eqref{p_bar}}
-        \label{fig:theta_bar}
-    \end{minipage}
-\end{figure}
-
-The approximation $\overline{p}(0) = p_\text{surf} = \qty{1000}{\hecto\pascal}$ will be made for simplicity.
-
-\subsection{Boundary Conditions}
-To specify the horizontal boundary conditions, we need to choose values of $u$ and $v$. We will define a jet stream aiming to recreate the one shown in \cite{Barnes2022main}.
-The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the tropopause vertically, is centred about the middle of the domain meridionally, has a Gaussian shape, and has a similar overall size to the one shown in \cite{Barnes2022main} ($y_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{2000}{\meter}$).
-We will let
-
-\begin{equation}\label{u_boundary}
-    u(y,z) = u_\text{jet} \exp\left[ - \left(\frac{y - L_y /2}{y_\text{jet}}\right)^2 - \left(\frac{z - z_\text{trop}}{z_\text{jet}} \right)^2\right]
-\end{equation}
-
-\begin{equation}\label{v_boundary}
-    v(x,z) = 0
-\end{equation}
-
-\begin{figure}[hbtp]
-    \centering
-    \includegraphics[width=0.96\linewidth]{jet_stream.pdf}
-    \caption{Jet stream specified in equation \eqref{u_boundary}. A contour interval of \qty{5}{\meter\per\second} is used.}
-    \label{fig:jet_stream}
-\end{figure}
-
-You may notice that we have not yet defined $\theta^*$. It will be calculated later on to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
-
-\subsection{Source term}
-To calculate the source term $q$ we must first specify the background state $\overline{Q}$. We will derive this from the full formulation of EPV \eqref{epv} and the Brunt–Väisälä frequency \eqref{brunt_vaisala}. %TODO reference \zeta_g
-
-\begin{equation}\label{Q_bar}
-\begin{aligned}
-    \overline{Q} &= \frac{(\zeta + f \mathbf{\hat {k}}) \cdot \nabla \overline\theta}{\overline\rho} \\
-    &= \frac{d \overline \theta}{dz} \cdot\frac{\mathbf{\hat {k}} \cdot (\zeta + f \mathbf{\hat {k}})}{\overline\rho} \\
-    &= \frac{\overline{N}^2 \overline{\theta}}{g}  \cdot\frac{\zeta_g + f}{\overline\rho}
-\end{aligned}
-\end{equation}
-
-We will specify the same PV anomaly as the one used in \cite{Barnes2022main} minus the obvious typographical errors:
-
-\begin{equation}\label{Q_star}
-    Q^*(x,y,z) = -4 \times10^{-6} \exp \left[- \left(\frac{x - x_\text{ano}}{x_\text{size}}\right)^2 - \left(\frac{y - y_\text{ano}}{y_\text{size}}\right)^2 - \left(\frac{z - z_\text{ano}}{z_\text{size}}\right)^2\right]
-\end{equation}
-
-\begin{figure}[hbtp]
-    \centering
-    \begin{subfigure}{\linewidth}
-        \centering
-        \includegraphics[width=0.96\linewidth]{epv_x.pdf}
-        \caption{Cross-section in the $x$-direction}
-        \label{fig:epv_x}
-    \end{subfigure}
-
-    \vspace{1em} % Adds vertical space between the stacked images
-
-    \begin{subfigure}{\linewidth}
-        \centering
-        \includegraphics[width=0.96\linewidth]{epv_y.pdf}
-        \caption{Cross-section in the $y$-direction}
-        \label{fig:epv_y}
-    \end{subfigure}
-
-    \caption{EPV specified in \cref{Q_bar,Q_star}. A contour interval of \qty{0.5}{PVU} (Potential Vorticity Units) is used.}
-    \label{fig:epv_combined}
-\end{figure}
-
-The anomaly will initially be placed at the centre of the domain ($x_\text{ano} = L_x/2$ and $y_\text{ano} = L_y/2$), with an anomaly height that corresponds to the troposphere height ($z_\text{ano}=z_\text{trop}$).
-For the first experiment the anomaly sizes $x_\text{size} = y_\text{size} = \qty{200}{\km}$ and $z_\text{size} = \qty{2000}{\meter}$ will be used.
-To convert $Q=\overline{Q}+Q^*$ into quasigeostrophic PV, we employ the following approximation \cite{fehlmann1997pvelements}:
-
-\begin{equation}\label{full_q}
-    q \approx \frac{\overline{\rho} g}{\overline{N}^2 \overline{\theta}} Q - f
-\end{equation}
-
-\section{Numerical Solution}
-By adopting a smoothing value of $\delta = 2$ for \cref{kappa_delta}, the integral in \cref{theta_bar} is of the following general form \cite{Mathematica}:
-
-\begin{equation}\label{nonelementary}
-    \int e^{z^4}\,dz = - \frac{z \Gamma \left( \frac{1}{4}, -z^4\right)}{4 \sqrt[4]{-z^4}} + C
-\end{equation}
-
-Because this integral lacks a closed-form solution, the coefficients \eqref{rho_bar} and the source term \eqref{full_q} cannot be readily expressed analytically.
-Consequently, numerical integration is required.
-
-\subsection{Choice of Solver Framework}
-
-While spectral methods offer exponential convergence and efficient memory usage, they trigger non-physical oscillations, known as the Gibbs phenomenon, when applied to localised functions \eqref{full_q} or kink functions \eqref{N_bar} \cite{Trefethen2000}.
-Finite difference schemes are straightforward to implement, but they struggle with the unstructured grids necessary for resolving irregular lower boundaries, such as real-world topography \cite{BLAZEK201529}.
-Furthermore, although finite volume methods excel at tracking fluxes in hyperbolic conservation laws (such as \cref{qgpv_time}), scaling to higher-order accuracy requires implementing more complex schemes \cite{Durran2010}.
-To overcome these limitations, we employ a finite element method (FEM).
-FEM natively handles unstructured meshes with irregular boundaries, effortlessly scales to higher-order accuracy, and supports formulations (such as Discontinuous Galerkin) that strictly enforce flux conservation \cite{FiredrakeUserManual}.
-
-This work will use the Python library \href{https://www.firedrakeproject.org/}{Firedrake} as the computational framework to build up the numerical solver.
-It allows a high level specification of PDEs, automatic highly optimised C code generation and automatic Jacobian computation.
-These features significantly reduce development time, ensuring the project remains within the scope of an honours thesis.
-Furthermore, Firedrake provides access to some of the most efficient matrix solvers and precondtioners, such as conjugate gradient and polynomial multigrid, by simply changing one line in the solver parameters \cite{FiredrakeUserManual}.
-
-Firedrake has a more involved installation process than most Python libraries. The instructions for which can be found \href{https://www.firedrakeproject.org/install.html}{here}.
-
-\subsection{Building the Mesh} %TODO decide if to include grid stretching
-Before we set up the mesh, we specify a \href{https://github.com/TrueCP6/PV-Inversion/blob/master/parameters.py}{\mintinline{python}{SolverParams} and \mintinline{python}{PhysicalParams} class} to store our parameters for the simulation. These objects will be passed through each part of the solver.
-
-To construct the mesh more efficiently, we employ Firedrake's capability to extrude a flat 2D mesh into 3D, which was found to be significantly less computationally expensive than directly creating a 3D mesh. %TODO explain tensor product and check if it was used, why quadrilateral is necessary and the benefits of using and extruded mesh
+To circumvent this the \mintinline{python}{'DQ'} function space could be implemented, but this would require expensive projections back and forth between both function spaces \cite{FiredrakeUserManual}.
+A more efficient approach would be to make use of the pre-existing high-order numerical integration system in the package \mintinline{python}{scipy} \cite{scipy}, and then write the result back into a Firedrake \mintinline{python}{Function}.
+The annotated code that performs the integration up to 4th order accuracy is given:
 
 \begin{minted}{python}
-temp_mesh = RectangleMesh(
-    solver_params.nx, solver_params.ny, # Specify the number of elements in the x and y direction
-    phys_params.Lx, phys_params.Ly, # Specify the size of the domain in the x and y directions
-    quadrilateral=True # Enables use of the 'Q' function space
-)
+def compute_vertical_integral(integrand, func_space):
+    """
+    Computes the vertical integral I(z) = \int_{z_{bottom}}^z f(\xi) d\xi.
 
-# Extrude the flat 2D mesh upwards in 3D
-mesh = ExtrudedMesh(
-    temp_mesh,
-    layers=solver_params.nz, # Specify the number of elements in the z direction
-    layer_height=(phys_params.H / solver_params.nz) # Calculate the correct vertical distance between layers
-)
+    Collapses the mesh into a single 1D vertical profile. The integration is handled by SciPy's CubicSpline, which maintains high-order accuracy compatible with higher-degree Firedrake function spaces, before mapping the result back to a 3D Firedrake Function.
+    """
+    mesh = func_space.mesh()
+
+    # Extract Z-coordinates and integrand values at all mesh Degrees of Freedom (DoFs)
+    z_expr = SpatialCoordinate(mesh)[2]
+
+    z_fd = Function(func_space).interpolate(z_expr)
+    f_fd = Function(func_space).interpolate(integrand)
+
+    z_data = z_fd.dat.data_ro
+    f_data = f_fd.dat.data_ro
+
+    # Sort DoFs vertically. SciPy's CubicSpline requires strictly increasing coordinates.
+    sort_idx = np.argsort(z_data)
+    z_sorted = z_data[sort_idx]
+    f_sorted = f_data[sort_idx]
+
+    # Collapse 3D mesh into a 1D vertical profile. This prevents redundant integration across identical horizontal columns and removes duplicate Z-coordinates that would crash the spline.
+    z_rounded = np.round(z_sorted, decimals=8)
+    _, unique_idx = np.unique(z_rounded, return_index=True)
+
+    z_1d = z_sorted[unique_idx]
+    f_1d = f_sorted[unique_idx]
+
+    # Fit a continuous piecewise cubic polynomial to the 1D profile
+    spline = CubicSpline(z_1d, f_1d)
+
+    # Analytically integrate the spline (producing a 4th-degree polynomial)
+    integral_spline = spline.antiderivative()
+
+    # Evaluate the integral back at the original 3D mesh DoF coordinates.
+    # Subtracting the bottom boundary value enforces the condition I(0) = 0.
+    integral_dofs = integral_spline(z_data) - integral_spline(z_1d[0])
+
+    # Write the 1D evaluated data back into a native Firedrake Function
+    result = Function(func_space, name="Vertical_Integral")
+    result.dat.data[:] = integral_dofs
+
+    return result
 \end{minted}
 
-Forcing the base mesh to have quadrilateral elements, and then extruding it vertically means each cell is hexahedral.
-This allows Firedrake to build the function space on these cells using tensor products.
-When assembling forms or running matrix-free operators, Firedrake will automatically make use of sum factorisation \cite{FiredrakeUserManual}.
-This decouples the multi-dimensional integrals into a sequence of 1D operations, reducing the computational complexity to $\mathcal{O}(p^4)$ from $\mathcal{O}(p^6)$ for matrix-free operators and from $\mathcal{O}(p^9)$ to $\mathcal{O}(p^7)$ when explicitly assembling sparse matrices \cite{Homolya2017}. $p$ is the polynomial order of the Function Space.
+When running with MPI, this function does not collate the data between ranks onto a single rank.
+This means that each rank evaluates the integral only on the data in its subset of the mesh.
+If the mesh were to be subdivided vertically, this would completely break the function and
+incorrect results would be given.
+However, Firedrake only subdivides extruded meshes horizontally \cite{FiredrakeUserManual}, so each MPI rank is operating on its own independent vertical column.
 
-\subsection{Defining the Function Space}
-Firedrake offers a large number of finite elements, each with its own pros and cons.
+For this reason, the \mintinline{python}{compute_vertical_integral} function will \textbf{only} produce accurate results for \textbf{extruded meshes}.
+This results in a slight increase in efficiency as communication between ranks is not necessary.
 
-\bibliographystyle{alpha}
-\bibliography{sources}
+\subsection{Weak Form}\label{app:weak_form}
 
-\section{TEMP}
-\subsection{Plan}
-\begin{enumerate}
-    \item Basic structure of the atmosphere
-    \item What is potential vorticity?
-    \item Introduce Ertel PV
-    \item Introduce QG PV
-    \item Explain basic derivation of QG PV equation, including splitting into reference and peturbation
-    \item What is a stratospheric intrusion and how does it relate to cut off lows
-    \item Cut off lows in south africa
-    \item Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping
-    \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting
-    \item Specify background states and plot them. Explain where necessary
-    \item Specify q and plot it
-    \item Why we will use finite element and firedrake
-    \item Building the mesh and function space in Firedrake
-    \item Putting into weak form - why do we multiply by rho?
-    \item Solvability condition
-    \item Utility functions
-    \item Specifying the equation in Firedrake
-    \item Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol - why matrix free is slower (check notebooklm) - why are the coefficients not analytically expressible
-    \item Running with MPI
-    \item Verify setup is correct using MMS
-    \item Calculate time complexity and order of accuracy
-    \item Calculating derived quantities such as pressure, velocity and relative vorticity
-    \item Reproduction of a few of Barnes' experiments
-    \item What happens if we change Brunt-Vaisala to be more realistic
-    \item Potentially investigate alternative backgrounds
-    \item Feasability of explicit timestepping - stability condition
-\end{enumerate}
+Equation \eqref{final_weak_form} is expressed in Firedrake's syntax, which is based on Unified Form Language (UFL) \cite{UFL}.
+This code is included as certain parts of the syntax can be quite unintuitive, especially with extruded meshes.
+The calculation of the variable \mintinline{python}{rho_N2} is a detail important to note.
+
+\begin{minted}{python}
+# Define the trial and test functions
+psi = TrialFunction(func_space)
+phi = TestFunction(func_space)
+n = FacetNormal(mesh) # The normal vector n=[n_x, n_y, n_z]
+
+# The value of the below expression will be evaluated at both vertical boundaries
+top_boundary = phys_params.g * theta_star / (phys_params.f * theta_bar)
+bottom_boundary = top_boundary
+
+# Calculate the quotient in advance
+# This is absolutely crucial to prevent huge quadrature degrees from being necessary to assemble the form
+rho_N2 = Function(func_space).interpolate(rho_bar / (N_bar**2))
+
+x_base = rho_bar * phi * v * n[0]
+y_base = rho_bar * phi * -u * n[1]
+z_base = n[2] * (f**2) * phi * rho_N2
+
+L_x = x_base * ds_v((1, 2)) # Tuple that refers to both x-boundaries on the extruded mesh
+L_y = y_base * ds_v((3, 4)) # Same but for y-boundaries
+L_bottom = z_base * bottom_boundary * ds_b # ds_b is the bottom boundary in an extruded mesh
+L_top = z_base * top_boundary * ds_t # ds_t is the top boundary in an extruded mesh
+L_vol = -q * rho_bar * phi * dx
+
+# Linear form L
+L = L_x + L_y + L_bottom + L_top + L_vol
+
+# Bilinear form alpha
+a = (rho_bar * psi.dx(0) * phi.dx(0) +
+     rho_bar * psi.dx(1) * phi.dx(1) +
+     (f**2) * rho_N2 * psi.dx(2) * phi.dx(2)) * dx
+\end{minted}
+
+\subsection{Solver Parameters}\label{app:solver_params}
+
+A direct Python equivalent for the solver set-up and parameters given in \cref{sec:solver_settings} is provided.
+Additionally, a supplementary set of solver parameters are provided that trade solve time for memory footprint.
+This was necessary as the hardware used to develop the solver (\cref{app:hardware}) has insufficient memory to use an assembled matrix on meshes with $p = 4$ and $N_x = N_y = N_z > 35$.
+The selection of solver parameters is based on the boolean variable \mintinline{python}{save_memory}.
+
+\begin{minted}{python}
+psi_soln = Function(func_space) # The solution will be stored here
+
+problem = LinearVariationalProblem(
+    a, L, psi_soln,
+    constant_jacobian=True # Saves a lot of time with the assembled solver parameters and repeated solves
+)
+
+# Use different solver parameters based on the user requirements
+params = matfree_params if save_memory else assembled_mat_params
+
+# Define a constant null space to prevent the matrix from being singular
+nullspace = VectorSpaceBasis(constant=True, comm=mesh.comm)
+
+# Build the reusable solver object
+solver = LinearVariationalSolver(
+    problem,
+    solver_parameters=params,
+    nullspace=nullspace
+)
+
+# Finally solve the equation!
+solver.solve()
+\end{minted}
+
+The solver parameters described in \cref{sec:solver_settings} are written below in Firedrake syntax.
+A value of \mintinline{python}{ksp_rtol = 1e-9} was selected for the convergence conditions, as minimal benefit arises from setting it much smaller \cite{FiredrakeUserManual}.
+
+\begin{minted}{python}
+assembled_mat_params = {
+    "mat_type": "aij", # Assemble the sparse matrix
+    "ksp_type": "cg", # Conjugate gradient
+    "pc_type": "python",
+    "ksp_rtol": ksp_rtol,
+    "pc_python_type": "firedrake.PMGPC", # p-multigrid
+    "pmg_mg_levels_pc_type": "jacobi",
+    "pmg_mg_coarse_pc_type": "lu", # LU factorisation on the coarsest mesh
+    "ksp_monitor": None, # Print the preconditioned residual norm at each iteration
+    "ksp_converged_reason": None # Print the reason for terminating iteration
+}
+\end{minted}
+
+The more memory efficient -- but much slower -- matrix free version of the above parameters is provided.
+It is suitable for running once-off solves on consumer hardware, but is too slow to be practical for time-stepping.
+
+\begin{minted}{python}
+matfree_params = {
+    "mat_type": "matfree", # Only use matrix free operators
+    "ksp_type": "cg",
+    "ksp_rtol": ksp_rtol,
+    # p-multigrid for outer preconditioner
+    "pc_type": "python",
+    "pc_python_type": "firedrake.PMGPC",
+    # Smoother for p=2,3,4
+    "pmg_mg_levels_ksp_type": "chebyshev",
+    "pmg_mg_levels_pc_type": "jacobi",
+    # p=1 coarse mesh solver
+    "pmg_mg_coarse_ksp_type": "preonly",  # Don't iterate on the coarse p=1 mesh, just apply the direct solver once
+    "pmg_mg_coarse_pc_type": "python",
+    "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
+    "pmg_mg_coarse_assembled_pc_type": "lu",  # Apply LU to the explicitly assembled coarse matrix
+    "ksp_monitor" : None,
+    "ksp_converged_reason" : None
+}
+\end{minted}
+
+\subsection{Running in Parallel with MPI}
+
+To run Firedrake in parallel, it is necessary to use \href{https://www.firedrakeproject.org/parallelism.html}{a Message Passing Interface (MPI) Library} \cite{FiredrakeUserManual}.
+For example:
+
+\begin{minted}{bash}
+mpiexec -n 16 python simulation.py
+\end{minted}
+
+It is worth noting that standard python functions will run redundantly on every single MPI rank, including \mintinline{python}{print()} statements.
+Firedrake's standard functions know how to handle multiple ranks seamlessly, however normal python libraries will not necessarily handle this correctly.
+Instead Firedrake's functions should be used where possible, such as \mintinline{python}{PETSc.Sys.Print()} instead of \mintinline{python}{print()} \cite{FiredrakeUserManual}.
+
+\section{Hardware Used}\label{app:hardware}
+
+The majority of benchmarking and solver optimisation was conducted on an 8 core-16 thread AMD Ryzen 7 7730U with a base clock speed of \qty{2}{\giga \hertz} and a boost clock speed of \qty{4.5}{\giga \hertz}. This processor has a total of \qty{512}{\kilo \byte} of L1 cache, \qty{4}{\mega \byte} of L2 cache and \qty{16}{\mega \byte} of L3 cache. Firedrake scripts were executed on Windows Subsystem for Linux (WSL) with \qty{12}{\giga \byte} of memory available.
+
+\end{appendices}
 
 \end{document}
+%TODO section for potential areas of extension - realistic lower bcs
