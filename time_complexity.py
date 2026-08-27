@@ -92,7 +92,6 @@ def main():
     parser.add_argument('-matfd', '--max_dofs_matfree', type=int, default=6000000)
     parser.add_argument('-n', '--num_resolutions', type=int, default=5)
     parser.add_argument('-ni', '--num_initial_solves', type=int, default=1)
-    parser.add_argument('-mind', '--min_dofs', type=int, default=100000)
     sweep.add_common_arguments(parser)
     sweep.add_point_arguments(parser)
     # Internal re-exec entry point - not for direct use.

@@ -80,23 +80,6 @@ class Solver:
         )
         PETSc.Sys.Print(f"Completed solver setup")
 
-    # def destroy(self):
-    #     """Release the PETSc objects immediately.
-    #
-    #     Dropping the last Python reference is not enough on its own: the KSP,
-    #     its preconditioner and the assembled operator sit behind reference
-    #     cycles, so the C-side memory is only returned whenever the garbage
-    #     collector next gets round to them. When solvers are built in a loop that
-    #     is far too late.
-    #     """
-    #     ksp = getattr(self.solver, "snes", None)
-    #     if ksp is not None:
-    #         ksp.destroy()
-    #     self.solver = None
-    #     self.psi_soln = None
-    #     self.phi = None
-    #     self.atmos = None
-
     def solve_psi(self, zero_initial_guess : bool = False):
         if zero_initial_guess: # Reset initial guess (used for benchmarking)
             self.psi_soln.assign(0)

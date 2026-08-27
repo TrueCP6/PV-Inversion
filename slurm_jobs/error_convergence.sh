@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --account maths
-#SBATCH --time=3:00:00
+#SBATCH --time=12:00:00
 #SBATCH --nodes=1 --ntasks=40
 #SBATCH --mem=300G
 #SBATCH --job-name="firedrake"
@@ -23,18 +23,24 @@ mkdir -p $HOST_CACHE_DIR
 export APPTAINERENV_XDG_CACHE_HOME=$HOST_CACHE_DIR
 export APPTAINERENV_PYOP2_CACHE_DIR=${HOST_CACHE_DIR}/pyop2
 
-# 5. Each resolution runs its own `mpiexec -n 40` (time_complexity.py forks one per
-# data point so every test gets the full node - see time_complexity.py for why).
-# time_complexity.py loops over resolutions itself, so tests run sequentially.
+# 4. The exact solution checkpoint is large, so keep it on /scratch rather than in
+# the home directory. Point a later job at the same path with --exact to reuse it
+# instead of paying for the fine solve again.
+EXACT_FILE=/scratch/eltrob002/psi_exact.h5
+
+# 5. Each (p, N) pair runs its own `mpiexec -n 40` (error_convergence.py forks one
+# per data point so every solve gets the full node - see sweep.py for why).
 apptainer exec \
     --bind /scratch/eltrob002 \
     --bind $HOST_CACHE_DIR \
-    ~/firedrake.sif python3 Thesis/time_complexity.py \
+    ~/firedrake.sif python3 Thesis/error_convergence.py \
     --job_id ${SLURM_JOB_ID} \
-    --num_solves 2 \
-    --max_dofs_assembled 20000000 \
-    --max_dofs_matfree 20000000 \
-    --num_resolutions 30 \
-    --ranks 40 \
-    --num_initial_solves 3 \
-    --min_dofs 100000
+    --max_p 10 \
+    --min_dofs 1000000 \
+    --num_resolutions 20 \
+    --max_dofs 10000000 \
+    --exact_N 40 \
+    --exact_p 7 \
+    --ksp_rtol 1e-12 \
+    --exact ${EXACT_FILE} \
+    --ranks 40

@@ -93,10 +93,9 @@ def load_records(path, record_cls):
 def add_common_arguments(parser):
     """Options every sweep script takes."""
     parser.add_argument('-j', '--job_id', type=int, default=0)
-    parser.add_argument('-r', '--ranks', type=int, default=1,
-                        help='MPI ranks to use for each data point (each point runs in its own mpiexec process)')
-    parser.add_argument('--plot', metavar='JSON_PATH',
-                        help='Plot the given results file instead of generating new data, then exit')
+    parser.add_argument('-r', '--ranks', type=int, default=1, help='MPI ranks to use for each data point (each point runs in its own mpiexec process)')
+    parser.add_argument('-mind', '--min_dofs', type=int, default=100000)
+    parser.add_argument('--plot', metavar='JSON_PATH', help='Plot the given results file instead of generating new data, then exit')
 
 def add_point_arguments(parser):
     """Internal re-exec entry point for a single data point - not for direct use."""

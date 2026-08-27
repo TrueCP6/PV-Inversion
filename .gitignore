@@ -195,3 +195,4 @@ tex_out/*
 tex/*.pdf
 *.json
 .claude/*
+*.h5
