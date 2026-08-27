@@ -38,50 +38,56 @@ class SolverParams:
     check_flux: bool = True
     output_file: str = "output.pvd"
     ksp_rtol: float = 1e-9
-    matfree_params = {
-        "mat_type": "matfree",
-        "ksp_type": "cg",
-        "ksp_rtol": ksp_rtol,
-        # p-multigrid for outer preconditioner
-        "pc_type": "python",
-        "pc_python_type": "firedrake.PMGPC",
-        # For p=2,3,4
-        "pmg_mg_levels_ksp_type": "chebyshev",
-        "pmg_mg_levels_pc_type": "jacobi",
-        # Assemble the p=1 matrix and use solve directly using lu factorisation
-        "pmg_mg_coarse_ksp_type": "preonly",  # Don't iterate, just apply the direct solver once
-        "pmg_mg_coarse_pc_type": "python",
-        "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
-        "pmg_mg_coarse_assembled_pc_type": "lu",  # Apply LU to the explicitly assembled coarse matrix
-        "ksp_monitor" : None,
-        "ksp_converged_reason" : None
-    }
-    assembled_mat_params = { # similar to above but use a fully assembled matrix instead - much faster but uses much more memory
-        "mat_type": "aij",
-        "ksp_type": "cg",
-        "pc_type": "python",
-        "ksp_rtol": ksp_rtol,
-        "pc_python_type": "firedrake.PMGPC",
-        "pmg_mg_levels_pc_type": "jacobi",
-        # The coarse (p=1) operator inherits the same constant nullspace as the fine
-        # problem, so it is exactly singular. Firedrake *does* propagate the nullspace
-        # down to this level, but MatSetNullSpace only tells a *Krylov* solver to
-        # project the null component out of the RHS and iterates - it does not alter
-        # the matrix, so it cannot rescue a direct factorisation. Combined with
-        # ksp_type "preonly" (apply the PC once, no iteration) the nullspace machinery
-        # never runs here at all, and LU/Cholesky just divide by the zero pivot:
-        # confirmed to blow up to NaN for specific mesh/rank partitions (LU failed 8/8
-        # at N=22 on 8 ranks; Cholesky still failed 3/5 at N=26) while succeeding for
-        # others, since parallel assembly rounding decides how close the pivot lands
-        # to exact zero. Iterating on the coarse level instead tolerates the
-        # singularity the same way the fine level's CG does, rather than depending on
-        # a lucky pivot.
-        "pmg_mg_coarse_ksp_type": "gmres",
-        "pmg_mg_coarse_pc_type": "jacobi",
-        "pmg_mg_coarse_ksp_rtol": 1e-10,
-        "pmg_mg_coarse_ksp_max_it": 200,
-        "ksp_monitor": None,
-        "ksp_converged_reason": None
-    }
     gamma: float = 0
     polynomial_order: int = 4
+
+    @property
+    def matfree_params(self):
+        return {
+            "mat_type": "matfree",
+            "ksp_type": "cg",
+            "ksp_rtol": self.ksp_rtol,
+            # p-multigrid for outer preconditioner
+            "pc_type": "python",
+            "pc_python_type": "firedrake.PMGPC",
+            # For p=2,3,4
+            "pmg_mg_levels_ksp_type": "chebyshev",
+            "pmg_mg_levels_pc_type": "jacobi",
+            # Assemble the p=1 matrix and use solve directly using lu factorisation
+            "pmg_mg_coarse_ksp_type": "preonly",  # Don't iterate, just apply the direct solver once
+            "pmg_mg_coarse_pc_type": "python",
+            "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
+            "pmg_mg_coarse_assembled_pc_type": "lu",  # Apply LU to the explicitly assembled coarse matrix
+            "ksp_monitor": None,
+            "ksp_converged_reason": None
+        }
+
+    @property
+    def assembled_mat_params(self): # similar to above but use a fully assembled matrix instead - much faster but uses much more memory
+        return {
+            "mat_type": "aij",
+            "ksp_type": "cg",
+            "pc_type": "python",
+            "ksp_rtol": self.ksp_rtol,
+            "pc_python_type": "firedrake.PMGPC",
+            "pmg_mg_levels_pc_type": "jacobi",
+            # The coarse (p=1) operator inherits the same constant nullspace as the fine
+            # problem, so it is exactly singular. Firedrake *does* propagate the nullspace
+            # down to this level, but MatSetNullSpace only tells a *Krylov* solver to
+            # project the null component out of the RHS and iterates - it does not alter
+            # the matrix, so it cannot rescue a direct factorisation. Combined with
+            # ksp_type "preonly" (apply the PC once, no iteration) the nullspace machinery
+            # never runs here at all, and LU/Cholesky just divide by the zero pivot:
+            # confirmed to blow up to NaN for specific mesh/rank partitions (LU failed 8/8
+            # at N=22 on 8 ranks; Cholesky still failed 3/5 at N=26) while succeeding for
+            # others, since parallel assembly rounding decides how close the pivot lands
+            # to exact zero. Iterating on the coarse level instead tolerates the
+            # singularity the same way the fine level's CG does, rather than depending on
+            # a lucky pivot.
+            "pmg_mg_coarse_ksp_type": "gmres",
+            "pmg_mg_coarse_pc_type": "jacobi",
+            "pmg_mg_coarse_ksp_rtol": 1e-10,
+            "pmg_mg_coarse_ksp_max_it": 200,
+            "ksp_monitor": None,
+            "ksp_converged_reason": None
+        }

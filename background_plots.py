@@ -6,22 +6,10 @@ from parameters import *
 from barnes_atmosphere import *
 from domain_builder import *
 from solver import *
+from plot_utils import apply_style
 
-# 1. Global parameters for academic styling
-plt.rcParams.update({
-    "text.usetex": True,  # Use LaTeX to render text
-    "font.family": "serif",  # Use serif fonts
-    "font.serif": ["Computer Modern"],  # Match default LaTeX font
-    "text.latex.preamble": r"\usepackage{siunitx}",
-    "font.size": 11,  # Match typical LaTeX document font size
-    "axes.titlesize": 11,
-    "axes.labelsize": 11,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-    "axes.linewidth": 1.0,  # Thicker axes frames
-    "xtick.direction": "in",  # Inward facing ticks
-    "ytick.direction": "in"
-})
+# Global parameters for plot styling
+apply_style()
 
 def get_global_mesh_bounds(mesh):
     """
