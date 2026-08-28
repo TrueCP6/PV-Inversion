@@ -196,3 +196,5 @@ tex/*.pdf
 *.json
 .claude/*
 *.h5
+*.err
+*.out

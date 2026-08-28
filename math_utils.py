@@ -135,16 +135,20 @@ def relative_error(exact, numerical : Function, norm_type='L2'):
     volume = assemble(Constant(1) * dx_fine)
     mean_offset = total_offset / volume
 
-    # shift the numerical solution by that constant we have worked out
-    numerical_shifted = Function(fine_func_space).interpolate(numerical - mean_offset)
+    shifted = Function(fine_func_space)
 
-    absolute_error = errornorm(exact, numerical_shifted, norm_type=norm_type)
+    # shift the numerical solution by that constant we have worked out
+    shifted.assign(numerical)
+    shifted.dat.data[:] -= mean_offset
+
+    absolute_error = errornorm(exact, shifted, norm_type=norm_type)
 
     # compute mean of exact solution
     exact_mean = assemble(exact * dx_fine) / volume
     # shift exact solution, to prevent similar problem to before
-    exact_shifted = Function(fine_func_space).interpolate(exact - exact_mean)
+    shifted.assign(exact)
+    shifted.dat.data[:] -= exact_mean
 
-    exact_norm = norm(exact_shifted, norm_type=norm_type)
+    exact_norm = norm(shifted, norm_type=norm_type)
 
     return absolute_error / exact_norm

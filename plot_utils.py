@@ -27,7 +27,7 @@ def apply_style():
         "ytick.direction": "in"
     })
 
-def log_log_slope(x, y):
+def log_log_slope(x, y): # todo switch to max gradient
     """Least-squares gradient of log(y) against log(x), or nan if there is nothing to fit."""
     if len(x) < 2:
         return float('nan')
