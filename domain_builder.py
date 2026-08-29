@@ -32,7 +32,6 @@ class DomainBuilder:
             layers=self.solver_params.nz,
             layer_height=(self.phys_params.H / self.solver_params.nz)
         )
-        PETSc.Sys.Print("Built extruded mesh")
         return mesh
 
     def _concentrate_centre(self, z, L):

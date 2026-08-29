@@ -44,7 +44,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
         full_expr = p_bar**(1-kappa) * p_s**kappa / (R * theta_bar)
         fn = Function(self.func_space).interpolate(full_expr)
-        PETSc.Sys.Print("Computed reference density profile")
         return fn
 
     @lru_cache(maxsize=1)
@@ -58,7 +57,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
             self.phys_params.trop_height
         )
         fn = Function(self.func_space).interpolate(full_expr)
-        PETSc.Sys.Print("Computed reference Brunt-Vaisala frequency profile")
         return fn
 
     @lru_cache(maxsize=1)
@@ -66,7 +64,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
         integral = compute_vertical_integral(self.N_bar()**2, self.func_space)
         full_expr = self.phys_params.theta_bar_bottom * exp(integral / self.phys_params.g)
         fn = Function(self.func_space).interpolate(full_expr)
-        PETSc.Sys.Print("Computed reference potential temperature profile")
         return fn
 
     @lru_cache(maxsize=1)
@@ -87,7 +84,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
             - self.phys_params.f
         )
         fn = Function(self.func_space).interpolate(full_expr)
-        PETSc.Sys.Print("Computed q(x,y,z)")
         return fn
 
     @lru_cache(maxsize=1)

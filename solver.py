@@ -55,30 +55,32 @@ class Solver:
 
     def _setup_solver(self):
         a, L = self._specify_equation()
-        PETSc.Sys.Print("Set up equation")
+
+        form_compiler_params = self.solver_params.form_compiler_params
 
         if self.solver_params.check_flux:
-            PETSc.Sys.Print("Calculating net flux...")
-            flux = assemble(replace(L, {self.phi: Constant(1)}))
+            flux = assemble(replace(L, {self.phi: Constant(1)}),
+                            form_compiler_parameters=form_compiler_params)
             PETSc.Sys.Print(f"Net flux is {flux}")
 
         problem = LinearVariationalProblem(
             a, L, self.psi_soln,
-            constant_jacobian=True # Saves a lot of time with the assembled solver parameters
+            constant_jacobian=True, # Saves a lot of time with the assembled solver parameters
+            form_compiler_parameters=form_compiler_params
         )
-        PETSc.Sys.Print("Created problem")
 
         # Use different solver parameters based on the user requirements
         params = self.solver_params.matfree_params if self.mat_free else self.solver_params.assembled_mat_params
         nullspace = VectorSpaceBasis(constant=True, comm=self.mesh.comm)
-        PETSc.Sys.Print("Created nullspace")
 
         self.solver = LinearVariationalSolver(
             problem,
             solver_parameters=params,
             nullspace=nullspace
         )
-        PETSc.Sys.Print(f"Completed solver setup")
+
+        max_n = max(self.solver_params.nx, self.solver_params.ny, self.solver_params.nz)
+        PETSc.Sys.Print(f"Set up solver with N={max_n}, p={self.solver_params.polynomial_order}")
 
     def solve_psi(self, zero_initial_guess : bool = False):
         if zero_initial_guess: # Reset initial guess (used for benchmarking)

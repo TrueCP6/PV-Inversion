@@ -43,14 +43,16 @@ def resolutions_for_dofs(min_dofs : int, max_dofs : int, num_resolutions : int, 
     dofs = np.geomspace(min_dofs, max_dofs, num_resolutions)
     return np.unique(np.round((np.cbrt(dofs) - 1) / p).astype(int))
 
-def build_solver(N : int, p : int, matfree : bool, ksp_rtol : float = SolverParams.ksp_rtol):
+def build_solver(N : int, p : int, matfree : bool, ksp_rtol : float = SolverParams.ksp_rtol,
+                 quadrature_degree : int = SolverParams.quadrature_degree):
     """Set up the psi solver on an N x N x N mesh of Q_p elements."""
     from domain_builder import DomainBuilder
     from barnes_atmosphere import BarnesAtmosphere
     from solver import Solver
 
     phys_params = PhysicalParams()
-    solver_params = SolverParams(nx=N, ny=N, nz=N, check_flux=False, polynomial_order=p, ksp_rtol=ksp_rtol)
+    solver_params = SolverParams(nx=N, ny=N, nz=N, check_flux=False, polynomial_order=p,
+                                 ksp_rtol=ksp_rtol, quadrature_degree=quadrature_degree)
 
     domain = DomainBuilder(solver_params, phys_params)
     atmos = BarnesAtmosphere(domain.mesh(), domain.func_space(), phys_params)
@@ -103,7 +105,14 @@ def add_point_arguments(parser):
     parser.add_argument('-N', type=int, help=argparse.SUPPRESS)
     parser.add_argument('-o', '--out', help=argparse.SUPPRESS)
 
+MIN_COLUMNS_PER_RANK = 32
+MIN_DOFS_PER_RANK = 50000
+
 def calc_ranks(p : int, n : int, max_ranks : int):
-    """Get the ideal number of ranks for this (p,N). Ensures there are always more than 50k dofs per rank."""
-    ideal_max_ranks = int(dof_count(p, n)/50000)
-    return min(ideal_max_ranks, max_ranks)
+    """Get the ideal number of ranks for this (p,N).
+
+    Keeps at least MIN_DOFS_PER_RANK dofs and MIN_COLUMNS_PER_RANK base-mesh columns on every rank.
+    """
+    by_dofs = int(dof_count(p, n) / MIN_DOFS_PER_RANK)
+    by_columns = int(n * n / MIN_COLUMNS_PER_RANK)
+    return max(1, min(by_dofs, by_columns, max_ranks))

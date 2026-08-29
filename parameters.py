@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from math import sin, pi, sqrt
 
+# Let UFL estimate a quadrature degree.
+ESTIMATE_QUADRATURE_DEGREE = -1
+
 @dataclass
 class PhysicalParams:
     Lx: float = 5000e3
@@ -40,6 +43,23 @@ class SolverParams:
     ksp_rtol: float = 1e-9
     gamma: float = 0
     polynomial_order: int = 4
+    quadrature_degree: int = None
+
+    @property
+    def form_compiler_params(self):
+        """Form compiler options shared by every form built from these parameters.
+
+        3p integrates the bilinear form exactly - it is a Q_p Laplacian with Q_p
+        coefficients. The linear form is a deliberate truncation: u() and the pv anomaly are
+        Gaussians, so no finite degree is exact for them. Validate a change here by rerunning
+        a converged (p, N) point and checking the relative error is unmoved.
+        """
+        degree = self.quadrature_degree
+        if degree == ESTIMATE_QUADRATURE_DEGREE:
+            return {}
+        if degree is None:
+            degree = 3 * self.polynomial_order
+        return {"quadrature_degree": degree}
 
     @property
     def matfree_params(self):
@@ -58,7 +78,6 @@ class SolverParams:
             "pmg_mg_coarse_pc_type": "python",
             "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
             "pmg_mg_coarse_assembled_pc_type": "lu",  # Apply LU to the explicitly assembled coarse matrix
-            "ksp_monitor": None,
             "ksp_converged_reason": None
         }
 
@@ -88,6 +107,5 @@ class SolverParams:
             "pmg_mg_coarse_pc_type": "jacobi",
             "pmg_mg_coarse_ksp_rtol": 1e-10,
             "pmg_mg_coarse_ksp_max_it": 200,
-            "ksp_monitor": None,
             "ksp_converged_reason": None
         }
