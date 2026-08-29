@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --account maths
-#SBATCH --time=12:00:00
+#SBATCH --time=6:00:00
 #SBATCH --nodes=1 --ntasks=40
 #SBATCH --mem=300G
 #SBATCH --job-name="firedrake"
@@ -31,9 +31,9 @@ apptainer exec \
     --bind $HOST_CACHE_DIR \
     ~/firedrake.sif python3 Thesis/error_convergence.py \
     --job_id ${SLURM_JOB_ID} \
-    --max_p 10 \
+    --max_p 6 \
     --min_dofs 100000 \
-    --num_resolutions 10 \
+    --num_resolutions 20 \
     --max_dofs 5000000 \
     --exact_N 100 \
     --exact_p 4 \

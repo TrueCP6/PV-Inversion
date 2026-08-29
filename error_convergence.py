@@ -126,7 +126,7 @@ def _run_error_sweep(args):
     records = []
     for point in points:
         numerical = _load_solution(point.path, POINT_FUNCTION_NAME)
-        rel_error = relative_error(exact, numerical)
+        rel_error = relative_error(exact, numerical, compare_on='coarse')
         PETSc.Sys.Print(f"p = {point.p}, N = {point.N}: relative error {rel_error:.3e}")
 
         records.append(ErrorRecord(p=point.p, N=point.N,
@@ -285,7 +285,7 @@ def main():
         points = []
         skipped = []
 
-        for p in range(2, args.max_p + 1, 2):
+        for p in range(2, args.max_p + 1):
             for N in _resolutions(args, p):
                 ranks = sweep.calc_ranks(p, N, args.ranks) # Capped by dofs and by base-mesh columns per rank
                 psi_path = os.path.join(workdir, f"psi_p{p}_N{N}.h5")

@@ -111,31 +111,45 @@ def plot_func_slice(func : Function, z_scale : float = 50, normal = 'x'):
     plotter.set_scale(zscale=z_scale)
     plotter.show()
 
-def relative_error(exact, numerical : Function, norm_type='L2'):
+def relative_error(exact, numerical : Function, norm_type='L2', compare_on='fine'):
+    """Relative error norm between exact and numerical, cross-mesh-interpolating one onto
+    the other's function space if they differ.
+
+    compare_on picks which of the two meshes the comparison happens on. 'fine' (the
+    default) picks the finer mesh, appropriate when the two are of comparable resolution
+    and losing detail from either would bias the norm. 'coarse' picks the coarser one -
+    use this when one side is a reference solved at a resolution far finer than the other
+    specifically so it can stand in for the truth (error_convergence.py's exact solution,
+    say): interpolating onto the reference's mesh there would build a function - and do a
+    cross-mesh point-location - at the reference's size for every comparison, when the
+    representation error from interpolating the reference down is negligible next to the
+    coarse side's own discretisation error.
+    """
     # Make sure exact is not a plain UFL expression
     if not isinstance(exact, Function):
         exact = Function(numerical.function_space()).interpolate(exact)
 
-    # If the two function spaces are not the same, we interpolate the coarser function onto the finer mesh
+    # If the two function spaces are not the same, interpolate one onto the other's mesh
     if exact.function_space() != numerical.function_space():
-        if exact.function_space().dim() > numerical.function_space().dim():
-            fine_func_space = exact.function_space()
-            numerical = Function(fine_func_space).interpolate(numerical)
+        exact_is_finer = exact.function_space().dim() > numerical.function_space().dim()
+        if exact_is_finer == (compare_on == 'fine'):
+            target_func_space = exact.function_space()
+            numerical = Function(target_func_space).interpolate(numerical)
         else:
-            fine_func_space = numerical.function_space()
-            exact = Function(fine_func_space).interpolate(exact)
+            target_func_space = numerical.function_space()
+            exact = Function(target_func_space).interpolate(exact)
     else:
-        fine_func_space = exact.function_space()
+        target_func_space = exact.function_space()
 
-    # Define a mesh-specific measure on the fine mesh to prevent integration ambiguity
-    dx_fine = dx(domain=fine_func_space.mesh())
+    # Define a mesh-specific measure on the target mesh to prevent integration ambiguity
+    dx_target = dx(domain=target_func_space.mesh())
 
     # calculate mean offset between numerical and analytical solutions, as we don't know what constant the solver added to psi
-    total_offset = assemble((numerical - exact) * dx_fine)
-    volume = assemble(Constant(1) * dx_fine)
+    total_offset = assemble((numerical - exact) * dx_target)
+    volume = assemble(Constant(1) * dx_target)
     mean_offset = total_offset / volume
 
-    shifted = Function(fine_func_space)
+    shifted = Function(target_func_space)
 
     # shift the numerical solution by that constant we have worked out
     shifted.assign(numerical)
@@ -144,7 +158,7 @@ def relative_error(exact, numerical : Function, norm_type='L2'):
     absolute_error = errornorm(exact, shifted, norm_type=norm_type)
 
     # compute mean of exact solution
-    exact_mean = assemble(exact * dx_fine) / volume
+    exact_mean = assemble(exact * dx_target) / volume
     # shift exact solution, to prevent similar problem to before
     shifted.assign(exact)
     shifted.dat.data[:] -= exact_mean
