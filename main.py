@@ -21,7 +21,7 @@ def main():
     slver.solve_psi() # Run the solver once as spinup
 
     solve_times = []
-    for i in range(10):
+    for i in range(3):
         solve_times.append(slver.solve_psi(True))
     avg_solve_time = sum(solve_times)/len(solve_times)
     PETSc.Sys.Print(f"Average solve completed in {avg_solve_time:0.2f} sec")

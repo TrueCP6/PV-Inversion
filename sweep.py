@@ -1,7 +1,7 @@
 """Shared machinery for the (p, N) sweeps run by time_complexity.py and
 error_convergence.py.
 
-Building a LinearVariationalSolver pins its mesh's PETSc/UFL state (Mat, DM,
+Building a PMG LinearVariationalSolver pins its mesh's PETSc/UFL state (Mat, DM,
 compiled kernels) for the rest of the process - confirmed by direct profiling,
 not released by lru_cache clearing, PETSc.garbage_cleanup, or explicit
 destroy(). Every data point therefore gets a process of its own: the driver
@@ -15,6 +15,7 @@ scope, so a driver process or a plotting run never pays for it.
 import argparse
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -66,6 +67,18 @@ def run_script(script_path, ranks : int, args):
         sys.executable, os.path.abspath(script_path), *map(str, args)
     ], check=True)
 
+def describe_exit(returncode : int):
+    """Explain a child mpiexec's exit status.
+
+    A point killed for memory and a point that failed to converge both surface here as a
+    non-zero return code but need completely different fixes, so say which one it was.
+    mpiexec reports a SIGKILLed rank as -9 or as 128+9 depending on how it was launched.
+    """
+    if returncode in (-signal.SIGKILL, 128 + signal.SIGKILL):
+        return (f"exit {returncode}, a rank was SIGKILLed - almost always the OOM killer; "
+                "check the .err for oom_kill events and sacct for MaxRSS")
+    return f"exit {returncode}"
+
 def run_point(script_path, ranks : int, point_args, record_cls):
     """Evaluate one sweep point in its own process and return the records it wrote.
 
@@ -77,8 +90,9 @@ def run_point(script_path, ranks : int, point_args, record_cls):
         out_path = os.path.join(tmpdir, "point.json")
         try:
             run_script(script_path, ranks, ["--single-point", "-o", out_path, *point_args])
-        except subprocess.CalledProcessError:
-            print(f"Point {' '.join(map(str, point_args))} failed, skipping it", file=sys.stderr)
+        except subprocess.CalledProcessError as exc:
+            print(f"Point {' '.join(map(str, point_args))} failed "
+                  f"({describe_exit(exc.returncode)}), skipping it", file=sys.stderr)
             return []
         return load_records(out_path, record_cls)
 
@@ -96,7 +110,7 @@ def add_common_arguments(parser):
     """Options every sweep script takes."""
     parser.add_argument('-j', '--job_id', type=int, default=0)
     parser.add_argument('-r', '--ranks', type=int, default=1, help='MPI ranks to use for each data point (each point runs in its own mpiexec process)')
-    parser.add_argument('-mind', '--min_dofs', type=int, default=100000)
+    parser.add_argument('-mind', '--min_dofs', type=int, default=100000) # todo: only use a sufficient number of dofs for the available ranks with time_complexity
     parser.add_argument('--plot', metavar='JSON_PATH', help='Plot the given results file instead of generating new data, then exit')
 
 def add_point_arguments(parser):

@@ -3,7 +3,7 @@ export OMP_NUM_THREADS=1
   --job_id 1 \
   --ranks 8 \
   --max_p 6 \
-  --max_dofs 1000000 \
+  --max_dofs 350000 \
   --num_resolutions 3 \
   --exact_N 35 \
   --exact_p 4 \
