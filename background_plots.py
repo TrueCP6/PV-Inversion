@@ -7,6 +7,7 @@ from barnes_atmosphere import *
 from domain_builder import *
 from solver import *
 from plot_utils import apply_style
+from derived_quantities import *
 
 # Global parameters for plot styling
 apply_style()
@@ -71,7 +72,7 @@ def plot_function_vs_z(f, plot_title, x_title, x_coord=None, y_coord=None, num_p
         plt.tight_layout()
 
         lwr_case = plot_title.replace(" ", "_").lower()
-        plt.savefig(f"tex/{lwr_case}.pdf", bbox_inches='tight')
+        plt.savefig(f"tex/plots/{lwr_case}.pdf", bbox_inches='tight')
         plt.close()
 
 
@@ -173,7 +174,7 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
 
         # Save as PDF
         lwr_case = plot_title.replace(" ", "_").lower()
-        plt.savefig(f"tex/{lwr_case}.pdf", bbox_inches='tight')
+        plt.savefig(f"tex/plots/{lwr_case}.pdf", bbox_inches='tight')
         plt.close()
 
 def main():
@@ -190,16 +191,12 @@ def main():
 
     atmos = BarnesAtmosphere(mesh, V, phys_params)
 
-    psi_cbar_title = r"$\psi$ [\unit{\meter \squared \per \second}]"
-
     solver = Solver(atmos, solver_params, True)
     solver.solve_psi()
-    psi = solver.psi_soln
-
-    speed = sqrt(psi.dx(0) ** 2 + psi.dx(1) ** 2)
+    derived = ResolvedAtmosphere(solver.psi_soln, atmos)
 
     plot_slice_heatmap(
-        Function(V).interpolate(speed),
+        derived.horizontal_wind_speed(),
         "surface_wind",
         r"$\left|\mathbf{u}\right|$ [\unit{\meter \per \second}]",
         levels=np.arange(0, 3, 0.2),
@@ -209,9 +206,10 @@ def main():
 
     epv_cbar_title = r"$Q$ [\unit{PVU}]"
     epv_plot_size = (3.15 * 2, 3)
+    epv = Function(V).interpolate(atmos.ertel_pv() * 1e6)
 
     plot_slice_heatmap(
-        Function(V).interpolate(atmos.ertel_pv() * 1e6),
+        epv,
         "EPV_X",
         epv_cbar_title,
         levels=np.arange(-5, 0, 0.5),
@@ -220,7 +218,7 @@ def main():
     )
 
     plot_slice_heatmap(
-        Function(V).interpolate(atmos.ertel_pv() * 1e6),
+        epv,
         "EPV_Y",
         epv_cbar_title,
         levels=np.arange(-5, 0, 0.5),
@@ -256,7 +254,7 @@ def main():
     plot_slice_heatmap(
         Function(V).interpolate(atmos.u()),
         "Jet Stream",
-        r"$u$ [\unit{\meter\per\second}]",
+        r"$\overline{u}$ [\unit{\meter\per\second}]",
         levels=np.arange(0, 35, 5),
         normal_dir='y'
     )
@@ -264,8 +262,74 @@ def main():
     plot_slice_heatmap(
         Function(V).interpolate(atmos.geostrophic_vorticity()),
         "Background Geostrophic Vorticity",
-        r"$\zeta_g$ [\unit{\per\second}]",
+        r"$\overline{\zeta}_g$ [\unit{\per\second}]",
+        normal_dir='y',
         levels=10
+    )
+
+    plot_slice_heatmap(
+        derived.geostrophic_vorticity(),
+        "Geostrophic Vorticity X",
+        r"$\zeta_g$ [\unit{\per\second}]",
+        normal_dir='x',
+        levels=10,
+    )
+
+    plot_slice_heatmap(
+        derived.geostrophic_vorticity(),
+        "Geostrophic Vorticity Y",
+        r"$\zeta_g$ [\unit{\per\second}]",
+        normal_dir='y',
+        levels=10,
+    )
+
+
+    plot_slice_heatmap(
+        derived.potential_temperature_anomaly(),
+        "Potential Temperature Anomaly X",
+        r"$\theta^*$ [\unit{\kelvin}]",
+        levels=np.arange(-20, 20, 1),
+        normal_dir='x',
+    )
+
+    plot_slice_heatmap(
+        derived.potential_temperature_anomaly(),
+        "Potential Temperature Anomaly Y",
+        r"$\theta^*$ [\unit{\kelvin}]",
+        levels=np.arange(-20, 20, 1),
+        normal_dir='y',
+    )
+
+    plot_slice_heatmap(
+        derived.potential_temperature_anomaly(),
+        "Potential Temperature Anomaly X",
+        r"$\theta^*$ [\unit{\kelvin}]",
+        levels=np.arange(-20, 20, 1),
+        normal_dir='x',
+    )
+
+    plot_slice_heatmap(
+        derived.potential_temperature_anomaly(),
+        "Potential Temperature Anomaly Y",
+        r"$\theta^*$ [\unit{\kelvin}]",
+        levels=np.arange(-20, 20, 1),
+        normal_dir='y',
+    )
+
+    plot_slice_heatmap(
+        derived.potential_temperature(),
+        "Potential Temperature X",
+        r"$\theta^*$ [\unit{\kelvin}]",
+        levels=np.arange(250, 800, 10),
+        normal_dir='x',
+    )
+
+    plot_slice_heatmap(
+        derived.potential_temperature(),
+        "Potential Temperature Y",
+        r"$\theta^*$ [\unit{\kelvin}]",
+        levels=np.arange(250, 800, 10),
+        normal_dir='y',
     )
 
 if __name__ == "__main__":
