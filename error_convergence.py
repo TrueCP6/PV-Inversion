@@ -1,14 +1,12 @@
 """Measure how the psi solution converges as the mesh is refined.
 
 There is no analytical solution to compare against, so a faux exact solution is
-solved once on a mesh far finer and of far higher order than any sweep point,
-to a tight Krylov tolerance, and checkpointed to disk. Every (p, N) point then
-measures its relative error against it.
+solved once on a mesh far finer and of far higher order than any sweep point, to a
+tight Krylov tolerance, and checkpointed to disk.
 
-A point takes two processes, not one: it solves and checkpoints psi, then reopens
-that checkpoint alongside the reference to measure the error. See sweep.py for why
-a point cannot share a process with the next one, and _evaluate_point for why the
-solve cannot share a process with its own error measurement.
+The run has three stages, each in its own process (see sweep.py for why): the exact
+solve, then one process per (p, N) point that checkpoints psi, then a single error
+process that loads the reference once and measures each point against it in turn.
 """
 
 import argparse
@@ -26,8 +24,7 @@ from parameters import PhysicalParams
 EXACT_FUNCTION_NAME = "psi_exact"
 POINT_FUNCTION_NAME = "psi_point"
 MESH_NAME_ATTR = "mesh_name"
-# Stamped onto the reference checkpoint so a stale file cannot be reused as if it matched the
-# flags it is being reused under - the checkpoint carries no other record of how it was made.
+# Stamped onto the reference checkpoint so a stale file cannot be reused as if it were solved at the resolution this run asked for.
 EXACT_N_ATTR = "exact_N"
 EXACT_P_ATTR = "exact_p"
 
@@ -41,6 +38,13 @@ class ErrorRecord:
 
     def dofs(self):
         return sweep.dof_count(self.p, self.N)
+
+# One solved point handed from the solve stage to the error stage.
+@dataclass
+class PointFile:
+    p : int
+    N : int
+    path : str
 
 def _save_solution(path, psi, name, attrs=None):
     """Checkpoint psi under the given name, with whatever the reader needs to reopen it."""
@@ -64,13 +68,7 @@ def _load_solution(path, name):
         return checkpoint.load_function(mesh, name)
 
 def _load_exact(path, expected_N=None, expected_p=None):
-    """Reopen the faux exact solution written by _run_exact_solve.
-
-    _exact_solution_path deliberately reuses an existing checkpoint rather than paying for
-    the fine solve again, so nothing otherwise stops a reference solved at one (N, p) being
-    measured against as if it were another - which silently changes what every error in the
-    results file means. Refuse the mismatch rather than reporting it as data.
-    """
+    """Reopen the faux exact solution, refusing one solved at a resolution this run did not ask for - reusing such a checkpoint silently changes what every error in the results means."""
     from firedrake import CheckpointFile
     from firedrake.petsc import PETSc
 
@@ -114,66 +112,71 @@ def _run_point(args):
 
     _save_solution(args.out, solver.psi_soln, POINT_FUNCTION_NAME)
 
-def _run_error(args):
-    """Measure the checkpoint at args.psi against the reference and write the record to args.out."""
+def _run_error_sweep(args):
+    """Load the reference once, then measure each point checkpoint listed in args.points
+    against it, writing the records so far to args.out as each one is measured."""
     sweep.quiet_petsc()
     from math_utils import relative_error
     from firedrake.petsc import PETSc
 
-    numerical = _load_solution(args.psi, POINT_FUNCTION_NAME)
-    PETSc.Sys.Print("Loaded point solution")
-
+    points = sweep.load_records(args.points, PointFile)
     exact = _load_exact(args.exact, args.exact_N, args.exact_p)
     PETSc.Sys.Print("Loaded reference solution")
 
-    rel_error = relative_error(exact, numerical)
-    PETSc.Sys.Print(f"Relative error: {rel_error:.3e}")
+    records = []
+    for point in points:
+        numerical = _load_solution(point.path, POINT_FUNCTION_NAME)
+        rel_error = relative_error(exact, numerical)
+        PETSc.Sys.Print(f"p = {point.p}, N = {point.N}: relative error {rel_error:.3e}")
 
-    record = ErrorRecord(
-        p=args.polynomial_order,N=args.N,
-        dx=PhysicalParams().Lx / args.N,
-        error=rel_error
-    )
+        records.append(ErrorRecord(p=point.p, N=point.N,
+                                   dx=PhysicalParams().Lx / point.N, error=rel_error))
 
-    if sweep.is_main_rank():
-        sweep.save_records(args.out, [record])
+        del numerical
+        PETSc.garbage_cleanup(PETSc.COMM_WORLD)
 
-def _evaluate_point(args, p, N, exact_path, ranks):
-    """Solve one (p, N) point and measure its error, in two processes rather than one.
+        # Rewritten every point, so a crash part way through still leaves the errors
+        # measured before it.
+        if sweep.is_main_rank():
+            sweep.save_records(args.out, records)
 
-    sweep.py's module docstring explains why a point needs a process to itself: the solver
-    pins its mesh's PETSc state for the life of the process and dropping the Python
-    references does not release it. The same argument applies within a point. Measuring the
-    error builds a second mesh, a second function space - the reference is the finer of the
-    two, so up to 22M dofs - and a cross-mesh interpolation onto it, and doing that in the
-    solver's process holds both peaks at once. Splitting them means neither has to fit
-    alongside the other.
-    """
-    # The checkpoint of psi is tens of MB, and the point of --exact is that its directory is
-    # somewhere with room, unlike whatever /tmp happens to be on a compute node.
-    with tempfile.TemporaryDirectory(dir=os.path.dirname(exact_path)) as tmpdir:
-        psi_path = os.path.join(tmpdir, "psi.h5")
-        out_path = os.path.join(tmpdir, "point.json")
+def _solve_point(args, p, N, ranks, psi_path):
+    """Solve one (p, N) point into its own checkpoint. False if the solve failed."""
+    stage_args = ["--single-point", "-o", psi_path, "-N", N, "-p", p,
+                  "--ksp_rtol", args.ksp_rtol]
+    if args.quadrature_degree is not None:
+        stage_args += ["--quadrature_degree", args.quadrature_degree]
 
-        shared = ["-N", N, "-p", p]
-        if args.quadrature_degree is not None:
-            shared += ["--quadrature_degree", args.quadrature_degree]
+    try:
+        sweep.run_script(__file__, ranks, stage_args)
+    except subprocess.CalledProcessError as exc:
+        print(f"Point -p {p} -N {N} failed to solve ({sweep.describe_exit(exc.returncode)}), "
+              f"skipping it", file=sys.stderr)
+        return False
+    return True
 
-        stages = [
-            ("solve", ["--single-point", "-o", psi_path, "--ksp_rtol", args.ksp_rtol, *shared]),
-            ("error", ["--error-point", "-o", out_path, "--psi", psi_path, "-e", exact_path,
-                       "--exact_N", args.exact_N, "--exact_p", args.exact_p, *shared]),
-        ]
+def _measure_points(args, points, exact_path, workdir):
+    """Measure every solved point against the reference in one process, so the reference is
+    loaded once rather than once per point. Runs at the reference's rank count, since that is
+    the larger of the two meshes it holds."""
+    if not points:
+        return []
 
-        for stage, stage_args in stages:
-            try:
-                sweep.run_script(__file__, ranks, stage_args)
-            except subprocess.CalledProcessError as exc:
-                print(f"Point -p {p} -N {N} failed in the {stage} stage "
-                      f"({sweep.describe_exit(exc.returncode)}), skipping it", file=sys.stderr)
-                return None
+    manifest_path = os.path.join(workdir, "points.json")
+    out_path = os.path.join(workdir, "errors.json")
+    sweep.save_records(manifest_path, points)
 
-        return sweep.load_records(out_path, ErrorRecord)
+    error_args = ["--error-sweep", "-o", out_path, "--points", manifest_path, "-e", exact_path,
+                  "--exact_N", args.exact_N, "--exact_p", args.exact_p]
+    ranks = sweep.calc_ranks(args.exact_p, args.exact_N, args.ranks)
+
+    try:
+        sweep.run_script(__file__, ranks, error_args)
+    except subprocess.CalledProcessError as exc:
+        print(f"The error stage died ({sweep.describe_exit(exc.returncode)}); keeping whatever "
+              f"it had measured by then", file=sys.stderr)
+
+    return sweep.load_records(out_path, ErrorRecord) if os.path.exists(out_path) else []
 
 def _resolutions(args, p):
     """Mesh resolutions to sweep, geometrically spaced. N is limited by p based on the max dofs."""
@@ -184,9 +187,7 @@ def _exact_solution_path(args):
     path = os.path.abspath(args.exact or f"psi_exact_{args.job_id}.h5")
 
     if os.path.exists(path):
-        print(f"Reusing the reference solution already at {path} rather than re-solving it; "
-              f"_load_exact will reject it if it was not solved at N={args.exact_N}, "
-              f"p={args.exact_p}.", file=sys.stderr)
+        print(f"Reusing the reference solution already at {path} rather than re-solving it", file=sys.stderr)
         return path
 
     exact_args = ["--exact-solve", "-N", args.exact_N, "-p", args.exact_p,
@@ -228,10 +229,9 @@ def plot_error_convergence(json_path, output_path="tex/error_convergence.pdf"):
 
         print(f"p = {p}: average log-log slope = {plot_utils.log_log_slope(dx_km, errors):.3f}")
 
-        # Points are finest-first, so a resolved series rises with dx. Where it does not,
-        # refining the mesh failed to reduce the error - which is what a reference too close
-        # in resolution to the sweep points looks like, and it makes the slope above
-        # meaningless rather than merely noisy.
+        # Points are finest-first, so a resolved series rises with dx. Where it does not, the
+        # reference is likely too close in resolution to the sweep points, which makes the
+        # slope above meaningless rather than merely noisy.
         stalled = sum(1 for a, b in zip(errors, errors[1:]) if b <= a)
         if stalled:
             print(f"p = {p}: WARNING {stalled} of {len(errors) - 1} refinement steps did not "
@@ -256,16 +256,16 @@ def main():
     # Internal re-exec entry points - not for direct use.
     parser.add_argument('-p', '--polynomial_order', type=int, help=argparse.SUPPRESS)
     parser.add_argument('--exact-solve', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--error-point', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--psi', help=argparse.SUPPRESS)
+    parser.add_argument('--error-sweep', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--points', help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     if args.single_point:
         _run_point(args)
         return
 
-    if args.error_point:
-        _run_error(args)
+    if args.error_sweep:
+        _run_error_sweep(args)
         return
 
     if args.exact_solve:
@@ -278,28 +278,35 @@ def main():
 
     exact_path = _exact_solution_path(args)
 
-    records = []
-    skipped = []
-    max_ranks = args.ranks
-    for p in range(2, args.max_p + 1, 2):
-        for N in _resolutions(args, p):
+    # Every point's psi is kept until the error stage runs, so this holds tens of MB per point
+    # at once. It sits beside --exact because that is the directory chosen to have the room,
+    # unlike whatever /tmp happens to be on a compute node.
+    with tempfile.TemporaryDirectory(dir=os.path.dirname(exact_path)) as workdir:
+        points = []
+        skipped = []
 
-            ranks = sweep.calc_ranks(p, N, max_ranks) # Capped by dofs and by base-mesh columns per rank
-            data = _evaluate_point(args, p, N, exact_path, ranks)
+        for p in range(2, args.max_p + 1, 2):
+            for N in _resolutions(args, p):
+                ranks = sweep.calc_ranks(p, N, args.ranks) # Capped by dofs and by base-mesh columns per rank
+                psi_path = os.path.join(workdir, f"psi_p{p}_N{N}.h5")
 
-            if data is None:
-                skipped.append((p, N))
-            else:
-                records.extend(data)
+                if _solve_point(args, p, N, ranks, psi_path):
+                    points.append(PointFile(p=int(p), N=int(N), path=psi_path))
+                else:
+                    skipped.append((p, N))
+
+        records = _measure_points(args, points, exact_path, workdir)
 
     sweep.save_records(f"error_convergence_{args.job_id}.json", records, indent=2)
 
-    # A skipped point leaves nothing behind in the results file, so a sweep that lost a third
-    # of its points looks exactly like one that was asked for fewer. Say so at the end, where
-    # it is not buried under the mpiexec output of everything that ran afterwards.
+    # A lost point leaves nothing behind in the results file, so a sweep that lost a third of
+    # its points looks exactly like one that was asked for fewer. Say so at the end, where it
+    # is not buried under the mpiexec output of everything that ran afterwards.
+    measured = {(record.p, record.N) for record in records}
+    skipped += [(point.p, point.N) for point in points if (point.p, point.N) not in measured]
     if skipped:
         print(f"{len(skipped)}/{len(records) + len(skipped)} points skipped: "
-              + ", ".join(f"p={p} N={N}" for p, N in skipped), file=sys.stderr)
+              + ", ".join(f"p={p} N={N}" for p, N in sorted(skipped)), file=sys.stderr)
 
 if __name__ == '__main__':
     main()

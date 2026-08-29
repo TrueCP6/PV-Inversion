@@ -35,8 +35,8 @@ apptainer exec \
     --min_dofs 100000 \
     --num_resolutions 10 \
     --max_dofs 5000000 \
-    --exact_N 40 \
-    --exact_p 9 \
+    --exact_N 100 \
+    --exact_p 4 \
     --ksp_rtol 1e-12 \
     --exact ${EXACT_FILE} \
     --ranks 40
