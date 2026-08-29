@@ -106,12 +106,14 @@ def main():
         plot_time_complexity(args.plot)
         return
 
+    min_dofs = args.ranks * 100000
+
     records = []
     for _ in range(args.num_initial_solves):
 
         for matfree, max_dofs in [(False, args.max_dofs_assembled), (True, args.max_dofs_matfree)]:
 
-            Ns = sweep.resolutions_for_dofs(args.min_dofs, max_dofs, args.num_resolutions, args.polynomial_order)
+            Ns = sweep.resolutions_for_dofs(min_dofs, max_dofs, args.num_resolutions, args.polynomial_order)
             records.extend(eval_ns(Ns, args.polynomial_order, matfree, args.num_solves, args.ranks))
 
     sweep.save_records(f"time_complexity_{args.job_id}.json", records, indent=2)

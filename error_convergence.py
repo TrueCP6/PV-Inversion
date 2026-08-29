@@ -251,6 +251,7 @@ def main():
     parser.add_argument('--ksp_rtol', type=float, default=1e-12, help='Krylov tolerance for every solve, tight enough that discretisation error dominates')
     parser.add_argument('-qd', '--quadrature_degree', type=int, default=None, help="Quadrature degree for every form. Defaults to 3p, which integrates the bilinear form exactly. Pass -1 to go back to UFL's own estimate of roughly 6p.")
     parser.add_argument('-e', '--exact', metavar='H5_PATH',help='Checkpoint holding the faux exact solution. Solved for and written here if the file does not exist yet, so an expensive exact solve can be reused')
+    parser.add_argument('-mind', '--min_dofs', type=int, default=100000)
     sweep.add_common_arguments(parser)
     sweep.add_point_arguments(parser)
     # Internal re-exec entry points - not for direct use.
