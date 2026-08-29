@@ -198,13 +198,13 @@ def _exact_solution_path(args):
     sweep.run_script(__file__, sweep.calc_ranks(args.exact_p, args.exact_N, args.ranks), exact_args)
     return path
 
-def plot_error_convergence(json_path, output_path="tex/error_convergence.pdf"):
+def plot_error_convergence(json_path, output_path="tex/plots/error_convergence.pdf"):
     """
     Create a log-log plot of relative error vs mesh spacing from an
     error_convergence_*.json results file, one line per polynomial order.
     """
     import matplotlib.pyplot as plt
-
+    from matplotlib.ticker import ScalarFormatter, LogLocator
     import plot_utils
     plot_utils.apply_style()
 
@@ -214,20 +214,20 @@ def plot_error_convergence(json_path, output_path="tex/error_convergence.pdf"):
     # p is ordinal, so shade the lines through a sequential colour map rather than
     # picking arbitrary colours. The pale end of viridis is cut off to keep every
     # line readable on white.
-    colours = plt.cm.viridis(np.linspace(0, 0.8, len(orders)))
+    colours = plt.cm.viridis(np.linspace(0, 1, len(orders)))
     markers = ['o', 's', '^', 'D', 'v']
 
     plt.figure(figsize=plot_utils.FIGURE_SIZE)
 
     for index, (p, colour) in enumerate(zip(orders, colours)):
         points = sorted((r for r in records if r.p == p), key=lambda r: r.dx)
-        dx_km = np.array([r.dx for r in points]) / 1e3  # metres to kilometres
+        dz = PhysicalParams.H / np.array([r.N for r in points])
         errors = np.array([r.error for r in points])
 
-        plt.loglog(dx_km, errors, color=colour, marker=markers[index % len(markers)],
-                   linewidth=1.5, markersize=4, label=rf'$p = {p}$')
+        plt.scatter(dz, errors, color=colour, marker=markers[index % len(markers)],
+                   s=30, label=rf'$p = {p}$')
 
-        print(f"p = {p}: average log-log slope = {plot_utils.log_log_slope(dx_km, errors):.3f}")
+        print(f"p = {p}: average log-log slope = {plot_utils.log_log_slope(dz, errors):.3f}")
 
         # Points are finest-first, so a resolved series rises with dx. Where it does not, the
         # reference is likely too close in resolution to the sweep points, which makes the
@@ -237,7 +237,16 @@ def plot_error_convergence(json_path, output_path="tex/error_convergence.pdf"):
             print(f"p = {p}: WARNING {stalled} of {len(errors) - 1} refinement steps did not "
                   f"reduce the error - check the reference is fine enough to measure this")
 
-    plt.xlabel(r'Mesh spacing $\Delta x = L_x / N$ [\unit{\kilo\meter}]')
+    plt.xscale('log')
+    plt.yscale('log')
+
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(LogLocator(base=10, subs=[1, 2, 4, 6, 8]))
+    ax.xaxis.set_major_formatter(ScalarFormatter())
+    ax.xaxis.get_major_formatter().set_scientific(False)
+    ax.xaxis.set_minor_formatter(plt.NullFormatter())  # avoid unlabeled minor-tick clutter
+
+    plt.xlabel(r'Mesh spacing $\Delta z = L_z / N$ [\unit{\meter}]')
     plt.ylabel(r'Relative $L^2$ error')
     plot_utils.finish_figure(output_path)
 
