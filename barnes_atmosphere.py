@@ -11,7 +11,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         self.Lx = self.phys_params.Lx
         self.Ly = self.phys_params.Ly
         self.H = self.phys_params.H
-        self.kappa = self.phys_params.R / self.phys_params.c_p
+        self.kappa = self.phys_params.kappa
 
     @lru_cache(maxsize=1)
     def u(self): # Function of x and z
@@ -90,7 +90,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def geostrophic_vorticity(self):
         return self.v().dx(0) - self.u().dx(1)
 
-    @lru_cache(maxsize=1)
     def Q_bar(self):
         # Background state
         vort = self.geostrophic_vorticity()

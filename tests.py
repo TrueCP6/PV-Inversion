@@ -1,10 +1,12 @@
 import unittest
+import numpy as np
 from domain_builder import *
 from math_utils import *
 from parameters import *
 from solver import *
 from mms_checker import *
 from barnes_atmosphere import *
+from derived_quantities import *
 
 class UtilTests(unittest.TestCase):
     def test_vertical_integral(self):
@@ -70,6 +72,38 @@ class StabilityTests(unittest.TestCase):
 
         PETSc.Sys.Print(f"Max ratio between advection and diffusion coefficients: {global_max}")
         self.assertLess(global_max, 0.01)
+
+class DerivedQuantityTests(unittest.TestCase):
+    def test_psi_0(self):
+        PETSc.Sys.Print("Testing psi_0 is the lateral boundary average of psi")
+        solver_params = SolverParams(nx=6, ny=5, nz=4, polynomial_order=4)
+        phys_params = PhysicalParams(Lx=3e6, Ly=2e6, H=15e3)
+        Lx, Ly = phys_params.Lx, phys_params.Ly
+
+        domain = DomainBuilder(solver_params, phys_params)
+        func_space = domain.func_space()
+        atmos = BarnesAtmosphere(domain)
+        x, y, z = SpatialCoordinate(domain.mesh())
+
+        # psi_0 depends on z alone, so it takes one value per z level and no more
+        n_levels = solver_params.polynomial_order * solver_params.nz + 1
+
+        test_cases = [ # Perimeters integrated by hand, and normalised by 2(Lx + Ly)
+            ((x + y) * z, (Lx + Ly) * z / 2), # oint (x + y) dl = (Lx + Ly)^2
+            (x * z**3, Lx * z**3 / 2), # oint x dl = Lx (Lx + Ly)
+            (z * (1 + (x - Lx/2) * (y - Ly/2) / (Lx * Ly)), z), # an anomaly that averages away
+        ]
+
+        for psi_expr, exact in test_cases:
+            psi = Function(func_space).interpolate(psi_expr)
+            psi_0 = ResolvedAtmosphere(psi, atmos)._psi_0()
+
+            # Every case is a polynomial the function space holds exactly, so the only
+            # error left is rounding - psi_0 itself introduces no quadrature error.
+            error = math_utils.relative_error(exact, psi_0)
+            PETSc.Sys.Print(f"Boundary average error: {error}")
+            self.assertLess(error, 1e-12)
+            self.assertEqual(np.unique(psi_0.dat.data_ro).size, n_levels)
 
 if __name__ == '__main__':
     unittest.main()

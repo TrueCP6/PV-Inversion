@@ -177,6 +177,31 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
         plt.savefig(f"tex/plots/{lwr_case}.pdf", bbox_inches='tight')
         plt.close()
 
+def multislice(func : Function, title : str, cbar_title : str, levels, normals ='xyz'):
+    if 'z' in normals:
+        plot_slice_heatmap(
+            func,
+            title + " Surface",
+            cbar_title, levels,
+            normal_dir='z', slice_coord=0
+        )
+
+    if 'x' in normals:
+        plot_slice_heatmap(
+            func,
+            title + " X",
+            cbar_title, levels,
+            normal_dir='x'
+        )
+
+    if 'y' in normals:
+        plot_slice_heatmap(
+            func,
+            title + " Y",
+            cbar_title, levels,
+            normal_dir='y'
+        )
+
 def main():
     N = 40
     solver_params = SolverParams(
@@ -194,36 +219,25 @@ def main():
     solver.solve_psi()
     derived = ResolvedAtmosphere(solver.psi_soln, atmos)
 
-    plot_slice_heatmap(
-        derived.horizontal_wind_speed(),
-        "Surface Wind",
-        r"$\left|\mathbf{u}\right|$ [\unit{\meter \per \second}]",
-        levels=np.arange(0, 3, 0.2),
-        normal_dir="z",
-        slice_coord=0
-    )
+    # todo add wind vectors to this plot, as well as to the x and y slices
+    # plot_slice_heatmap(
+    #     derived.horizontal_wind_speed(),
+    #     "Surface Wind",
+    #     r"$\left|\mathbf{u}\right|$ [\unit{\meter \per \second}]",
+    #     levels=np.arange(0, 3, 0.2),
+    #     normal_dir="z",
+    #     slice_coord=0
+    # )
 
-    epv_cbar_title = r"$Q$ [\unit{PVU}]"
-    epv_plot_size = (3.15 * 2, 3)
-    epv = Function(func_space).interpolate(atmos.ertel_pv() * 1e6)
-
-    plot_slice_heatmap(
-        epv,
-        "EPV_X",
-        epv_cbar_title,
+    # todo add highlighted dynamical tropopause contour
+    multislice(
+        Function(func_space).interpolate(atmos.ertel_pv() * 1e6),
+        "EPV",
+        r"$Q$ [\unit{PVU}]",
         levels=np.arange(-5, 0, 0.5),
-        normal_dir='x',
-        figsize=epv_plot_size
+        normals='xy'
     )
 
-    plot_slice_heatmap(
-        epv,
-        "EPV_Y",
-        epv_cbar_title,
-        levels=np.arange(-5, 0, 0.5),
-        normal_dir='y',
-        figsize=epv_plot_size
-    )
     PETSc.Sys.Print("Saved EPV plots")
 
     plot_function_vs_z(
@@ -258,86 +272,61 @@ def main():
         normal_dir='y'
     )
 
-    plot_slice_heatmap(
-        Function(func_space).interpolate(atmos.geostrophic_vorticity()),
-        "Background Geostrophic Vorticity",
-        r"$\overline{\zeta}_g$ [\unit{\per\second}]",
-        normal_dir='y',
-        levels=10
-    )
+    # todo add reference in writeup to this being zero with the jet stream
+    # plot_slice_heatmap(
+    #     Function(func_space).interpolate(atmos.geostrophic_vorticity()),
+    #     "Background Geostrophic Vorticity",
+    #     r"$\overline{\zeta}_g$ [\unit{\per\second}]",
+    #     normal_dir='y',
+    #     levels=10
+    # )
 
-    plot_slice_heatmap(
+    multislice(
         derived.geostrophic_vorticity(),
-        "Geostrophic Vorticity X",
+        "Geostrophic Vorticity",
         r"$\zeta_g$ [\unit{\per\second}]",
-        normal_dir='x',
         levels=10,
+        normals='xyz'
     )
 
-    plot_slice_heatmap(
-        derived.geostrophic_vorticity(),
-        "Geostrophic Vorticity Y",
-        r"$\zeta_g$ [\unit{\per\second}]",
-        normal_dir='y',
-        levels=10,
-    )
-
-
-    plot_slice_heatmap(
+    multislice(
         derived.potential_temperature_anomaly(),
-        "Potential Temperature Anomaly X",
-        r"$\theta^*$ [\unit{\kelvin}]",
+        "Potential Temperature Anomaly",
+        r"$\theta^*$ [\unit{\kelvin}/\unit{\celsius}]",
         levels=np.arange(-20, 20, 1),
-        normal_dir='x',
+        normals='xy'
     )
 
-    plot_slice_heatmap(
-        derived.potential_temperature_anomaly(),
-        "Potential Temperature Anomaly Y",
-        r"$\theta^*$ [\unit{\kelvin}]",
-        levels=np.arange(-20, 20, 1),
-        normal_dir='y',
-    )
-
-    plot_slice_heatmap(
-        derived.potential_temperature_anomaly(),
-        "Potential Temperature Anomaly X",
-        r"$\theta^*$ [\unit{\kelvin}]",
-        levels=np.arange(-20, 20, 1),
-        normal_dir='x',
-    )
-
-    plot_slice_heatmap(
-        derived.potential_temperature_anomaly(),
-        "Potential Temperature Anomaly Y",
-        r"$\theta^*$ [\unit{\kelvin}]",
-        levels=np.arange(-20, 20, 1),
-        normal_dir='y',
-    )
-
-    plot_slice_heatmap(
+    multislice(
         derived.potential_temperature(),
-        "Potential Temperature X",
-        r"$\theta^*$ [\unit{\kelvin}]",
-        levels=np.arange(250, 800, 10),
-        normal_dir='x',
+        "Potential Temperature",
+        r"$\theta$ [\unit{\kelvin}]",
+        levels = np.arange(250, 800, 10),
+        normals='xy'
     )
 
-    plot_slice_heatmap(
-        derived.potential_temperature(),
-        "Potential Temperature Y",
-        r"$\theta^*$ [\unit{\kelvin}]",
-        levels=np.arange(250, 800, 10),
-        normal_dir='y',
-    )
-
-    plot_slice_heatmap(
-        derived._psi_0(),
+    multislice(
+        derived.pressure_anomaly_hpa(),
         "Pressure Anomaly",
-        r"$p^*$ [\unit{\pascal}]",
-        levels=10,
-        normal_dir='z',
-        slice_coord = 0
+        r"$p^*$ [\unit{\hecto\pascal}]",
+        levels=np.arange(-20, 20, 1),
+        normals='xyz'
+    )
+
+    multislice(
+        derived.pressure_hpa(),
+        "Pressure",
+        r"$p^*$ [\unit{\hecto\pascal}]",
+        levels=np.arange(-900, 1100, 1),
+        normals='z'
+    )
+
+    multislice(
+        derived.temperature_anomaly(),
+        "Temperature Anomaly",
+        r"$T^*$ [\unit{\kelvin}/\unit{\celsius}]",
+        levels=np.arange(-20, 20, 1),
+        normals='xyz'
     )
 
 if __name__ == "__main__":

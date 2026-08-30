@@ -33,6 +33,10 @@ class PhysicalParams:
     jet_z_size = 2e3
     jet_magnitude = 35
 
+    @property
+    def kappa(self):
+        return self.R / self.c_p
+
 @dataclass
 class SolverParams:
     nx: int = 35
