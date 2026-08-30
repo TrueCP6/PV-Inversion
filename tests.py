@@ -164,14 +164,14 @@ class DerivedQuantityTests(unittest.TestCase):
             self.assertEqual(np.unique(psi_0.dat.data_ro).size, n_levels)
 
 class SolverTests(unittest.TestCase):
-    def test_update_atmosphere(self):
+    def _test_upd_atmos(self, matfree : bool):
         solver_params = SolverParams()
         phys_params_1 = PhysicalParams(latitude=-45)
 
         domain = DomainBuilder(solver_params, phys_params_1)
         atmos_1 = BarnesAtmosphere(domain)
 
-        solver = Solver(atmos_1, True)
+        solver = Solver(atmos_1, matfree)
         solver.solve_psi()
         psi_1 = solver.psi_soln.copy(deepcopy=True)
 
@@ -185,6 +185,10 @@ class SolverTests(unittest.TestCase):
         rel_error = math_utils.relative_error(psi_1, psi_2)
         PETSc.Sys.Print(f"Relative error between solutions: {rel_error}")
         self.assertGreater(rel_error, 1)
+
+    def test_update_atmosphere(self):
+        self._test_upd_atmos(False)
+        self._test_upd_atmos(True)
 
 if __name__ == '__main__':
     unittest.main()

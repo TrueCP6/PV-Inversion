@@ -49,6 +49,7 @@ class SolverParams:
     check_flux: bool = True
     output_file: str = "output.pvd"
     ksp_rtol: float = 1e-9
+    ksp_atol: float = 1e-3
     polynomial_order: int = 4
     quadrature_degree: int = None
 
@@ -74,6 +75,7 @@ class SolverParams:
             "mat_type": "matfree",
             "ksp_type": "cg",
             "ksp_rtol": self.ksp_rtol,
+            "ksp_atol": self.ksp_atol,
             # p-multigrid for outer preconditioner
             "pc_type": "python",
             "pc_python_type": "firedrake.PMGPC",
@@ -95,6 +97,7 @@ class SolverParams:
             "ksp_type": "cg",
             "pc_type": "python",
             "ksp_rtol": self.ksp_rtol,
+            "ksp_atol": self.ksp_atol,
             "pc_python_type": "firedrake.PMGPC",
             "pmg_mg_levels_pc_type": "jacobi",
             # The coarse (p=1) operator inherits the same constant nullspace as the fine

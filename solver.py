@@ -33,17 +33,16 @@ class Solver:
         assert self.func_space == atmos.func_space, "Use the same Function Space that you created the solver with" # Possible to implement but I'm too lazy
         assert self.solver_params == atmos.solver_params, "You must use the same solver parameters for a single solver"
 
-        # todo check I don't need a deep copy here
         self.atmos = atmos
         self._f.assign(atmos.phys_params.f)
-        self._top_boundary = atmos.top_boundary()
-        self._bottom_boundary = atmos.bottom_boundary()
-        self._rho_bar = atmos.rho_bar()
-        self._u = atmos.u()
-        self._v = atmos.v()
-        self._N_bar = atmos.N_bar()
-        self._q = atmos.q()
-        self._rho_N2 = Function(self.func_space).interpolate(atmos.rho_bar() / (atmos.N_bar()**2))
+        self._top_boundary.interpolate(atmos.top_boundary())
+        self._bottom_boundary.interpolate(atmos.bottom_boundary())
+        self._rho_bar.interpolate(atmos.rho_bar())
+        self._u.interpolate(atmos.u())
+        self._v.interpolate(atmos.v())
+        self._N_bar.interpolate(atmos.N_bar())
+        self._q.interpolate(atmos.q())
+        self._rho_N2.interpolate(atmos.rho_bar() / (atmos.N_bar()**2))
 
         if self.solver is not None:
             self.solver.invalidate_jacobian()
