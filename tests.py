@@ -30,6 +30,64 @@ class UtilTests(unittest.TestCase):
             PETSc.Sys.Print(f"Vertical integration error: {error}")
             self.assertLess(error, 1e-6)
 
+    def _cg1_space(self, n=4):
+        mesh = UnitSquareMesh(n, n)
+        return FunctionSpace(mesh, "CG", 1)
+
+    def test_relative_error_zero_for_identical_functions(self):
+        V = self._cg1_space()
+        x, y = SpatialCoordinate(V.mesh())
+        f = Function(V).interpolate(x ** 2 + y)
+        error = math_utils.relative_error(f, f.copy(deepcopy=True))
+        self.assertLess(error, 1e-10)
+
+    def test_relative_error_ignores_constant_offset(self):
+        # solver only determines psi up to an additive constant - an arbitrary shift between numerical and exact should therefore leave the error at zero.
+        V = self._cg1_space()
+        x, y = SpatialCoordinate(V.mesh())
+        exact = Function(V).interpolate(x ** 2 + y)
+        numerical = Function(V).interpolate(x ** 2 + y + 7.3)
+        error = math_utils.relative_error(exact, numerical)
+        self.assertLess(error, 1e-10)
+
+    def test_relative_error_scales_linearly_with_numerical(self):
+        # With numerical = c * exact, the mean-offset removal collapses the ratio to exactly |1 - c| for any function, norm type or mesh - a closed-form check of the actual arithmetic (offset removal, errornorm, norm) inside relative_error.
+        V = self._cg1_space()
+        x, y = SpatialCoordinate(V.mesh())
+        exact = Function(V).interpolate(x)
+
+        for norm_type in ['L2', 'H1']:
+            for c in [2.0, 0.5, -1.0]:
+                numerical = Function(V).interpolate(c * x)
+                error = math_utils.relative_error(exact, numerical, norm_type=norm_type)
+                self.assertAlmostEqual(error, abs(1 - c), places=6)
+
+    def test_relative_error_accepts_ufl_expression_for_exact(self):
+        V = self._cg1_space()
+        x, y = SpatialCoordinate(V.mesh())
+        numerical = Function(V).interpolate(2 * x)
+        error = math_utils.relative_error(x, numerical)
+        self.assertAlmostEqual(error, 1.0, places=6)
+
+    def test_relative_error_cross_mesh(self):
+        # Different-resolution meshes force relative_error onto its cross-mesh
+        # interpolation path. x and c*x are linear, so they interpolate exactly onto
+        # any CG1 mesh - the |1-c| identity above should therefore still hold exactly,
+        # regardless of which side is finer or which mesh compare_on picks.
+        V_coarse = self._cg1_space(2)
+        V_fine = self._cg1_space(8)
+        c = 3.0
+
+        for exact_space, numerical_space in [(V_fine, V_coarse), (V_coarse, V_fine)]:
+            x_e, _ = SpatialCoordinate(exact_space.mesh())
+            x_n, _ = SpatialCoordinate(numerical_space.mesh())
+            exact = Function(exact_space).interpolate(x_e)
+            numerical = Function(numerical_space).interpolate(c * x_n)
+
+            for compare_on in ['fine', 'coarse']:
+                error = math_utils.relative_error(exact, numerical, compare_on=compare_on)
+                self.assertAlmostEqual(error, abs(1 - c), places=6)
+
 class MMSTests(unittest.TestCase):
     def test_mms(self):
         PETSc.Sys.Print("Testing solution lines up with MMS")
