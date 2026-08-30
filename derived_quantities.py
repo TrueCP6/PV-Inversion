@@ -8,6 +8,7 @@ class ResolvedAtmosphere:
         self.atmos = atmosphere
         self.phys_params = atmosphere.phys_params
         self.func_space = psi.function_space()
+        self.mesh = self.func_space.mesh()
 
     def _interp(self, expr):
         return Function(self.func_space).interpolate(expr)

@@ -41,7 +41,6 @@ class SolverParams:
     check_flux: bool = True
     output_file: str = "output.pvd"
     ksp_rtol: float = 1e-9
-    gamma: float = 0
     polynomial_order: int = 4
     quadrature_degree: int = None
 

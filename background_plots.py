@@ -185,13 +185,12 @@ def main():
     )
     phys_params = PhysicalParams()
 
-    domain_builder = DomainBuilder(solver_params, phys_params)
-    mesh = domain_builder.mesh()
-    V = domain_builder.func_space()
+    domain = DomainBuilder(solver_params, phys_params)
+    func_space = domain.func_space()
 
-    atmos = BarnesAtmosphere(mesh, V, phys_params)
+    atmos = BarnesAtmosphere(domain)
 
-    solver = Solver(atmos, solver_params, True)
+    solver = Solver(atmos, True)
     solver.solve_psi()
     derived = ResolvedAtmosphere(solver.psi_soln, atmos)
 
@@ -206,7 +205,7 @@ def main():
 
     epv_cbar_title = r"$Q$ [\unit{PVU}]"
     epv_plot_size = (3.15 * 2, 3)
-    epv = Function(V).interpolate(atmos.ertel_pv() * 1e6)
+    epv = Function(func_space).interpolate(atmos.ertel_pv() * 1e6)
 
     plot_slice_heatmap(
         epv,
@@ -240,7 +239,7 @@ def main():
     )
 
     plot_function_vs_z(
-        Function(V).interpolate(atmos.p_bar() / 1e2),
+        Function(func_space).interpolate(atmos.p_bar() / 1e2),
         "Reference Pressure Profile",
         r"$\overline{p}$ [\unit{\hecto\pascal}]"
     )
@@ -252,7 +251,7 @@ def main():
     )
 
     plot_slice_heatmap(
-        Function(V).interpolate(atmos.u()),
+        Function(func_space).interpolate(atmos.u()),
         "Jet Stream",
         r"$\overline{u}$ [\unit{\meter\per\second}]",
         levels=np.arange(0, 35, 5),
@@ -260,7 +259,7 @@ def main():
     )
 
     plot_slice_heatmap(
-        Function(V).interpolate(atmos.geostrophic_vorticity()),
+        Function(func_space).interpolate(atmos.geostrophic_vorticity()),
         "Background Geostrophic Vorticity",
         r"$\overline{\zeta}_g$ [\unit{\per\second}]",
         normal_dir='y',

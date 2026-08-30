@@ -13,18 +13,8 @@ class DomainBuilder:
         temp_mesh = RectangleMesh(
             self.solver_params.nx, self.solver_params.ny,
             self.phys_params.Lx, self.phys_params.Ly,
-            quadrilateral=True # This is crucial for the vertical integrator
+            quadrilateral=True # This is crucial for the vertical integrator and sum factorisation
         )
-
-        # Extract reference to raw coordinates array
-        coords = temp_mesh.coordinates.dat.data
-
-        Lx = self.phys_params.Lx
-        Ly = self.phys_params.Ly
-
-        # Apply coordinate stretching in both directions
-        coords[:, 0] = self._concentrate_centre(coords[:, 0], Lx)
-        coords[:, 1] = self._concentrate_centre(coords[:, 1], Ly)
 
         # Extrude the stretched mesh
         mesh = ExtrudedMesh(
@@ -33,18 +23,6 @@ class DomainBuilder:
             layer_height=(self.phys_params.H / self.solver_params.nz)
         )
         return mesh
-
-    def _concentrate_centre(self, z, L):
-        gamma = self.solver_params.gamma
-        if gamma == 0:
-            return z
-
-        # Map from [0,L] to [-1, 1]
-        xi = (2 * z / L) - 1
-        # Apply scaling function
-        xi_new = np.sinh(gamma * xi) / np.sinh(gamma)
-        # Scale back to [0,L]
-        return 0.5 * L * (xi_new + 1)
 
     @lru_cache(maxsize=1)
     def func_space(self):

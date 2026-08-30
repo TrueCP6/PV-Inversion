@@ -1,13 +1,13 @@
 from functools import lru_cache
-
 import math_utils
 from atmosphere_builder import AtmosphereBuilder
 from firedrake import *
+from domain_builder import DomainBuilder
 from parameters import PhysicalParams
 
 class MMSChecker(AtmosphereBuilder):
-    def __init__(self, mesh: Mesh, function_space: FunctionSpace, phys_params: PhysicalParams):
-        super().__init__(mesh, function_space, phys_params)
+    def __init__(self, domain : DomainBuilder):
+        super().__init__(domain)
 
         self.L = self.phys_params.Lx
         if self.L != self.phys_params.Ly:

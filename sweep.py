@@ -1,17 +1,3 @@
-"""Shared machinery for the (p, N) sweeps run by time_complexity.py and
-error_convergence.py.
-
-Building a PMG LinearVariationalSolver pins its mesh's PETSc/UFL state (Mat, DM,
-compiled kernels) for the rest of the process - confirmed by direct profiling,
-not released by lru_cache clearing, PETSc.garbage_cleanup, or explicit
-destroy(). Every data point therefore gets a process of its own: the driver
-calls run_point(), which re-enters the calling script under a fresh mpiexec
-through that script's hidden --single-point flag.
-
-Firedrake is imported inside the functions that need it rather than at module
-scope, so a driver process or a plotting run never pays for it.
-"""
-
 import argparse
 import json
 import os
@@ -56,9 +42,9 @@ def build_solver(N : int, p : int, matfree : bool, ksp_rtol : float = SolverPara
                                  ksp_rtol=ksp_rtol, quadrature_degree=quadrature_degree)
 
     domain = DomainBuilder(solver_params, phys_params)
-    atmos = BarnesAtmosphere(domain.mesh(), domain.func_space(), phys_params)
+    atmos = BarnesAtmosphere(domain)
 
-    return Solver(atmos, solver_params, matfree)
+    return Solver(atmos, matfree)
 
 def run_script(script_path, ranks : int, args):
     """Run script under a fresh mpiexec, so its Firedrake state dies with the process."""

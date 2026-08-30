@@ -10,19 +10,16 @@ def main():
     solver_params = SolverParams()
     phys_params = PhysicalParams()
 
-    domain_builder = DomainBuilder(solver_params, phys_params)
-    mesh = domain_builder.mesh()
-    V = domain_builder.func_space()
+    domain = DomainBuilder(solver_params, phys_params)
+    atmos = BarnesAtmosphere(domain)
 
-    atmos = BarnesAtmosphere(mesh, V, phys_params)
+    solver = Solver(atmos, False)
 
-    slver = Solver(atmos, solver_params, False)
-
-    slver.solve_psi() # Run the solver once as spinup
+    solver.solve_psi() # Run the solver once as spinup
 
     solve_times = []
     for i in range(3):
-        solve_times.append(slver.solve_psi(True))
+        solve_times.append(solver.solve_psi(True))
     avg_solve_time = sum(solve_times)/len(solve_times)
     PETSc.Sys.Print(f"Average solve completed in {avg_solve_time:0.2f} sec")
 

@@ -4,10 +4,10 @@ from atmosphere_builder import AtmosphereBuilder
 from parameters import SolverParams
 
 class Solver:
-    def __init__(self, atmos : AtmosphereBuilder, solver_params : SolverParams, mat_free : bool):
+    def __init__(self, atmos : AtmosphereBuilder, mat_free : bool):
         self.atmos = atmos
         self.func_space = atmos.func_space
-        self.solver_params = solver_params
+        self.solver_params = atmos.solver_params
         self.mesh = atmos.mesh
         self.phys_params = atmos.phys_params
         self.phi = TestFunction(self.func_space)
@@ -80,7 +80,8 @@ class Solver:
         )
 
         max_n = max(self.solver_params.nx, self.solver_params.ny, self.solver_params.nz)
-        PETSc.Sys.Print(f"Set up solver with N={max_n}, p={self.solver_params.polynomial_order}")
+        matrix_type = "matfree" if self.mat_free else "assembled"
+        PETSc.Sys.Print(f"Set up solver with N={max_n}, p={self.solver_params.polynomial_order}, {matrix_type}")
 
     def solve_psi(self, zero_initial_guess : bool = False):
         if zero_initial_guess: # Reset initial guess (used for benchmarking)

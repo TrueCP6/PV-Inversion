@@ -5,13 +5,13 @@ from math_utils import *
 from parameters import PhysicalParams
 
 class BarnesAtmosphere(AtmosphereBuilder):
-    def __init__(self, mesh: Mesh, function_space: FunctionSpace, phys_params: PhysicalParams):
-        super().__init__(mesh, function_space, phys_params)
+    def __init__(self, domain : DomainBuilder):
+        super().__init__(domain)
 
-        self.Lx = phys_params.Lx
-        self.Ly = phys_params.Ly
-        self.H = phys_params.H
-        self.kappa = phys_params.R / phys_params.c_p
+        self.Lx = self.phys_params.Lx
+        self.Ly = self.phys_params.Ly
+        self.H = self.phys_params.H
+        self.kappa = self.phys_params.R / self.phys_params.c_p
 
     @lru_cache(maxsize=1)
     def u(self): # Function of x and z

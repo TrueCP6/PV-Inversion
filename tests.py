@@ -40,14 +40,12 @@ class MMSTests(unittest.TestCase):
             Lx=1e6, Ly=1e6, H = 20e3
         )
 
-        domain_builder = DomainBuilder(solver_params, phys_params)
-        mesh = domain_builder.mesh()
-        V = domain_builder.func_space()
+        domain = DomainBuilder(solver_params, phys_params)
 
-        atmos = MMSChecker(mesh, V, phys_params)
+        atmos = MMSChecker(domain)
 
         for save_memory in [True, False]:
-            solver = Solver(atmos, solver_params, save_memory)
+            solver = Solver(atmos, save_memory)
             solver.solve_psi()
             error = atmos.calc_error(solver.psi_soln)
             self.assertLess(error, 1e-6)
@@ -55,19 +53,17 @@ class MMSTests(unittest.TestCase):
 class StabilityTests(unittest.TestCase):
     def test_peclet(self):
         PETSc.Sys.Print("Testing the peclet number is sufficiently small")
-        solver_params = SolverParams(nx=1, ny=8, nz=10000)
+        solver_params = SolverParams(nx=8, ny=8, nz=10000)
         phys_params = PhysicalParams()
 
-        domain_builder = DomainBuilder(solver_params, phys_params)
-        mesh = domain_builder.mesh()
-        V = domain_builder.func_space()
-
-        atmos = BarnesAtmosphere(mesh, V, phys_params)
+        domain = DomainBuilder(solver_params, phys_params)
+        func_space = domain.func_space()
+        atmos = BarnesAtmosphere(domain)
 
         N2 = atmos.N_bar() ** 2
         rho = atmos.rho_bar()
         expr = abs(ln(rho / N2).dx(2))
-        fun = Function(V).interpolate(expr)
+        fun = Function(func_space).interpolate(expr)
 
         with fun.dat.vec_ro as v:
             global_max = v.max()[1]
