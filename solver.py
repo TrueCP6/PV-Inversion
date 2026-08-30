@@ -9,47 +9,67 @@ class Solver:
         self.func_space = atmos.func_space
         self.solver_params = atmos.solver_params
         self.mesh = atmos.mesh
-        self.phys_params = atmos.phys_params
         self.phi = TestFunction(self.func_space)
         self.psi_soln = Function(self.func_space)  # Solution to system will be stored here
         self.mat_free = mat_free
+        self.solver = None
 
+        # Allocate local references to all the relevant atmos quantities so that they can be updated later
+        self._f = Constant(0)
+        self._top_boundary = Function(self.func_space)
+        self._bottom_boundary = Function(self.func_space)
+        self._rho_bar = Function(self.func_space)
+        self._u = Function(self.func_space)
+        self._v = Function(self.func_space)
+        self._N_bar = Function(self.func_space)
+        self._q = Function(self.func_space)
+        self._rho_N2 = Function(self.func_space)
+
+        self.update_atmosphere(atmos)
         self._setup_solver()
+
+    def update_atmosphere(self, atmos : AtmosphereBuilder):
+        assert self.mesh == atmos.mesh, "Attempting to use different meshes with the same solver will result in a memory leak due to a bug in PMGPC"
+        assert self.func_space == atmos.func_space, "Use the same Function Space that you created the solver with" # Possible to implement but I'm too lazy
+        assert self.solver_params == atmos.solver_params, "You must use the same solver parameters for a single solver"
+
+        # todo check I don't need a deep copy here
+        self.atmos = atmos
+        self._f.assign(atmos.phys_params.f)
+        self._top_boundary = atmos.top_boundary()
+        self._bottom_boundary = atmos.bottom_boundary()
+        self._rho_bar = atmos.rho_bar()
+        self._u = atmos.u()
+        self._v = atmos.v()
+        self._N_bar = atmos.N_bar()
+        self._q = atmos.q()
+        self._rho_N2 = Function(self.func_space).interpolate(atmos.rho_bar() / (atmos.N_bar()**2))
+
+        if self.solver is not None:
+            self.solver.invalidate_jacobian()
 
     def _specify_equation(self):
         psi = TrialFunction(self.func_space)
         phi = self.phi
         n = FacetNormal(self.mesh)
 
-        f = self.phys_params.f
-
-        top_boundary = self.atmos.top_boundary()
-        bottom_boundary = self.atmos.bottom_boundary()
-
-        rho_bar = self.atmos.rho_bar()
-        u = self.atmos.u()
-        v = self.atmos.v()
-        N_bar = self.atmos.N_bar()
-        q = self.atmos.q()
-        rho_N2 = Function(self.func_space).interpolate(rho_bar / (N_bar**2))
-
-        x_base = rho_bar * phi * v * n[0]
-        y_base = rho_bar * phi * -u * n[1]
-        z_base = n[2] * (f**2) * phi * rho_N2
+        x_base = self._rho_bar * phi * self._v * n[0]
+        y_base = self._rho_bar * phi * -self._u * n[1]
+        z_base = n[2] * (self._f**2) * phi * self._rho_N2
 
         L_x = x_base * ds_v((1, 2))
         L_y = y_base * ds_v((3, 4))
-        L_bottom = z_base * bottom_boundary * ds_b
-        L_top = z_base * top_boundary * ds_t
-        L_vol = -q * rho_bar * phi * dx
+        L_bottom = z_base * self._bottom_boundary * ds_b
+        L_top = z_base * self._top_boundary * ds_t
+        L_vol = -self._q * self._rho_bar * phi * dx
 
         # Linear form
         L = L_x + L_y + L_bottom + L_top + L_vol
 
         # Bilinear weak form
-        a = (rho_bar * psi.dx(0) * phi.dx(0) +
-             rho_bar * psi.dx(1) * phi.dx(1) +
-             (f**2) * rho_N2 * psi.dx(2) * phi.dx(2)) * dx
+        a = (self._rho_bar * psi.dx(0) * phi.dx(0) +
+             self._rho_bar * psi.dx(1) * phi.dx(1) +
+             (self._f**2) * self._rho_N2 * psi.dx(2) * phi.dx(2)) * dx
 
         return a, L
 
@@ -83,7 +103,7 @@ class Solver:
         matrix_type = "matfree" if self.mat_free else "assembled"
         PETSc.Sys.Print(f"Set up solver with N={max_n}, p={self.solver_params.polynomial_order}, {matrix_type}")
 
-    def solve_psi(self, zero_initial_guess : bool = False):
+    def solve_psi(self, zero_initial_guess : bool = False): #todo may be necessary to make this return a deep copy of the solution when timestepping is added
         if zero_initial_guess: # Reset initial guess (used for benchmarking)
             self.psi_soln.assign(0)
 

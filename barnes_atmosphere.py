@@ -5,8 +5,8 @@ from math_utils import *
 from parameters import PhysicalParams
 
 class BarnesAtmosphere(AtmosphereBuilder):
-    def __init__(self, domain : DomainBuilder):
-        super().__init__(domain)
+    def __init__(self, domain : DomainBuilder, phys_params : PhysicalParams = None):
+        super().__init__(domain, phys_params)
 
         self.Lx = self.phys_params.Lx
         self.Ly = self.phys_params.Ly

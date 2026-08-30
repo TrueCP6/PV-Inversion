@@ -13,7 +13,7 @@ def main():
     domain = DomainBuilder(solver_params, phys_params)
     atmos = BarnesAtmosphere(domain)
 
-    solver = Solver(atmos, False)
+    solver = Solver(atmos, True)
 
     solver.solve_psi() # Run the solver once as spinup
 

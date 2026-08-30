@@ -9,7 +9,7 @@ class PhysicalParams:
     Lx: float = 5000e3
     Ly: float = 5000e3
     H: float = 20e3
-    f: float = 2 * 7.292e-5 * sin(-42 / 180 * pi)
+    latitude: float = -42
     g: float = 9.80665
     N_strat: float = 0.03
     N_trop: float = 0.01
@@ -23,6 +23,14 @@ class PhysicalParams:
     p_s: float = 1000 * 1e2
     delta: float = 2
 
+    @property
+    def kappa(self):
+        return self.R / self.c_p
+
+    @property
+    def f(self):
+        return 2 * 7.292e-5 * sin(self.latitude / 180 * pi)
+
     anomaly_x_pos = Lx / 2
     anomaly_y_pos = Ly / 2
     anomaly_z_pos = trop_height
@@ -32,10 +40,6 @@ class PhysicalParams:
     jet_x_size = 500e3
     jet_z_size = 2e3
     jet_magnitude = 35
-
-    @property
-    def kappa(self):
-        return self.R / self.c_p
 
 @dataclass
 class SolverParams:

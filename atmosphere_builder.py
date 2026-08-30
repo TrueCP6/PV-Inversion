@@ -6,14 +6,17 @@ from domain_builder import DomainBuilder
 from parameters import PhysicalParams
 
 class AtmosphereBuilder(ABC):
-    def __init__(self, domain : DomainBuilder):
+    def __init__(self, domain : DomainBuilder, phys_params : PhysicalParams = None):
         self.domain = domain
         self.mesh = domain.mesh()
         self.func_space = domain.func_space()
-        self.phys_params = domain.phys_params
         self.solver_params = domain.solver_params
         self.x, self.y, self.z = SpatialCoordinate(self.mesh)
 
+        if phys_params is None:
+            self.phys_params = domain.phys_params
+        else:
+            self.phys_params = phys_params
     @abstractmethod
     def u(self):
         pass
