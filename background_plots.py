@@ -196,7 +196,7 @@ def main():
 
     plot_slice_heatmap(
         derived.horizontal_wind_speed(),
-        "surface_wind",
+        "Surface Wind",
         r"$\left|\mathbf{u}\right|$ [\unit{\meter \per \second}]",
         levels=np.arange(0, 3, 0.2),
         normal_dir="z",
@@ -329,6 +329,15 @@ def main():
         r"$\theta^*$ [\unit{\kelvin}]",
         levels=np.arange(250, 800, 10),
         normal_dir='y',
+    )
+
+    plot_slice_heatmap(
+        derived._psi_0(),
+        "Pressure Anomaly",
+        r"$p^*$ [\unit{\pascal}]",
+        levels=10,
+        normal_dir='z',
+        slice_coord = 0
     )
 
 if __name__ == "__main__":

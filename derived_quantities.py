@@ -1,12 +1,14 @@
 from firedrake import *
 from functools import lru_cache
 from barnes_atmosphere import BarnesAtmosphere
+from mpi4py import MPI
 
 class ResolvedAtmosphere:
     def __init__(self, psi : Function, atmosphere : BarnesAtmosphere):
         self.psi = psi
         self.atmos = atmosphere
         self.phys_params = atmosphere.phys_params
+        self.solver_params = atmosphere.solver_params
         self.func_space = psi.function_space()
         self.mesh = self.func_space.mesh()
 
@@ -41,3 +43,14 @@ class ResolvedAtmosphere:
     @lru_cache(maxsize=1)
     def potential_temperature(self):
         return self._interp(self.atmos.theta_bar() + self.potential_temperature_anomaly())
+
+    def _psi_0(self):
+        pass
+
+    @lru_cache(maxsize=1)
+    def pressure_anomaly(self):
+        rho_bar = self.atmos.rho_bar()
+        f = self.phys_params.f
+        psi_0 = self._psi_0()
+
+        return self._interp(rho_bar * f * (self.psi - psi_0))
