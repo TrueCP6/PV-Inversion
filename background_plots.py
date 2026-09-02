@@ -115,25 +115,34 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
     if normal_dir not in ['x', 'y', 'z']:
         raise ValueError("normal_dir must be 'x', 'y' or 'z'.")
 
+    # Axes 'x' and 'y' are displayed in kilometers; 'z' (altitude) stays in meters.
+    def axis_label_and_scale(axis):
+        if axis in ('x', 'y'):
+            return rf'${axis}$ [\unit{{\kilo\meter}}]', 1e-3
+        return r'$z$ [\unit{\meter}]', 1.0
+
     # 2. Determine bounds, labels, and slice coordinate based on normal direction
     if normal_dir == 'x':
         if slice_coord is None:
             slice_coord = (x_max + x_min) / 2.0
         h_min, h_max = y_min, y_max
         v_min, v_max = z_min, z_max
-        h_label, v_label = r'$y$ [\unit{\meter}]', r'$z$ [\unit{\meter}]'
+        h_label, h_scale = axis_label_and_scale('y')
+        v_label, v_scale = axis_label_and_scale('z')
     elif normal_dir == 'y':
         if slice_coord is None:
             slice_coord = (y_max + y_min) / 2.0
         h_min, h_max = x_min, x_max
         v_min, v_max = z_min, z_max
-        h_label, v_label = r'$x$ [\unit{\meter}]', r'$z$ [\unit{\meter}]'
+        h_label, h_scale = axis_label_and_scale('x')
+        v_label, v_scale = axis_label_and_scale('z')
     else:  # normal_dir == 'z'
         if slice_coord is None:
             slice_coord = (z_max + z_min) / 2.0
         h_min, h_max = x_min, x_max
         v_min, v_max = y_min, y_max
-        h_label, v_label = r'$x$ [\unit{\meter}]', r'$y$ [\unit{\meter}]'
+        h_label, h_scale = axis_label_and_scale('x')
+        v_label, v_scale = axis_label_and_scale('y')
 
     # 3. Generate meshgrid for the horizontal (H) and vertical (V) axes of the plot
     h_values = np.linspace(h_min, h_max, num_points_h)
@@ -159,10 +168,12 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
 
         plt.figure(figsize=figsize)
 
-        heatmap = plt.pcolormesh(H, V, F, cmap='viridis', shading='auto', rasterized=True, vmin=cbar_min, vmax=cbar_max)
+        H_plot, V_plot = H * h_scale, V * v_scale
+
+        heatmap = plt.pcolormesh(H_plot, V_plot, F, cmap='viridis', shading='auto', rasterized=True, vmin=cbar_min, vmax=cbar_max)
 
         # Superimposed solid contours
-        plt.contour(H, V, F, levels=levels, colors='black', linewidths=0.5, alpha=0.5)
+        plt.contour(H_plot, V_plot, F, levels=levels, colors='black', linewidths=0.5, alpha=0.5)
 
         # Add colorbar
         cbar = plt.colorbar(heatmap)
