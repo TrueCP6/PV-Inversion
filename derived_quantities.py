@@ -67,7 +67,7 @@ class ResolvedAtmosphere:
         return levels.size, index
 
     @lru_cache(maxsize=1)
-    def _surface_space(self):
+    def _surface_func_space(self):
         """A 2D CG space on the mesh's horizontal base, matching func_space's horizontal
         element. u, v and vorticity at z=0 depend only on horizontal derivatives of psi,
         so recomputing them here - instead of slicing them out of the 3D fields - lets
@@ -85,7 +85,7 @@ class ResolvedAtmosphere:
         """
         nodes = DirichletBC(self.func_space, 0, "bottom").nodes
 
-        psi_surf = Function(self._surface_space())
+        psi_surf = Function(self._surface_func_space())
         psi_surf.dat.data_with_halos[:] = self.psi.dat.data_ro_with_halos[nodes]
         return psi_surf
 
@@ -177,7 +177,7 @@ class ResolvedAtmosphere:
         """Minimum geostrophic vorticity at z=0, restricted throughout to _surface_space()
         so cost is independent of the number of vertical levels.
         """
-        V2 = self._surface_space()
+        V2 = self._surface_func_space()
         psi_surf = self._psi_surf()
 
         u = self._interp(-psi_surf.dx(1), V2)
@@ -202,7 +202,17 @@ class ResolvedAtmosphere:
 
         pressure = self._interp(
             1e-2 * (p_bar_0 + rho_bar_0 * phys.f * (psi_surf - psi_0_0)),
-            self._surface_space()
+            self._surface_func_space()
         )
 
         return get_global_extrema(pressure)[0]
+
+    @lru_cache(maxsize=1)
+    def max_surf_wind_speed(self):
+        psi = self._psi_surf()
+        V = self._surface_func_space()
+
+        speed = sqrt(psi.dx(0)**2 + psi.dx(1)**2)
+        speed = self._interp(speed, V)
+
+        return get_global_extrema(speed)[1]

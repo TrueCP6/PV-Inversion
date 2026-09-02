@@ -13,7 +13,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         self.H = self.phys_params.H
         self.kappa = self.phys_params.kappa
 
-    @lru_cache(maxsize=1)
+    @lru_cache(maxsize=1) #todo add jet xpos, and height relative to trop
     def u(self): # Function of x and z
         exponent = - ((self.x - self.phys_params.anomaly_x_pos) / self.phys_params.jet_x_size) ** 2 \
             - ((self.z - self.phys_params.trop_height) / self.phys_params.jet_z_size) ** 2

@@ -20,8 +20,17 @@ class PhysicalParams:
     R: float = 287.05
     c_p : float = 1005
     p_bottom: float = 1000 * 1e2 # 1000 hpa
-    p_s: float = 1000 * 1e2
+    p_s: float = 1000 * 1e2 #todo check usage of p_s vs p_bottom is correct
     delta: float = 2
+
+    anomaly_z_trop_offset: float = 0
+    anomaly_x_size: float = 200e3
+    anomaly_y_size: float = 200e3
+    anomaly_z_size: float = 5000
+    anomaly_mag: float = -4
+    jet_x_size: float = 500e3
+    jet_z_size: float = 2e3
+    jet_magnitude: float = 35
 
     @property
     def kappa(self):
@@ -31,16 +40,17 @@ class PhysicalParams:
     def f(self):
         return 2 * 7.292e-5 * sin(self.latitude / 180 * pi)
 
-    anomaly_x_pos = Lx / 2
-    anomaly_y_pos = Ly / 2
-    anomaly_z_pos = trop_height
-    anomaly_x_size = 200e3
-    anomaly_y_size = 200e3
-    anomaly_z_size = 5000
-    anomaly_mag: float = -4
-    jet_x_size = 500e3
-    jet_z_size = 2e3
-    jet_magnitude = 35
+    @property
+    def anomaly_x_pos(self):
+        return self.Lx / 2
+
+    @property
+    def anomaly_y_pos(self):
+        return self.Ly / 2
+
+    @property
+    def anomaly_z_pos(self):
+        return self.trop_height + self.anomaly_z_trop_offset
 
 @dataclass
 class SolverParams:
