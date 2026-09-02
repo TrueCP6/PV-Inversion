@@ -44,11 +44,10 @@ class PhysicalParams:
 
 @dataclass
 class SolverParams:
-    nx: int = 35
-    ny: int = 35
-    nz: int = 35
+    nx: int = 40
+    ny: int = 40
+    nz: int = 40
     check_flux: bool = True
-    output_file: str = "output.pvd"
     ksp_rtol: float = 1e-9
     ksp_atol: float = 1e-3
     polynomial_order: int = 4
