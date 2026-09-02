@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpi4py import MPI
 from firedrake import PointEvaluator, Function
+import math_utils
 from parameters import *
 from barnes_atmosphere import *
 from domain_builder import *
@@ -177,14 +178,22 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
         plt.savefig(f"tex/plots/{lwr_case}.pdf", bbox_inches='tight')
         plt.close()
 
-def multislice(func : Function, title : str, cbar_title : str, levels, normals ='xyz', cbar_min = None, cbar_max = None):
+def multislice(func : Function, title : str, cbar_title : str, levels, normals ='xyz', cbar_bound_region = None):
+    if cbar_bound_region is None:
+        min, max = math_utils.get_global_extrema(func)
+    else:
+        min, max = math_utils.get_regional_extrema(func, cbar_bound_region)
+
+    if max - min >= 1:
+        min, max = np.floor(min), np.ceil(max)
+
     if 'z' in normals:
         plot_slice_heatmap(
             func,
             title + " Surface",
             cbar_title, levels,
             normal_dir='z', slice_coord=0,
-            cbar_min=cbar_min, cbar_max=cbar_max
+            cbar_min=min, cbar_max=max
         )
 
     if 'x' in normals:
@@ -193,7 +202,7 @@ def multislice(func : Function, title : str, cbar_title : str, levels, normals =
             title + " X",
             cbar_title, levels,
             normal_dir='x',
-            cbar_min=cbar_min, cbar_max=cbar_max
+            cbar_min=min, cbar_max=max
         )
 
     if 'y' in normals:
@@ -202,7 +211,7 @@ def multislice(func : Function, title : str, cbar_title : str, levels, normals =
             title + " Y",
             cbar_title, levels,
             normal_dir='y',
-            cbar_min=cbar_min, cbar_max=cbar_max
+            cbar_min=min, cbar_max=max
         )
 
 def main():
@@ -275,14 +284,7 @@ def main():
         normal_dir='y'
     )
 
-    # todo add reference in writeup to this being zero with the jet stream
-    # plot_slice_heatmap(
-    #     Function(func_space).interpolate(atmos.geostrophic_vorticity()),
-    #     "Background Geostrophic Vorticity",
-    #     r"$\overline{\zeta}_g$ [\unit{\per\second}]",
-    #     normal_dir='y',
-    #     levels=10
-    # )
+    # todo add reference in writeup to geostrophic vorticity being zero with the jet stream
 
     multislice(
         derived.geostrophic_vorticity(),
@@ -313,8 +315,7 @@ def main():
         "Pressure Anomaly",
         r"$p^*$ [\unit{\hecto\pascal}]",
         levels=np.arange(-10, 10, 1),
-        normals='xyz',
-        cbar_min=-5, cbar_max=3, #todo change to be automatic
+        normals='xyz'
     )
 
     multislice(
@@ -322,7 +323,8 @@ def main():
         "Pressure",
         r"$p$ [\unit{\hecto\pascal}]",
         levels=np.arange(-900, 1100, 1),
-        normals='z'
+        normals='z',
+        cbar_bound_region=lambda x,y,z: z<10
     )
 
     multislice(

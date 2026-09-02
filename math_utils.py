@@ -167,4 +167,22 @@ def relative_error(exact, numerical : Function, norm_type='L2', compare_on='fine
 
     return absolute_error / exact_norm
 
-# todo max and min of function
+def get_global_extrema(func : Function):
+    with func.dat.vec_ro as v:
+        global_min = v.min()[1]
+        global_max = v.max()[1]
+    return global_min, global_max
+
+def get_regional_extrema(func : Function, in_region):
+    V = func.function_space()
+    x,y,z = SpatialCoordinate(V.mesh())
+    f = Function(V)
+    in_region = in_region(x,y,z)
+
+    max_expr = conditional(in_region, func, -1e30)
+    _, max = get_global_extrema(f.interpolate(max_expr))
+
+    min_expr = conditional(in_region, func, 1e30)
+    min, _ = get_global_extrema(f.interpolate(min_expr))
+
+    return min, max
