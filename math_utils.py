@@ -166,3 +166,5 @@ def relative_error(exact, numerical : Function, norm_type='L2', compare_on='fine
     exact_norm = norm(shifted, norm_type=norm_type)
 
     return absolute_error / exact_norm
+
+# todo max and min of function

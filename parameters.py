@@ -37,6 +37,7 @@ class PhysicalParams:
     anomaly_x_size = 200e3
     anomaly_y_size = 200e3
     anomaly_z_size = 5000
+    anomaly_mag: float = -4
     jet_x_size = 500e3
     jet_z_size = 2e3
     jet_magnitude = 35

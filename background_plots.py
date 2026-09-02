@@ -77,7 +77,7 @@ def plot_function_vs_z(f, plot_title, x_title, x_coord=None, y_coord=None, num_p
 
 
 def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_coord=None,
-                       num_points_h=200, num_points_v=200, figsize=(3.15*2, 4.0)):
+                       num_points_h=200, num_points_v=200, figsize=(3.15*2, 4.0), cbar_min = None, cbar_max = None):
     """
     Evaluates and plots a 2D heatmap (with contours) of a 3D Firedrake function
     along a plane normal to the specified axis (x, y, or z).
@@ -158,7 +158,7 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
 
         plt.figure(figsize=figsize)
 
-        heatmap = plt.pcolormesh(H, V, F, cmap='viridis', shading='auto', rasterized=True)
+        heatmap = plt.pcolormesh(H, V, F, cmap='viridis', shading='auto', rasterized=True, vmin=cbar_min, vmax=cbar_max)
 
         # Superimposed solid contours
         plt.contour(H, V, F, levels=levels, colors='black', linewidths=0.5, alpha=0.5)
@@ -177,13 +177,14 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
         plt.savefig(f"tex/plots/{lwr_case}.pdf", bbox_inches='tight')
         plt.close()
 
-def multislice(func : Function, title : str, cbar_title : str, levels, normals ='xyz'):
+def multislice(func : Function, title : str, cbar_title : str, levels, normals ='xyz', cbar_min = None, cbar_max = None):
     if 'z' in normals:
         plot_slice_heatmap(
             func,
             title + " Surface",
             cbar_title, levels,
-            normal_dir='z', slice_coord=0
+            normal_dir='z', slice_coord=0,
+            cbar_min=cbar_min, cbar_max=cbar_max
         )
 
     if 'x' in normals:
@@ -191,7 +192,8 @@ def multislice(func : Function, title : str, cbar_title : str, levels, normals =
             func,
             title + " X",
             cbar_title, levels,
-            normal_dir='x'
+            normal_dir='x',
+            cbar_min=cbar_min, cbar_max=cbar_max
         )
 
     if 'y' in normals:
@@ -199,7 +201,8 @@ def multislice(func : Function, title : str, cbar_title : str, levels, normals =
             func,
             title + " Y",
             cbar_title, levels,
-            normal_dir='y'
+            normal_dir='y',
+            cbar_min=cbar_min, cbar_max=cbar_max
         )
 
 def main():
@@ -294,7 +297,7 @@ def main():
         "Potential Temperature Anomaly",
         r"$\theta^*$ [\unit{\kelvin}/\unit{\celsius}]",
         levels=np.arange(-20, 20, 1),
-        normals='xy'
+        normals='xy',
     )
 
     multislice(
@@ -309,14 +312,15 @@ def main():
         derived.pressure_anomaly_hpa(),
         "Pressure Anomaly",
         r"$p^*$ [\unit{\hecto\pascal}]",
-        levels=np.arange(-20, 20, 1),
-        normals='xyz'
+        levels=np.arange(-10, 10, 1),
+        normals='xyz',
+        cbar_min=-5, cbar_max=3, #todo change to be automatic
     )
 
     multislice(
         derived.pressure_hpa(),
         "Pressure",
-        r"$p^*$ [\unit{\hecto\pascal}]",
+        r"$p$ [\unit{\hecto\pascal}]",
         levels=np.arange(-900, 1100, 1),
         normals='z'
     )

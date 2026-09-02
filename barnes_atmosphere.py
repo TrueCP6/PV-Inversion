@@ -106,7 +106,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         ANO_exponent = -((self.z - self.phys_params.anomaly_z_pos) / self.phys_params.anomaly_z_size) ** 2 \
                        - ((self.x - self.phys_params.anomaly_x_pos) / self.phys_params.anomaly_x_size) ** 2 \
                        - ((self.y - self.phys_params.anomaly_y_pos) / self.phys_params.anomaly_y_size) ** 2
-        ANO = -4 * exp(ANO_exponent) * 1e-6
+        ANO = self.phys_params.anomaly_mag * exp(ANO_exponent) * 1e-6
 
         return background + ANO
 
