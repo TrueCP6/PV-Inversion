@@ -16,7 +16,7 @@ class Variator:
         atmos = BarnesAtmosphere(self.domain)
         self.solver = Solver(atmos, True)
 
-    def _eval_point(self, params) -> ResolvedAtmosphere:
+    def _get_derived(self, params) -> ResolvedAtmosphere:
         phys_params = PhysicalParams(**params)
 
         atmos = BarnesAtmosphere(self.domain, phys_params)
@@ -57,3 +57,32 @@ class Variator:
             output.append((var_name, bound, legend))
 
         return output
+
+    def get_data(self, num_points : int):
+        normalised_pts = np.linspace(0, 1, num_points)
+
+        values_per_qty = []
+
+        for param_name, bound, legend in self.quantities_to_vary:
+            a, b = bound
+            x_pts = a + (b-a)*normalised_pts
+            wind_vals, vort_vals, trop_vals, pres_vals = [], [], [], []
+
+            for x in x_pts:
+                d = self._get_derived({param_name: x})
+                wind_vals.append(d.max_surf_wind_speed())
+                vort_vals.append(d.min_surf_vort())
+                trop_vals.append(d.min_dyn_tropopause_height())
+                pres_vals.append(d.min_dyn_tropopause_height())
+
+            values_per_qty.append({
+                "legend_entry": legend,
+                "wind_values": wind_vals,
+                "vorticity_values": vort_vals,
+                "trop_height_values": trop_vals,
+            })
+
+        return {
+            "normalised_pts": normalised_pts,
+            "values_per_qty": values_per_qty,
+        }
