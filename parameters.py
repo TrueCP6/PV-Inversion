@@ -93,11 +93,12 @@ class SolverParams:
             # For p=2,3,4
             "pmg_mg_levels_ksp_type": "chebyshev",
             "pmg_mg_levels_pc_type": "jacobi",
-            # Assemble the p=1 matrix and use solve directly using lu factorisation
             "pmg_mg_coarse_ksp_type": "preonly",  # Don't iterate, just apply the direct solver once
             "pmg_mg_coarse_pc_type": "python",
             "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
-            "pmg_mg_coarse_assembled_pc_type": "lu",  # Apply LU to the explicitly assembled coarse matrix
+            "pmg_mg_coarse_assembled_pc_type": "cholesky",
+            "pmg_mg_coarse_assembled_pc_factor_mat_solver_type": "mumps",
+            "pmg_mg_coarse_assembled_mat_mumps_icntl_24": 1,  # detect & null out the known null pivot
             "ksp_converged_reason": None
         }
 

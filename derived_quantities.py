@@ -165,7 +165,7 @@ class ResolvedAtmosphere:
         return self._interp(expr)
 
     @lru_cache(maxsize=1)
-    def min_dyn_tropopause_height(self):
+    def min_dyn_tropopause_height(self): #todo interpolate more finely
         z = SpatialCoordinate(self.mesh)[2]
         in_stratosphere = abs(self.atmos.ertel_pv()) >= 1.5e-6
         masked_z = self._interp(conditional(in_stratosphere, z, 1e30))
