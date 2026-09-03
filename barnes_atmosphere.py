@@ -13,9 +13,9 @@ class BarnesAtmosphere(AtmosphereBuilder):
         self.H = self.phys_params.H
         self.kappa = self.phys_params.kappa
 
-    @lru_cache(maxsize=1) #todo add jet xpos, and height relative to trop
+    @lru_cache(maxsize=1) # todo maybe allow height above tropopause of jet to vary
     def u(self): # Function of x and z
-        exponent = - ((self.x - self.phys_params.anomaly_x_pos) / self.phys_params.jet_x_size) ** 2 \
+        exponent = - ((self.x - self.phys_params.jet_x_pos) / self.phys_params.jet_x_size) ** 2 \
             - ((self.z - self.phys_params.trop_height) / self.phys_params.jet_z_size) ** 2
 
         return self.phys_params.jet_magnitude * exp(exponent)
@@ -38,7 +38,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def rho_bar(self):
         p_bar = self.p_bar()
         theta_bar = self.theta_bar()
-        p_s = self.phys_params.p_s
+        p_s = self.phys_params.p_ref
         R = self.phys_params.R
         kappa = self.kappa
 
@@ -71,7 +71,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         integral = compute_vertical_integral(1/self.theta_bar(), self.func_space)
         inner_term = (
                 (self.kappa * self.phys_params.g / self.phys_params.R)
-                * (self.phys_params.p_s / self.phys_params.p_bottom)**self.kappa
+                * (self.phys_params.p_ref / self.phys_params.p_bottom) ** self.kappa
                 * integral
             )
         return self.phys_params.p_bottom * (1 - inner_term)**(1/self.kappa)
@@ -106,7 +106,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         ANO_exponent = -((self.z - self.phys_params.anomaly_z_pos) / self.phys_params.anomaly_z_size) ** 2 \
                        - ((self.x - self.phys_params.anomaly_x_pos) / self.phys_params.anomaly_x_size) ** 2 \
                        - ((self.y - self.phys_params.anomaly_y_pos) / self.phys_params.anomaly_y_size) ** 2
-        ANO = self.phys_params.anomaly_mag * exp(ANO_exponent) * 1e-6
+        ANO = self.phys_params.anomaly_mag * exp(ANO_exponent)
 
         return background + ANO
 

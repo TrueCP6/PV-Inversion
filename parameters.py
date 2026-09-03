@@ -20,17 +20,18 @@ class PhysicalParams:
     R: float = 287.05
     c_p : float = 1005
     p_bottom: float = 1000 * 1e2 # 1000 hpa
-    p_s: float = 1000 * 1e2 #todo check usage of p_s vs p_bottom is correct
+    p_ref: float = 1000 * 1e2
     delta: float = 2
 
     anomaly_z_trop_offset: float = 0
     anomaly_x_size: float = 200e3
     anomaly_y_size: float = 200e3
     anomaly_z_size: float = 5000
-    anomaly_mag: float = -4
+    anomaly_mag: float = -4e-6
     jet_x_size: float = 500e3
     jet_z_size: float = 2e3
     jet_magnitude: float = 35
+    jet_x_pos: float = Lx/2
 
     @property
     def kappa(self):

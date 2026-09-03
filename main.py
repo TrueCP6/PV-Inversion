@@ -1,3 +1,4 @@
+from petsc4py import PETSc
 from variator import Variator
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,12 +6,7 @@ import matplotlib.pyplot as plt
 def main():
     vary = Variator()
 
-    x = np.linspace(273.15, 273.15+30, 5)
-    y = [vary._eval_point({'theta_bar_bottom' : pt}).max_surf_wind_speed() for pt in x]
-
-    if vary.comm.rank == 0:
-        plt.plot(x,y)
-        plt.show()
+    PETSc.Sys.Print(vary.quantities_to_vary[0])
 
 if __name__ == "__main__":
     main()

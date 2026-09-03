@@ -155,7 +155,7 @@ class ResolvedAtmosphere:
     @lru_cache(maxsize=1)
     def temperature_anomaly(self):
         p_bar = self.atmos.p_bar()
-        p_s = self.phys_params.p_s
+        p_s = self.phys_params.p_ref
         kappa = self.phys_params.kappa
         theta_star = self.potential_temperature_anomaly()
         theta_bar = self.atmos.theta_bar()
@@ -187,8 +187,8 @@ class ResolvedAtmosphere:
         return get_global_extrema(vort)[0]
 
     @lru_cache(maxsize=1)
-    def min_surf_pressure_hpa(self):
-        """Minimum absolute pressure (hPa) at z=0. p_bar and psi_0 are horizontally
+    def min_surf_pressure_ano_hpa(self):
+        """Minimum pressure anomaly (hPa) at z=0. p_bar and psi_0 are horizontally
         uniform, and the vertical integrals defining p_bar and theta_bar are 0 at the
         bottom boundary by construction, so p_bar(0) and theta_bar(0) are just p_bottom
         and theta_bar_bottom - no field evaluation needed for either. Only psi itself
@@ -196,12 +196,12 @@ class ResolvedAtmosphere:
         """
         phys = self.phys_params
         p_bar_0 = phys.p_bottom
-        rho_bar_0 = p_bar_0**(1 - phys.kappa) * phys.p_s**phys.kappa / (phys.R * phys.theta_bar_bottom)
+        rho_bar_0 = p_bar_0 ** (1 - phys.kappa) * phys.p_ref ** phys.kappa / (phys.R * phys.theta_bar_bottom)
         psi_0_0 = self._psi_0_profile()[0]
         psi_surf = self._psi_surf()
 
         pressure = self._interp(
-            1e-2 * (p_bar_0 + rho_bar_0 * phys.f * (psi_surf - psi_0_0)),
+            1e-2 * (rho_bar_0 * phys.f * (psi_surf - psi_0_0)),
             self._surface_func_space()
         )
 
