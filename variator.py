@@ -1,5 +1,5 @@
+import argparse
 import json
-from dataclasses import asdict
 from firedrake import *
 from barnes_atmosphere import BarnesAtmosphere
 from derived_quantities import ResolvedAtmosphere
@@ -9,6 +9,7 @@ from solver import Solver
 import matplotlib.pyplot as plt
 import numpy as np
 import plot_utils
+from decimal import Decimal
 
 class Variator:
     def __init__(self):
@@ -35,28 +36,34 @@ class Variator:
     def quantities_to_vary(self):
         mx = PhysicalParams.Lx / 2
         quantities_to_vary = [ #todo make writup more consistent with this notation, add scaling factor to fix units
-            ("N_strat", (0.02, 0.03), r"$\overline{N}_\text{strat} \in [min, max]$ [\unit{\per\second}]"),
-            ("N_trop", (0.01, 0.02), r"$\overline{N}_\text{trop} \in [min, max]$ [\unit{\per\second}]"),
-            ("trop_width", (500, 2000), r"$w_\text{trop} \in [min, max]$ [\unit{\meter}]"),
-            ("trop_height", (10e3, 15e3), r"$z_\text{trop} \in [min, max]$ [\unit{\meter}]"),
-            ("theta_bar_bottom", (273.15, 273.15+30), r"$\overline{\theta}(0) \in [min, max]$ [\unit{\kelvin}]"),
-            ("p_bottom", (795 * 1e2, 1013.25 * 1e2), r"$\overline{p}(0) \in [min, max]$ [\unit{\pascal}]"),
-            ("delta", (2, 10), r"$\delta \in [min, max]$"),
-            ("anomaly_z_trop_offset", (-2500, 2500), r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\meter}]"),
-            ("anomaly_x_size", (100e3, 800e3), r"$x_\text{size} \in [min, max]$ [\unit{\meter}]"),
-            ("anomaly_y_size", (100e3, 800e3), r"$y_\text{size} \in [min, max]$ [\unit{\meter}]"),
-            ("anomaly_z_size", (3500, 7000), r"$y_\text{size} \in [min, max]$ [\unit{\meter}]"),
-            ("anomaly_mag", (-4e-6, -1e-6), r"$Q_\text{anomag} \in [min, max]$ [\unit{\kelvin\meter\squared\per\second\per\kg}]"),
-            ("jet_x_size", (100e3, 1000e3), r"$L_\text{jet} \in [min, max]$ [\unit{\meter}]"),
-            ("jet_z_size", (1e3, 4e3), r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
-            ("jet_magnitude", (10, 300/3.6), r"$U_\text{jet} \in [min, max]$ [\unit{\meter\per\second}]"),
-            ("jet_x_pos", (mx-500e3, mx+500e3), r"$x_\text{jet} \in [min, max]$ [\unit{\meter}]"),
+            ("N_strat", (0.02, 0.03), 1, r"$\overline{N}_\text{strat} \in [min, max]$ [\unit{\per\second}]"),
+            ("N_trop", (0.01, 0.02), 1, r"$\overline{N}_\text{trop} \in [min, max]$ [\unit{\per\second}]"),
+            ("trop_width", (500, 2000), 1, r"$w_\text{trop} \in [min, max]$ [\unit{\meter}]"),
+            ("trop_height", (10e3, 15e3), 1e-3, r"$z_\text{trop} \in [min, max]$ [\unit{\kilo\meter}]"),
+            ("theta_bar_bottom", (273.15, 273.15+30), 1, r"$\overline{\theta}(0) \in [min, max]$ [\unit{\kelvin}]"),
+            ("p_bottom", (795 * 1e2, 1013.25 * 1e2), 1e-2, r"$\overline{p}(0) \in [min, max]$ [\unit{\hecto\pascal}]"),
+            ("delta", (2, 10), 1, r"$\delta \in [min, max]$"),
+            ("anomaly_z_trop_offset", (-2500, 2500), 1, r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\meter}]"),
+            ("anomaly_x_size", (100e3, 800e3), 1e-3, r"$x_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
+            ("anomaly_y_size", (100e3, 800e3), 1e-3, r"$y_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
+            ("anomaly_z_size", (3500, 7000), 1, r"$y_\text{size} \in [min, max]$ [\unit{\meter}]"),
+            ("anomaly_mag", (-4e-6, -1e-6), 1e6, r"$Q_\text{anomag} \in [min, max]$ [\unit{PVU}]"),
+            ("jet_x_size", (100e3, 1000e3), 1e-3, r"$L_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
+            ("jet_z_size", (1e3, 4e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
+            ("jet_magnitude", (10, 100), 1, r"$U_\text{jet} \in [min, max]$ [\unit{\meter\per\second}]"),
+            ("jet_x_pos", (mx-500e3, mx+500e3), 1e-3, r"$x_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
         ]
 
+        # helper function that outputs the float as a string with 3 significant figures, but not in scientific notation
+        def format_num(num : float) -> str:
+            return format(Decimal(f'{num:.3g}'), 'f')
+
         output = []
-        for i in range(len(quantities_to_vary)):
-            var_name, bound, legend = quantities_to_vary[i]
-            legend = legend.replace("min", str(bound[0])).replace("max", str(bound[1]))
+        for var_name, bound, scale_legend, legend in quantities_to_vary:
+            min_str = format_num(bound[0] * scale_legend)
+            max_str = format_num(bound[1] * scale_legend)
+
+            legend = legend.replace("min", min_str).replace("max", max_str)
             output.append((var_name, bound, legend))
 
         return output
@@ -90,6 +97,36 @@ class Variator:
             "normalised_pts": normalised_pts.tolist(),
             "values_per_qty": values_per_qty,
         }
+
+def main():
+    parser = argparse.ArgumentParser(description='Generate data for quantity variation plots')
+    parser.add_argument('-n', '--num_points', type=int, default=10)
+    parser.add_argument('-j', '--job_id', type=int, default=0)
+    args = parser.parse_args()
+
+    vary = Variator()
+    data = vary.get_data(args.num_points)
+
+    with open(f"variator_{args.job_id}.json", "w") as f:
+        json.dump(data, f)
+
+def plot_trop_correlation(json_path):
+    with open(json_path) as f:
+        variator_results = json.load(f)["values_per_qty"]
+
+    x, y = [], []
+
+    for varied_var in variator_results:
+        x.extend(varied_var["trop_height_values"])
+        y.extend(varied_var["pressure_values"])
+
+    plot_utils.apply_style()
+    plt.figure(figsize=(6.3, 4.5))
+    ax = plt.gca()
+
+    ax.scatter(x,y)
+
+    plot_utils.finish_figure(f"tex/plots/test.pdf", legend=False)
 
 def plot_variator_results(json_path):
     plot_utils.apply_style()
@@ -129,3 +166,6 @@ def plot_variator_results(json_path):
 
         lwr_case = title.replace(" ", "_").lower()
         plot_utils.finish_figure(f"tex/plots/{lwr_case}.pdf", legend=False)
+
+if __name__ == "__main__":
+    main()

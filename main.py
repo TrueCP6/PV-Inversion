@@ -5,9 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
-    plot_variator_results("variator_test.json")
+    plot_trop_correlation("variator_1293007.json")
 
-    #vary = Variator()
+    # vary = Variator()
     #
     # data = vary.get_data(1)
     # with open("variator_test.json", "w") as f:
