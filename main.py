@@ -6,12 +6,7 @@ import matplotlib.pyplot as plt
 
 def main():
     plot_trop_correlation("variator_1293007.json")
-
-    # vary = Variator()
-    #
-    # data = vary.get_data(1)
-    # with open("variator_test.json", "w") as f:
-    #     json.dump(data, f, indent=4)
+    plot_variator_results("variator_1293007.json")
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 from firedrake import *
 from barnes_atmosphere import BarnesAtmosphere
 from derived_quantities import ResolvedAtmosphere
@@ -51,7 +52,7 @@ class Variator:
             ("jet_x_size", (100e3, 1000e3), 1e-3, r"$L_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("jet_z_size", (1e3, 4e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
             ("jet_magnitude", (10, 100), 1, r"$U_\text{jet} \in [min, max]$ [\unit{\meter\per\second}]"),
-            ("jet_x_pos", (mx-500e3, mx+500e3), 1e-3, r"$x_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
+            ("jet_x_pos", (mx-1500e3, mx+1500e3), 1e-3, r"$x_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
         ]
 
         # helper function that outputs the float as a string with 3 significant figures, but not in scientific notation
@@ -111,22 +112,52 @@ def main():
         json.dump(data, f)
 
 def plot_trop_correlation(json_path):
-    with open(json_path) as f:
-        variator_results = json.load(f)["values_per_qty"]
-
-    x, y = [], []
-
-    for varied_var in variator_results:
-        x.extend(varied_var["trop_height_values"])
-        y.extend(varied_var["pressure_values"])
-
     plot_utils.apply_style()
-    plt.figure(figsize=(6.3, 4.5))
-    ax = plt.gca()
 
-    ax.scatter(x,y)
+    with open(json_path) as f:
+        data = json.load(f)
 
-    plot_utils.finish_figure(f"tex/plots/test.pdf", legend=False)
+    normalised_pts = data["normalised_pts"]
+    values_per_qty = data["values_per_qty"]
+
+    colours = plot_utils.qualitative_colours(len(values_per_qty))
+
+    delta_qty = next(q for q in values_per_qty if q["legend_entry"].startswith(r"$\delta"))
+    lo, hi = (float(v) for v in re.search(r'\[(-?[\d.]+),\s*(-?[\d.]+)\]', delta_qty["legend_entry"]).groups())
+    delta_values = [lo + (hi - lo) * t for t in normalised_pts]
+    control_idx = min(range(len(delta_values)), key=lambda i: abs(delta_values[i] - PhysicalParams().delta))
+
+    control_x = delta_qty["trop_height_values"][control_idx]
+    control_y = {
+        "pressure_values": delta_qty["pressure_values"][control_idx],
+        "wind_values": delta_qty["wind_values"][control_idx],
+        "vorticity_values": delta_qty["vorticity_values"][control_idx],
+    }
+
+    quantities = [
+        ("pressure_values", "Tropopause height vs pressure anomaly", r"$\min\, p^*_{z=0}$ [\unit{\hecto\pascal}]"),
+        ("wind_values", "Tropopause height vs wind speed", r"$\max\left|\mathbf{u}\right|_{z=0}$ [\unit{\meter\per\second}]"),
+        ("vorticity_values", "Tropopause height vs vorticity", r"$\min\, \zeta_g|_{z=0}$ [\unit{\per\second}]"),
+    ]
+
+    for key, title, y_label in quantities:
+        plt.figure(figsize=plot_utils.SQUARE_HALF_FIGURE_SIZE)
+        ax = plt.gca()
+
+        for qty, colour in zip(values_per_qty, colours):
+            ax.scatter(qty["trop_height_values"], qty[key], color=colour,
+                       s=10, alpha=0.85, linewidths=0)
+
+        ax.scatter([control_x], [control_y[key]], color='black', marker='*',
+                   s=80, edgecolors='white', linewidths=0.5, zorder=5)
+        ax.annotate("Control", (control_x, control_y[key]), fontsize=7,
+                    xytext=(4, 4), textcoords='offset points')
+
+        ax.set_xlabel(r"$\min\, z_\text{trop}$ [\unit{\meter}]")
+        ax.set_ylabel(y_label)
+
+        lwr_case = title.replace(" ", "_").lower()
+        plot_utils.finish_figure(f"tex/plots/{lwr_case}.pdf", legend=False)
 
 def plot_variator_results(json_path):
     plot_utils.apply_style()
@@ -144,10 +175,7 @@ def plot_variator_results(json_path):
         ("vorticity_values", "Minimum surface vorticity", r"$\min\, \zeta_g|_{z=0}$ [\unit{\per\second}]"),
     ]
 
-    # Colours from a 20-colour qualitative map, reordered so the 10 distinct hues are used before their lighter tab20 pairing repeats one - keeps neighbouring parameter variations as distinguishable as possible (the variations are categorical, not ordinal, so a sequential map like viridis would be misleading here).
-    tab20 = plt.cm.tab20.colors
-    colour_order = list(range(0, 20, 2)) + list(range(1, 20, 2))
-    colours = [tab20[colour_order[i % len(colour_order)]] for i in range(len(values_per_qty))]
+    colours = plot_utils.qualitative_colours(len(values_per_qty))
 
     for key, title, y_label in quantities:
         plt.figure(figsize=(6.3, 4.5))

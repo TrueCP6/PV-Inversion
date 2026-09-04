@@ -11,6 +11,9 @@ import numpy as np
 # Two single-column widths of the LaTeX document
 FIGURE_SIZE = (3.15 * 2, 4.0)
 
+# A single-column width, for roughly square figures placed two to a row.
+SQUARE_HALF_FIGURE_SIZE = (FIGURE_SIZE[0] / 2, FIGURE_SIZE[0] / 2)
+
 def apply_style():
     """Global parameters for academic styling, matching the LaTeX document."""
     plt.rcParams.update({
@@ -27,6 +30,18 @@ def apply_style():
         "xtick.direction": "in",  # Inward facing ticks
         "ytick.direction": "in"
     })
+
+def qualitative_colours(n):
+    """
+    n visually distinguishable RGBA colours from a 20-colour qualitative map,
+    reordered so the 10 distinct hues are used before their lighter tab20
+    pairing repeats one - keeps neighbouring categories (e.g. varied
+    parameters) as distinguishable as possible. Categorical, not ordinal, so
+    a sequential map like viridis would be misleading here.
+    """
+    tab20 = plt.cm.tab20.colors
+    order = list(range(0, 20, 2)) + list(range(1, 20, 2))
+    return [tab20[order[i % len(order)]] for i in range(n)]
 
 def log_log_slope(x, y): # todo switch to max gradient
     """Least-squares gradient of log(y) against log(x), or nan if there is nothing to fit."""
