@@ -21,4 +21,4 @@ apptainer exec \
     mpiexec -n 40 \
     python3 ~/Thesis/variator.py \
     --job_id ${SLURM_JOB_ID} \
-    --num_points 10
+    --num_points 20

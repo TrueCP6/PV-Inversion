@@ -36,12 +36,12 @@ class Variator:
     @property
     def quantities_to_vary(self):
         mx = PhysicalParams.Lx / 2
-        quantities_to_vary = [ #todo make writup more consistent with this notation, add scaling factor to fix units
+        quantities_to_vary = [ #todo make writeup more consistent with this notation, add scaling factor to fix units
             ("N_strat", (0.02, 0.03), 1, r"$\overline{N}_\text{strat} \in [min, max]$ [\unit{\per\second}]"),
             ("N_trop", (0.01, 0.02), 1, r"$\overline{N}_\text{trop} \in [min, max]$ [\unit{\per\second}]"),
             ("trop_width", (500, 2000), 1, r"$w_\text{trop} \in [min, max]$ [\unit{\meter}]"),
             ("trop_height", (10e3, 15e3), 1e-3, r"$z_\text{trop} \in [min, max]$ [\unit{\kilo\meter}]"),
-            ("theta_bar_bottom", (273.15, 273.15+30), 1, r"$\overline{\theta}(0) \in [min, max]$ [\unit{\kelvin}]"),
+            ("temperature_bottom", (273.15, 273.15+30), 1, r"$\overline{T}(0) \in [min, max]$ [\unit{\kelvin}]"),
             ("p_bottom", (795 * 1e2, 1013.25 * 1e2), 1e-2, r"$\overline{p}(0) \in [min, max]$ [\unit{\hecto\pascal}]"),
             ("delta", (2, 10), 1, r"$\delta \in [min, max]$"),
             ("anomaly_z_trop_offset", (-2500, 2500), 1, r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\meter}]"),
@@ -53,6 +53,7 @@ class Variator:
             ("jet_z_size", (1e3, 4e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
             ("jet_magnitude", (10, 100), 1, r"$U_\text{jet} \in [min, max]$ [\unit{\meter\per\second}]"),
             ("jet_x_pos", (mx-1500e3, mx+1500e3), 1e-3, r"$x_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
+            ("latitude", (-40, -20), 1, r"$\varphi \in [\qty{min}{\degree}, \qty{max}{\degree}]$")
         ]
 
         # helper function that outputs the float as a string with 3 significant figures, but not in scientific notation

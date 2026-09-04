@@ -15,7 +15,7 @@ class PhysicalParams:
     N_trop: float = 0.01
     trop_width: float = 1000
     trop_height: float = 12500
-    theta_bar_bottom: float = 273.15 + 20
+    temperature_bottom: float = 273.15 + 20
     # Constants for dry air
     R: float = 287.05
     c_p : float = 1005
@@ -32,6 +32,10 @@ class PhysicalParams:
     jet_z_size: float = 2e3
     jet_magnitude: float = 35
     jet_x_pos: float = Lx/2
+
+    @property
+    def theta_bar_bottom(self):
+        return self.temperature_bottom * (self.p_ref / self.p_bottom)**self.kappa
 
     @property
     def kappa(self):
