@@ -113,7 +113,7 @@ class MMSTests(unittest.TestCase):
 class StabilityTests(unittest.TestCase):
     def test_peclet(self):
         PETSc.Sys.Print("Testing the peclet number is sufficiently small")
-        solver_params = SolverParams(nx=8, ny=8, nz=10000)
+        solver_params = SolverParams(nx=8, ny=8, nz=1000)
         phys_params = PhysicalParams()
 
         domain = DomainBuilder(solver_params, phys_params)
@@ -165,7 +165,8 @@ class DerivedQuantityTests(unittest.TestCase):
 
 class SolverTests(unittest.TestCase):
     def _test_upd_atmos(self, matfree : bool):
-        solver_params = SolverParams()
+        n = 30
+        solver_params = SolverParams(nx=n, ny=n, nz=n)
         phys_params_1 = PhysicalParams(latitude=-45)
 
         domain = DomainBuilder(solver_params, phys_params_1)

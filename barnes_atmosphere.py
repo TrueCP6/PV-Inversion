@@ -28,13 +28,9 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
     # todo check I don't need to evaulate these at z=0,H
     @lru_cache(maxsize=1)
-    def top_boundary(self):
+    def vertical_boundary(self):
         return self.phys_params.g * self.theta_star_init() \
             / (self.phys_params.f * self.theta_bar())
-
-    @lru_cache(maxsize=1)
-    def bottom_boundary(self):
-        return self.top_boundary()
 
     @lru_cache(maxsize=1)
     def rho_bar(self):

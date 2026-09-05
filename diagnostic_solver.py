@@ -16,8 +16,7 @@ class DiagnosticSolver:
 
         # Allocate local references to all the relevant atmos quantities so that they can be updated later
         self._f = Constant(0)
-        self._top_boundary = Function(self.func_space)
-        self._bottom_boundary = Function(self.func_space)
+        self._vertical_boundary = Function(self.func_space)
         self._rho_bar = Function(self.func_space)
         self._u = Function(self.func_space)
         self._v = Function(self.func_space)
@@ -35,8 +34,7 @@ class DiagnosticSolver:
 
         self.atmos = atmos
         self._f.assign(atmos.phys_params.f)
-        self._top_boundary.interpolate(atmos.top_boundary())
-        self._bottom_boundary.interpolate(atmos.bottom_boundary())
+        self._vertical_boundary.interpolate(atmos.vertical_boundary())
         self._rho_bar.interpolate(atmos.rho_bar())
         self._u.interpolate(atmos.u())
         self._v.interpolate(atmos.v())
@@ -58,12 +56,11 @@ class DiagnosticSolver:
 
         L_x = x_base * ds_v((1, 2))
         L_y = y_base * ds_v((3, 4))
-        L_bottom = z_base * self._bottom_boundary * ds_b
-        L_top = z_base * self._top_boundary * ds_t
+        L_z = z_base * self._vertical_boundary * ds_tb
         L_vol = -self._q * self._rho_bar * phi * dx
 
         # Linear form
-        L = L_x + L_y + L_bottom + L_top + L_vol
+        L = L_x + L_y + L_z + L_vol
 
         # Bilinear weak form
         a = (self._rho_bar * psi.dx(0) * phi.dx(0) +

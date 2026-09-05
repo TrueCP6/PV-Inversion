@@ -32,11 +32,8 @@ class MMSChecker(AtmosphereBuilder):
     def v(self):
         return Constant(0)
 
-    def top_boundary(self):
-        return Constant(self.c_2)
-
-    def bottom_boundary(self):
-        return Constant(self.c_1)
+    def vertical_boundary(self):
+        return conditional(self.z < self.H/2, self.c_1, self.c_2)
 
     def rho_bar(self):
         return self.c_3 * exp(self.c_4 * self.z)

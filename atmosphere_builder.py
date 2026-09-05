@@ -26,11 +26,7 @@ class AtmosphereBuilder(ABC):
         pass
 
     @abstractmethod
-    def top_boundary(self):
-        pass
-
-    @abstractmethod
-    def bottom_boundary(self):
+    def vertical_boundary(self):
         pass
 
     @abstractmethod
