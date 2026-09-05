@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
-    # todo make these work even when run with mpi
     # plot_trop_correlation("variator_1296058.json")
     # plot_variator_results("variator_1296058.json")
 

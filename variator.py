@@ -1,6 +1,7 @@
 import argparse
 import json
 import re
+from mpi4py import MPI
 from firedrake import *
 from barnes_atmosphere import BarnesAtmosphere
 from derived_quantities import ResolvedAtmosphere
@@ -113,6 +114,9 @@ def main():
         json.dump(data, f)
 
 def plot_trop_correlation(json_path):
+    if MPI.COMM_WORLD.rank != 0:
+        return
+
     plot_utils.apply_style()
 
     with open(json_path) as f:
@@ -161,6 +165,9 @@ def plot_trop_correlation(json_path):
         plot_utils.finish_figure(f"tex/plots/{lwr_case}.pdf", legend=False)
 
 def plot_variator_results(json_path):
+    if MPI.COMM_WORLD.rank != 0:
+        return
+
     plot_utils.apply_style()
 
     with open(json_path) as f:

@@ -198,3 +198,4 @@ tex/plots/*.pdf
 *.h5
 *.err
 *.out
+CLAUDE.md
