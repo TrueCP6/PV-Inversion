@@ -180,6 +180,16 @@ def get_global_extrema(func : Function):
         global_max = v.max()[1]
     return global_min, global_max
 
+def get_global_min(func : Function):
+    with func.dat.vec_ro as v:
+        global_min = v.min()[1]
+    return global_min
+
+def get_global_max(func : Function):
+    with func.dat.vec_ro as v:
+        global_max = v.max()[1]
+    return global_max
+
 def get_regional_extrema(func : Function, in_region):
     V = func.function_space()
     x,y,z = SpatialCoordinate(V.mesh())
@@ -187,9 +197,9 @@ def get_regional_extrema(func : Function, in_region):
     in_region = in_region(x,y,z)
 
     max_expr = conditional(in_region, func, -1e30)
-    _, max = get_global_extrema(f.interpolate(max_expr))
+    max = get_global_max(f.interpolate(max_expr))
 
     min_expr = conditional(in_region, func, 1e30)
-    min, _ = get_global_extrema(f.interpolate(min_expr))
+    min = get_global_min(f.interpolate(min_expr))
 
     return min, max

@@ -3,7 +3,7 @@ use_same_hash()
 from firedrake import *
 from functools import lru_cache
 from barnes_atmosphere import BarnesAtmosphere
-from math_utils import get_global_extrema
+from math_utils import get_global_max, get_global_min, get_global_extrema
 from mpi4py import MPI
 import numpy as np
 
@@ -172,7 +172,7 @@ class ResolvedAtmosphere:
         in_stratosphere = abs(self.atmos.ertel_pv()) >= 1.5e-6
         masked_z = self._interp(conditional(in_stratosphere, z, 1e30))
 
-        return get_global_extrema(masked_z)[0]
+        return get_global_min(masked_z)
 
     @lru_cache(maxsize=1)
     def min_surf_vort(self):
@@ -186,7 +186,7 @@ class ResolvedAtmosphere:
         v = self._interp(psi_surf.dx(0), V2)
         vort = self._interp(v.dx(0) - u.dx(1), V2)
 
-        return get_global_extrema(vort)[0]
+        return get_global_min(vort)
 
     @lru_cache(maxsize=1)
     def min_surf_pressure_ano_hpa(self):
@@ -207,7 +207,7 @@ class ResolvedAtmosphere:
             self._surface_func_space()
         )
 
-        return get_global_extrema(pressure)[0]
+        return get_global_min(pressure)
 
     @lru_cache(maxsize=1)
     def max_surf_wind_speed(self):
@@ -217,4 +217,4 @@ class ResolvedAtmosphere:
         speed = sqrt(psi.dx(0)**2 + psi.dx(1)**2)
         speed = self._interp(speed, V)
 
-        return get_global_extrema(speed)[1]
+        return get_global_max(speed)

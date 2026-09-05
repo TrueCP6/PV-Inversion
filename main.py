@@ -8,12 +8,9 @@ def main():
     # plot_trop_correlation("variator_1296058.json")
     # plot_variator_results("variator_1296058.json")
 
-    # todo switch to theta_star and q initial
-    # todo switch to a single vertical boundary function
     # todo q and theta_star advection
     # todo add working update q and theta_star function - will also need to update boundaries potensh
     # todo determine correct stability constraint for rk4
-    # todo separate and improve get_extrema helper function
 
     phys_params = PhysicalParams()
     solver_params = SolverParams()
