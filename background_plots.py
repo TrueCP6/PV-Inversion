@@ -6,7 +6,7 @@ import math_utils
 from parameters import *
 from barnes_atmosphere import *
 from domain_builder import *
-from solver import *
+from diagnostic_solver import *
 from plot_utils import apply_style
 from derived_quantities import *
 
@@ -274,7 +274,7 @@ def main():
 
     atmos = BarnesAtmosphere(domain)
 
-    solver = Solver(atmos, True)
+    solver = DiagnosticSolver(atmos, True)
     solver.solve_psi()
     derived = ResolvedAtmosphere(solver.psi_soln, atmos)
 

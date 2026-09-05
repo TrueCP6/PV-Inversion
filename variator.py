@@ -7,7 +7,7 @@ from barnes_atmosphere import BarnesAtmosphere
 from derived_quantities import ResolvedAtmosphere
 from domain_builder import DomainBuilder
 from parameters import SolverParams, PhysicalParams
-from solver import Solver
+from diagnostic_solver import DiagnosticSolver
 import matplotlib.pyplot as plt
 import numpy as np
 import plot_utils
@@ -21,7 +21,7 @@ class Variator:
         self.domain = DomainBuilder(solver_params, phys_params)
         self.comm = self.domain.mesh().comm
         atmos = BarnesAtmosphere(self.domain)
-        self.solver = Solver(atmos, True)
+        self.solver = DiagnosticSolver(atmos, True)
 
     def _get_derived(self, params) -> ResolvedAtmosphere:
         phys_params = PhysicalParams(**params)

@@ -42,5 +42,5 @@ class AtmosphereBuilder(ABC):
         pass
 
     @abstractmethod
-    def q(self):
+    def q_init(self):
         pass

@@ -29,7 +29,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
     # todo check I don't need to evaulate these at z=0,H
     @lru_cache(maxsize=1)
     def top_boundary(self):
-        return self.phys_params.g * self.theta_star() \
+        return self.phys_params.g * self.theta_star_init() \
             / (self.phys_params.f * self.theta_bar())
 
     @lru_cache(maxsize=1)
@@ -79,7 +79,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         return self.phys_params.p_bottom * (1 - inner_term)**(1/self.kappa)
 
     @lru_cache(maxsize=1)
-    def q(self):
+    def q_init(self):
         full_expr = ( # convert from ertel pv to qg pv
             self.ertel_pv() * self.rho_bar() * self.phys_params.g
             / (self.theta_bar() * self.N_bar()**2)
@@ -113,8 +113,8 @@ class BarnesAtmosphere(AtmosphereBuilder):
         return background + ANO
 
     @lru_cache(maxsize=1)
-    def theta_star(self):
-        q = self.q()
+    def theta_star_init(self):
+        q = self.q_init()
         N_bar = self.N_bar()
         theta_bar = self.theta_bar()
         rho_bar = self.rho_bar()

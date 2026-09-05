@@ -44,7 +44,7 @@ class MMSChecker(AtmosphereBuilder):
     def N_bar(self):
         return Constant(self.N)
 
-    def q(self):
+    def q_init(self):
         return (-5 * (pi**2) / (self.L**2)) * cos(pi * self.x / self.L) * sin(2 * pi * self.y / self.L) + self.c_5 * (2*self.A + self.c_4 * (2 * self.A * self.z + self.B))
 
     @lru_cache(maxsize=1)

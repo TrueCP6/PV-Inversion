@@ -3,7 +3,7 @@ from firedrake import *
 from atmosphere_builder import AtmosphereBuilder
 from parameters import SolverParams
 
-class Solver:
+class DiagnosticSolver:
     def __init__(self, atmos : AtmosphereBuilder, mat_free : bool):
         self.atmos = atmos
         self.func_space = atmos.func_space
@@ -41,7 +41,7 @@ class Solver:
         self._u.interpolate(atmos.u())
         self._v.interpolate(atmos.v())
         self._N_bar.interpolate(atmos.N_bar())
-        self._q.interpolate(atmos.q())
+        self._q.interpolate(atmos.q_init())
         self._rho_N2.interpolate(atmos.rho_bar() / (atmos.N_bar()**2))
 
         if self.solver is not None:

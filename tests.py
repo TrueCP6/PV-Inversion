@@ -3,7 +3,7 @@ import numpy as np
 from domain_builder import *
 from math_utils import *
 from parameters import *
-from solver import *
+from diagnostic_solver import *
 from mms_checker import *
 from barnes_atmosphere import *
 from derived_quantities import *
@@ -105,7 +105,7 @@ class MMSTests(unittest.TestCase):
         atmos = MMSChecker(domain)
 
         for save_memory in [True, False]:
-            solver = Solver(atmos, save_memory)
+            solver = DiagnosticSolver(atmos, save_memory)
             solver.solve_psi()
             error = atmos.calc_error(solver.psi_soln)
             self.assertLess(error, 1e-6)
@@ -171,7 +171,7 @@ class SolverTests(unittest.TestCase):
         domain = DomainBuilder(solver_params, phys_params_1)
         atmos_1 = BarnesAtmosphere(domain)
 
-        solver = Solver(atmos_1, matfree)
+        solver = DiagnosticSolver(atmos_1, matfree)
         solver.solve_psi()
         psi_1 = solver.psi_soln.copy(deepcopy=True)
 

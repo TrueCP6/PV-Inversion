@@ -35,7 +35,7 @@ def build_solver(N : int, p : int, matfree : bool, ksp_rtol : float = SolverPara
     """Set up the psi solver on an N x N x N mesh of Q_p elements."""
     from domain_builder import DomainBuilder
     from barnes_atmosphere import BarnesAtmosphere
-    from solver import Solver
+    from diagnostic_solver import DiagnosticSolver
 
     phys_params = PhysicalParams()
     solver_params = SolverParams(nx=N, ny=N, nz=N, check_flux=False, polynomial_order=p,
@@ -44,7 +44,7 @@ def build_solver(N : int, p : int, matfree : bool, ksp_rtol : float = SolverPara
     domain = DomainBuilder(solver_params, phys_params)
     atmos = BarnesAtmosphere(domain)
 
-    return Solver(atmos, matfree)
+    return DiagnosticSolver(atmos, matfree)
 
 def run_script(script_path, ranks : int, args):
     """Run script under a fresh mpiexec, so its Firedrake state dies with the process."""
