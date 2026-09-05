@@ -1,3 +1,5 @@
+from math_utils import use_same_hash
+use_same_hash()
 from functools import lru_cache
 import math_utils
 from atmosphere_builder import AtmosphereBuilder

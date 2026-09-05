@@ -19,8 +19,6 @@ import numpy as np
 import sweep
 from parameters import PhysicalParams
 
-# todo: fix cache collisions
-
 EXACT_FUNCTION_NAME = "psi_exact"
 POINT_FUNCTION_NAME = "psi_point"
 MESH_NAME_ATTR = "mesh_name"

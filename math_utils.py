@@ -1,3 +1,10 @@
+import os
+import sys
+def use_same_hash(): # Prevent cache miss warnings - use same hash seed for every rank
+    if os.environ.get("PYTHONHASHSEED") != "0":
+        os.environ["PYTHONHASHSEED"] = "0"
+        os.execvpe(sys.executable, [sys.executable] + sys.argv, os.environ)
+
 from firedrake import *
 from mpi4py import MPI
 import pyvista as pv

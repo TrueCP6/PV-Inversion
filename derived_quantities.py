@@ -1,3 +1,5 @@
+from math_utils import use_same_hash
+use_same_hash()
 from firedrake import *
 from functools import lru_cache
 from barnes_atmosphere import BarnesAtmosphere
