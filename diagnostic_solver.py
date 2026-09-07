@@ -7,30 +7,31 @@ from parameters import SolverParams
 class DiagnosticSolver:
     def __init__(self, atmos : AtmosphereBuilder, mat_free : bool):
         self.atmos = atmos
-        self.func_space = atmos.func_space
+        self.cg_space = atmos.cg_space
+        self.dg_space = atmos.dg_space
         self.solver_params = atmos.solver_params
         self.mesh = atmos.mesh
-        self.phi = TestFunction(self.func_space)
-        self.psi_soln = Function(self.func_space)  # Solution to system will be stored here
+        self.phi = TestFunction(self.cg_space)
+        self.psi_soln = Function(self.cg_space)  # Solution to system will be stored here
         self.mat_free = mat_free
         self.solver = None
 
         # Allocate local references to all the relevant atmos quantities so that they can be updated later
         self._f = Constant(0)
-        self._vertical_boundary = Function(self.func_space)
-        self._rho_bar = Function(self.func_space)
-        self._u = Function(self.func_space)
-        self._v = Function(self.func_space)
-        self._N_bar = Function(self.func_space)
-        self._q = Function(self.func_space)
-        self._rho_N2 = Function(self.func_space)
+        self._vertical_boundary = Function(self.cg_space)
+        self._rho_bar = Function(self.cg_space)
+        self._u = Function(self.cg_space)
+        self._v = Function(self.cg_space)
+        self._N_bar = Function(self.cg_space)
+        self._q = Function(self.dg_space)
+        self._rho_N2 = Function(self.cg_space)
 
         self.update_atmosphere(atmos)
         self._setup_solver()
 
     def update_atmosphere(self, atmos : AtmosphereBuilder):
         assert self.mesh == atmos.mesh, "Attempting to use different meshes with the same solver will result in a memory leak due to a bug in PMGPC"
-        assert self.func_space == atmos.func_space, "Use the same Function Space that you created the solver with" # Possible to implement but I'm too lazy
+        assert self.cg_space == atmos.cg_space, "Use the same Function Space that you created the solver with" # Possible to implement but I'm too lazy
         assert self.solver_params == atmos.solver_params, "You must use the same solver parameters for a single solver"
 
         self.atmos = atmos
@@ -52,7 +53,7 @@ class DiagnosticSolver:
         self._vertical_boundary.interpolate(self.atmos.new_vertical_boundary(theta_star))
 
     def _specify_equation(self):
-        psi = TrialFunction(self.func_space)
+        psi = TrialFunction(self.cg_space)
         phi = self.phi
         n = FacetNormal(self.mesh)
 

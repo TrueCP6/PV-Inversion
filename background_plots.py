@@ -270,7 +270,7 @@ def main():
     phys_params = PhysicalParams()
 
     domain = DomainBuilder(solver_params, phys_params)
-    func_space = domain.func_space()
+    cg_space = domain.cg_space()
 
     atmos = BarnesAtmosphere(domain)
 
@@ -289,7 +289,7 @@ def main():
     )
 
     multislice(
-        Function(func_space).interpolate(atmos.ertel_pv() * 1e6),
+        Function(cg_space).interpolate(atmos.ertel_pv() * 1e6),
         "EPV",
         r"$Q$ [\unit{PVU}]",
         levels=np.arange(-5, 0, 0.5),
@@ -312,7 +312,7 @@ def main():
     )
 
     plot_function_vs_z(
-        Function(func_space).interpolate(atmos.p_bar() / 1e2),
+        Function(cg_space).interpolate(atmos.p_bar() / 1e2),
         "Reference Pressure Profile",
         r"$\overline{p}$ [\unit{\hecto\pascal}]"
     )
@@ -324,7 +324,7 @@ def main():
     )
 
     plot_slice_heatmap(
-        Function(func_space).interpolate(atmos.u()),
+        Function(cg_space).interpolate(atmos.u()),
         "Jet Stream",
         r"$\overline{u}$ [\unit{\meter\per\second}]",
         levels=np.arange(0, 35, 5),

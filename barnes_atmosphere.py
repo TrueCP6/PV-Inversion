@@ -24,7 +24,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
     @lru_cache(maxsize=1)
     def v(self):
-        return Function(self.func_space).assign(0)
+        return Function(self.cg_space).assign(0)
 
     def vertical_boundary(self):
         return self.new_vertical_boundary(self.theta_star_init())
@@ -42,7 +42,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
         kappa = self.kappa
 
         full_expr = p_bar**(1-kappa) * p_s**kappa / (R * theta_bar)
-        fn = Function(self.func_space).interpolate(full_expr)
+        fn = Function(self.cg_space).interpolate(full_expr)
         return fn
 
     @lru_cache(maxsize=1)
@@ -55,19 +55,19 @@ class BarnesAtmosphere(AtmosphereBuilder):
             self.phys_params.trop_width,
             self.phys_params.trop_height
         )
-        fn = Function(self.func_space).interpolate(full_expr)
+        fn = Function(self.cg_space).interpolate(full_expr)
         return fn
 
     @lru_cache(maxsize=1)
     def theta_bar(self):
-        integral = compute_vertical_integral(self.N_bar()**2, self.func_space)
+        integral = compute_vertical_integral(self.N_bar() ** 2, self.cg_space)
         full_expr = self.phys_params.theta_bar_bottom * exp(integral / self.phys_params.g)
-        fn = Function(self.func_space).interpolate(full_expr)
+        fn = Function(self.cg_space).interpolate(full_expr)
         return fn
 
     @lru_cache(maxsize=1)
     def p_bar(self):
-        integral = compute_vertical_integral(1/self.theta_bar(), self.func_space)
+        integral = compute_vertical_integral(1 / self.theta_bar(), self.cg_space)
         inner_term = (
                 (self.kappa * self.phys_params.g / self.phys_params.R)
                 * (self.phys_params.p_ref / self.phys_params.p_bottom) ** self.kappa
@@ -82,8 +82,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
             / (self.theta_bar() * self.N_bar()**2)
             - self.phys_params.f
         )
-        fn = Function(self.func_space).interpolate(full_expr)
-        return fn
+        return Function(self.dg_space).interpolate(full_expr)
 
     @lru_cache(maxsize=1)
     def geostrophic_vorticity(self):
@@ -111,7 +110,8 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
     @lru_cache(maxsize=1)
     def theta_star_init(self):
-        return self.calc_theta_star(self.q_init())
+        const = self.calc_theta_star(self.q_init())
+        return Function(self.dg_space).assign(const)
 
     def calc_theta_star(self, q):
         N_bar = self.N_bar()

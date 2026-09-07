@@ -27,12 +27,13 @@ class DomainBuilder:
         return mesh
 
     @lru_cache(maxsize=1)
-    def func_space(self):
+    def cg_space(self):
         mesh = self.mesh()
         p = self.solver_params.polynomial_order
-        V = FunctionSpace(mesh, "Q", p)
+        return FunctionSpace(mesh, "Q", p)
 
-        total_dofs = V.dim() # can also be calculated as (degree*N+1)^3
-        PETSc.Sys.Print(f"Created function space with {total_dofs} degrees of freedom")
-
-        return V
+    @lru_cache(maxsize=1)
+    def dg_space(self):
+        mesh = self.mesh()
+        p = self.solver_params.polynomial_order
+        return FunctionSpace(mesh, "DQ", p)

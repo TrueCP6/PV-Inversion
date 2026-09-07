@@ -9,7 +9,8 @@ class AtmosphereBuilder(ABC):
     def __init__(self, domain : DomainBuilder, phys_params : PhysicalParams = None):
         self.domain = domain
         self.mesh = domain.mesh()
-        self.func_space = domain.func_space()
+        self.cg_space = domain.cg_space()
+        self.dg_space = domain.dg_space()
         self.solver_params = domain.solver_params
         self.x, self.y, self.z = SpatialCoordinate(self.mesh)
 

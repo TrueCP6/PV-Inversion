@@ -117,13 +117,13 @@ class StabilityTests(unittest.TestCase):
         phys_params = PhysicalParams()
 
         domain = DomainBuilder(solver_params, phys_params)
-        func_space = domain.func_space()
+        cg_space = domain.cg_space()
         atmos = BarnesAtmosphere(domain)
 
         N2 = atmos.N_bar() ** 2
         rho = atmos.rho_bar()
         expr = abs(ln(rho / N2).dx(2))
-        fun = Function(func_space).interpolate(expr)
+        fun = Function(cg_space).interpolate(expr)
 
         with fun.dat.vec_ro as v:
             global_max = v.max()[1]
@@ -139,7 +139,7 @@ class DerivedQuantityTests(unittest.TestCase):
         Lx, Ly = phys_params.Lx, phys_params.Ly
 
         domain = DomainBuilder(solver_params, phys_params)
-        func_space = domain.func_space()
+        cg_space = domain.cg_space()
         atmos = BarnesAtmosphere(domain)
         x, y, z = SpatialCoordinate(domain.mesh())
 
@@ -153,7 +153,7 @@ class DerivedQuantityTests(unittest.TestCase):
         ]
 
         for psi_expr, exact in test_cases:
-            psi = Function(func_space).interpolate(psi_expr)
+            psi = Function(cg_space).interpolate(psi_expr)
             psi_0 = ResolvedAtmosphere(psi, atmos)._psi_0()
 
             # Every case is a polynomial the function space holds exactly, so the only
