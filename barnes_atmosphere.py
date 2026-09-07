@@ -26,10 +26,11 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def v(self):
         return Function(self.func_space).assign(0)
 
-    # todo check I don't need to evaulate these at z=0,H
-    @lru_cache(maxsize=1)
     def vertical_boundary(self):
-        return self.phys_params.g * self.theta_star_init() \
+        return self.new_vertical_boundary(self.theta_star_init())
+
+    def new_vertical_boundary(self, theta_star):
+        return self.phys_params.g * theta_star \
             / (self.phys_params.f * self.theta_bar())
 
     @lru_cache(maxsize=1)
@@ -110,7 +111,9 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
     @lru_cache(maxsize=1)
     def theta_star_init(self):
-        q = self.q_init()
+        return self.calc_theta_star(self.q_init())
+
+    def calc_theta_star(self, q):
         N_bar = self.N_bar()
         theta_bar = self.theta_bar()
         rho_bar = self.rho_bar()
@@ -122,8 +125,8 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
         denom = (
             self.Lx * self.Ly * self.phys_params.g * self.phys_params.f * (
-            rho_bar(top) / (N_bar(top)**2 * theta_bar(top))
-            - rho_bar(bot) / (N_bar(bot)**2 * theta_bar(bot))
+            rho_bar(top) / (N_bar(top) ** 2 * theta_bar(top))
+            - rho_bar(bot) / (N_bar(bot) ** 2 * theta_bar(bot))
         ))
 
         numerator = assemble(rho_bar * q * dx)

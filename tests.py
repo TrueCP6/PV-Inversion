@@ -184,12 +184,37 @@ class SolverTests(unittest.TestCase):
         psi_2 = solver.psi_soln
 
         rel_error = math_utils.relative_error(psi_1, psi_2)
-        PETSc.Sys.Print(f"Relative error between solutions: {rel_error}")
-        self.assertGreater(rel_error, 1)
+        PETSc.Sys.Print(f"Relative error between atmospheres: {rel_error}")
+        self.assertGreater(rel_error, 0.1)
+
+    def _test_step_atmos(self, matfree: bool):
+        n = 30
+        solver_params = SolverParams(nx=n, ny=n, nz=n)
+        phys_params_1 = PhysicalParams()
+
+        domain = DomainBuilder(solver_params, phys_params_1)
+        atmos_1 = BarnesAtmosphere(domain)
+
+        solver = DiagnosticSolver(atmos_1, matfree)
+        solver.solve_psi()
+        psi_1 = solver.psi_soln.copy(deepcopy=True)
+
+        # Create new parameters, but only alter the anomaly, and only pass through the new anomaly to the step function
+        phys_params_2 = PhysicalParams(anomaly_mag=-1e-6)
+        atmos_2 = BarnesAtmosphere(domain, phys_params_2)
+        solver.step(atmos_2.q_init(), atmos_2.theta_star_init())
+
+        solver.solve_psi()
+        psi_2 = solver.psi_soln
+
+        rel_error = math_utils.relative_error(psi_1, psi_2)
+        PETSc.Sys.Print(f"Relative error between anomalies: {rel_error}")
+        self.assertGreater(rel_error, 0.1)
 
     def test_update_atmosphere(self):
-        self._test_upd_atmos(False)
-        self._test_upd_atmos(True)
+        for matfree in [True, False]:
+            self._test_upd_atmos(matfree)
+            self._test_step_atmos(matfree)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,6 +1,7 @@
 import time
 from firedrake import *
 from atmosphere_builder import AtmosphereBuilder
+from barnes_atmosphere import BarnesAtmosphere
 from parameters import SolverParams
 
 class DiagnosticSolver:
@@ -44,6 +45,11 @@ class DiagnosticSolver:
 
         if self.solver is not None:
             self.solver.invalidate_jacobian()
+
+    def step(self, q, theta_star):
+        assert isinstance(self.atmos, BarnesAtmosphere)
+        self._q.interpolate(q)
+        self._vertical_boundary.interpolate(self.atmos.new_vertical_boundary(theta_star))
 
     def _specify_equation(self):
         psi = TrialFunction(self.func_space)
