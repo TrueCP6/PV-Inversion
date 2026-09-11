@@ -10,7 +10,7 @@ def main():
 
     # todo q and theta_star advection
     # todo determine correct stability constraint for rk4
-    # add support for updated params in derived_quantities
+    # todo add support for updated params in derived_quantities
 
     phys_params = PhysicalParams()
     solver_params = SolverParams()

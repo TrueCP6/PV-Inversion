@@ -9,9 +9,18 @@ from domain_builder import DomainBuilder
 from parameters import SolverParams, PhysicalParams
 from diagnostic_solver import DiagnosticSolver
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import plot_utils
 from decimal import Decimal
+
+# Related parameters grouped into one panel per figure, so each panel carries few enough lines/colours to stay readable
+PARAMETER_GROUPS = [
+    ("Stratification and tropopause structure", ["N_strat", "N_trop", "trop_width", "trop_height", "delta"]),
+    ("Background state", ["temperature_bottom", "p_bottom", "latitude"]),
+    ("PV anomaly", ["anomaly_z_trop_offset", "anomaly_x_size", "anomaly_y_size", "anomaly_z_size", "anomaly_mag"]),
+    ("Jet parameters", ["jet_x_size", "jet_z_size", "jet_magnitude", "jet_x_pos"]),
+]
 
 class Variator:
     def __init__(self):
@@ -34,8 +43,8 @@ class Variator:
 
         return derived
 
-    @property
-    def quantities_to_vary(self):
+    @staticmethod
+    def quantities_to_vary():
         mx = PhysicalParams.Lx / 2
         quantities_to_vary = [ #todo make writeup more consistent with this notation, add scaling factor to fix units
             ("N_strat", (0.02, 0.03), 1, r"$\overline{N}_\text{strat} \in [min, max]$ [\unit{\per\second}]"),
@@ -48,7 +57,7 @@ class Variator:
             ("anomaly_z_trop_offset", (-2500, 2500), 1, r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\meter}]"),
             ("anomaly_x_size", (100e3, 800e3), 1e-3, r"$x_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("anomaly_y_size", (100e3, 800e3), 1e-3, r"$y_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
-            ("anomaly_z_size", (3500, 7000), 1, r"$y_\text{size} \in [min, max]$ [\unit{\meter}]"),
+            ("anomaly_z_size", (3500, 7000), 1, r"$z_\text{size} \in [min, max]$ [\unit{\meter}]"),
             ("anomaly_mag", (-4e-6, -1e-6), 1e6, r"$Q_\text{anomag} \in [min, max]$ [\unit{PVU}]"),
             ("jet_x_size", (100e3, 1000e3), 1e-3, r"$L_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("jet_z_size", (1e3, 4e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
@@ -76,7 +85,7 @@ class Variator:
 
         values_per_qty = []
 
-        for param_name, bound, legend in self.quantities_to_vary:
+        for param_name, bound, legend in Variator.quantities_to_vary():
             a, b = bound
             x_pts = a + (b-a)*normalised_pts
             wind_vals, vort_vals, trop_vals, pres_vals = [], [], [], []
@@ -139,16 +148,17 @@ def plot_trop_correlation(json_path):
         "vorticity_values": delta_qty["vorticity_values"][control_idx],
     }
 
-    quantities = [
-        ("pressure_values", "Tropopause height vs pressure anomaly", r"$\min\, p^*_{z=0}$ [\unit{\hecto\pascal}]"),
-        ("wind_values", "Tropopause height vs wind speed", r"$\max\left|\mathbf{u}\right|_{z=0}$ [\unit{\meter\per\second}]"),
-        ("vorticity_values", "Tropopause height vs vorticity", r"$\min\, \zeta_g|_{z=0}$ [\unit{\per\second}]"),
+    panels = [
+        ("pressure_values", r"$\min\, p^*_{z=0}$ [\unit{\hecto\pascal}]"),
+        ("wind_values", r"$\max\left|\mathbf{u}\right|_{z=0}$ [\unit{\meter\per\second}]"),
+        ("vorticity_values", r"$\min\, \zeta_g|_{z=0}$ [\unit{\per\second}]"),
     ]
 
-    for key, title, y_label in quantities:
-        plt.figure(figsize=plot_utils.SQUARE_HALF_FIGURE_SIZE)
-        ax = plt.gca()
+    fig, axes = plt.subplots(1, 3, figsize=(plot_utils.FIGURE_SIZE[0], plot_utils.SQUARE_HALF_FIGURE_SIZE[1] * 0.85),
+                              constrained_layout=True)
+    fig.set_constrained_layout_pads(wspace=0.02, w_pad=0.02, h_pad=0.02)
 
+    for ax, (key, y_label) in zip(axes, panels):
         for qty, colour in zip(values_per_qty, colours):
             ax.scatter(qty["trop_height_values"], qty[key], color=colour,
                        s=10, alpha=0.85, linewidths=0)
@@ -160,9 +170,18 @@ def plot_trop_correlation(json_path):
 
         ax.set_xlabel(r"$\min\, z_\text{trop}$ [\unit{\meter}]")
         ax.set_ylabel(y_label)
+        ax.grid(True, which='both', linestyle=':', alpha=0.5)
+        if key == "vorticity_values":
+            ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
 
-        lwr_case = title.replace(" ", "_").lower()
-        plot_utils.finish_figure(f"tex/plots/{lwr_case}.pdf", legend=False)
+    handles = [Line2D([0], [0], marker='o', linestyle='', color=colour, markersize=5)
+               for colour in colours]
+    labels = [qty["legend_entry"] for qty in values_per_qty]
+    fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.36),
+               ncol=3, fontsize=6, frameon=False)
+
+    plt.savefig("tex/plots/tropopause_height_correlations.pdf", bbox_inches='tight')
+    plt.close()
 
 def plot_variator_results(json_path):
     if MPI.COMM_WORLD.rank != 0:
@@ -176,6 +195,13 @@ def plot_variator_results(json_path):
     x = np.asarray(data["normalised_pts"])
     values_per_qty = data["values_per_qty"]
 
+    var_names = [name for name, _, _ in Variator.quantities_to_vary()]
+    assert len(var_names) == len(values_per_qty), \
+        "quantities_to_vary() no longer matches the data this json was generated from"
+    colours = plot_utils.qualitative_colours(len(values_per_qty))
+    qty_by_name = dict(zip(var_names, values_per_qty))
+    colour_by_name = dict(zip(var_names, colours))
+
     quantities = [
         ("wind_values", "Maximum surface wind speed", r"$\max\left|\mathbf{u}\right|_{z=0}$ [\unit{\meter\per\second}]"),
         ("pressure_values", "Minimum surface pressure anomaly", r"$\min\, p^*_{z=0}$ [\unit{\hecto\pascal}]"),
@@ -183,25 +209,37 @@ def plot_variator_results(json_path):
         ("vorticity_values", "Minimum surface vorticity", r"$\min\, \zeta_g|_{z=0}$ [\unit{\per\second}]"),
     ]
 
-    colours = plot_utils.qualitative_colours(len(values_per_qty))
-
     for key, title, y_label in quantities:
-        plt.figure(figsize=(6.3, 4.5))
-        ax = plt.gca()
+        all_vals = [v for qty in values_per_qty for v in qty[key]]
+        pad = 0.05 * (max(all_vals) - min(all_vals))
+        ylim = (min(all_vals) - pad, max(all_vals) + pad)
 
-        for qty, colour in zip(values_per_qty, colours):
-            ax.plot(x, qty[key], color=colour, linewidth=1.2)
+        fig, axes = plt.subplots(len(PARAMETER_GROUPS), 1, sharex=True,
+                                  figsize=(plot_utils.FIGURE_SIZE[0], 1.8 * len(PARAMETER_GROUPS)))
 
-        ax.set_xlim(0, 1)
-        ax.set_xlabel(r"Normalised parameter value")
-        ax.set_ylabel(y_label)
+        for ax, (group_title, group_vars) in zip(axes, PARAMETER_GROUPS):
+            entries = []
+            for var_name in group_vars:
+                qty = qty_by_name[var_name]
+                colour = colour_by_name[var_name]
+                ax.plot(x, qty[key], color=colour, linewidth=1.2)
+                entries.append((qty[key][-1], colour, qty["legend_entry"]))
 
-        entries = [(qty[key][-1], colour, qty["legend_entry"])
-                   for qty, colour in zip(values_per_qty, colours)]
-        plot_utils.label_lines_at_end(ax, entries)
+            ax.set_xlim(0, 1)
+            ax.set_ylim(*ylim)
+            ax.set_ylabel(y_label)
+            ax.set_title(group_title, fontsize=9, loc='left')
+            ax.grid(True, which='both', linestyle=':', alpha=0.5)
+            if key == "vorticity_values":
+                ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+            plot_utils.label_lines_at_end(ax, entries)
 
+        axes[-1].set_xlabel(r"Normalised parameter value")
+
+        plt.tight_layout()
         lwr_case = title.replace(" ", "_").lower()
-        plot_utils.finish_figure(f"tex/plots/{lwr_case}.pdf", legend=False)
+        plt.savefig(f"tex/plots/{lwr_case}.pdf", bbox_inches='tight')
+        plt.close()
 
 if __name__ == "__main__":
     main()
