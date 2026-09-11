@@ -1,0 +1,10 @@
+# Firedrake and its MPI/PETSc stack must be installed via the Firedrake installer, not plain pip: https://www.firedrakeproject.org/install.html
+-e git+https://github.com/firedrakeproject/firedrake.git@3097121f7d2117b6f8082a250549433df4697a11#egg=firedrake
+mpi4py==4.1.2
+petsc4py @ file:///home/truec/petsc/src/binding/petsc4py
+fenics-ufl @ git+https://github.com/FEniCS/ufl.git@80629e9284f95f1dc52a047530409f32d4d6aac7
+
+matplotlib==3.11.1
+numpy==2.5.3
+pyvista==0.49.0
+scipy==1.18.1

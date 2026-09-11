@@ -1,3 +1,5 @@
+from math_utils import use_same_hash
+use_same_hash()
 import json
 from petsc4py import PETSc
 from variator import *
@@ -8,7 +10,6 @@ def main():
     # plot_trop_correlation("variator_1296058.json")
     # plot_variator_results("variator_1296058.json")
 
-    # todo q and theta_star advection
     # todo determine correct stability constraint for rk4
     # todo add support for updated params in derived_quantities
 
@@ -16,6 +17,7 @@ def main():
     solver_params = SolverParams()
     domain = DomainBuilder(solver_params, phys_params)
     atmos = BarnesAtmosphere(domain)
+    atmos.theta_star_init()
 
 if __name__ == "__main__":
     main()

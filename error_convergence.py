@@ -9,6 +9,8 @@ solve, then one process per (p, N) point that checkpoints psi, then a single err
 process that loads the reference once and measures each point against it in turn.
 """
 
+from math_utils import use_same_hash
+use_same_hash()
 import argparse
 import os
 import subprocess

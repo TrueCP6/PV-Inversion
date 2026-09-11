@@ -1,3 +1,5 @@
+from math_utils import use_same_hash
+use_same_hash()
 import argparse
 from collections import defaultdict
 from dataclasses import dataclass

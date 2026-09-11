@@ -1,3 +1,5 @@
+from math_utils import use_same_hash
+use_same_hash()
 import unittest
 import numpy as np
 from domain_builder import *

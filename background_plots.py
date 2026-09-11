@@ -1,3 +1,5 @@
+from math_utils import use_same_hash
+use_same_hash()
 import numpy as np
 import matplotlib.pyplot as plt
 from mpi4py import MPI
