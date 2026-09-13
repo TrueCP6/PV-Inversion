@@ -71,7 +71,7 @@ The meaning of certain relevant terms that will be used later on is given. We as
 
 \begin{itemize}
     \item An \textbf{adiabatic} process involves a system exchanging no heat with its surroundings. In the case of the movement of an air parcel, the process is adiabatic if temperature only changes due to changes in pressure \cite{Vallis2017}.
-
+    
     \item The \textbf{specific gas constant for dry air} ($R$) is \qty{287.05}{\joule\per\kg\per\kelvin}. It is used to relate $p$, $\rho$ and $T$ using the bulk ideal gas law $p=\rho RT$ \cite{Vallis2017}.
 
     \item The \textbf{specific heat capacity of dry air} ($c_p$) is the amount of heat necessary to heat up \qty{1}{\kg} of dry air by \qty{1}{\kelvin}. We will take it to be \qty{1005}{\joule\per\kg\per\kelvin}
@@ -79,7 +79,7 @@ The meaning of certain relevant terms that will be used later on is given. We as
     \item
     \textbf{Potential temperature} ($\theta$) is the temperature an air parcel would attain if it were brought adiabatically to some reference pressure $p_0$.
     $p_0$ is usually taken to be \qty{1000}{\hecto\pascal} \cite{sprenger2007userguide}.
-
+    
     \begin{equation}\label{pot_temp}
         \theta = T \left( \frac{p_0}{p}\right)^{R/c_p}
     \end{equation}
@@ -93,12 +93,12 @@ The meaning of certain relevant terms that will be used later on is given. We as
     \item
     The \textbf{Brunt–Väisälä frequency} ($N$) is a measure of the stability of an air parcel to vertical displacements, such as those caused by convection \cite{sprenger2007userguide}.
     The stratosphere tends to have larger values of $N^2$ than the troposphere \cite{Barnes2022main}, representing greater stability and less turbulent flow.
-
+    
     \begin{equation}\label{brunt_vaisala}
         N^2 = \frac{g}{\theta} \frac{\partial \theta}{\partial z}
     \end{equation}
 
-    \item \textbf{Relative vorticity} ($\bm{\omega}$) is defined as the curl of the wind velocity vector, i.e. $\bm{\omega} = \nabla \times \bm{u}$. It physically represents the local spin of a fluid element relative to the Earth's surface \cite{Vallis2017}.
+    \item \textbf{Relative vorticity} ($\bm{\omega}$) is defined as the curl of the wind velocity vector, i.e. $\bm{\omega} = \nabla \times \bm{u}$. It physically represents the local spin of a fluid element relative to the Earth's surface \cite{Vallis2017}. 
 
     \item The \textbf{Coriolis parameter} ($f$) is a local measure of the effect that the Earth's rotation has on the movement of fluids (such as the atmosphere) on the Earth's surface \cite{Vallis2017}. It is calculated as $f = 2 |\Omega| \sin (\varphi)$, where $\varphi$ is latitude, and $\bm\Omega$ is the angular momentum of the Earth \cite{sprenger2007userguide}. By convention $f$ is negative in the Southern Hemisphere \cite{Barnes2022main}.
 
@@ -109,7 +109,7 @@ The meaning of certain relevant terms that will be used later on is given. We as
     \begin{equation}\label{hydrostatic_equilibrium}
         \frac{\partial p}{\partial z} = - \rho g
     \end{equation}
-
+    
 \end{itemize}
 
 \subsection{Potential Vorticity}
@@ -335,20 +335,20 @@ We will specify the same PV anomaly as the one used by Barnes et Al. \cite{Barne
     \centering
     \begin{subfigure}{\linewidth}
         \centering
-        \includegraphics[width=0.96\linewidth]{epv_x.pdf}
+        \includegraphics[width=1\linewidth]{epv_x.pdf}
         \caption{Cross-section in the $x$-direction}
         \label{fig:epv_x}
     \end{subfigure}
-
+    
     \vspace{1em} % Adds vertical space between the stacked images
-
+    
     \begin{subfigure}{\linewidth}
         \centering
-        \includegraphics[width=0.96\linewidth]{epv_y.pdf}
+        \includegraphics[width=1\linewidth]{epv_y.pdf}
         \caption{Cross-section in the $y$-direction}
         \label{fig:epv_y}
     \end{subfigure}
-
+    
     \caption{EPV distribution specified in \cref{Q_bar,Q_star}. A contour interval of \qty{0.5}{PVU} (Potential Vorticity Units) is used. $\qty{1}{PVU} = \qty{e-6}{\kelvin \meter \squared \per \second \per \kg}$.}
     \label{fig:epv_combined}
 \end{figure}
@@ -366,14 +366,12 @@ To convert $Q=\overline{Q}+Q^*$ into quasigeostrophic PV, we employ the followin
 By adopting a smoothing value of $\delta = 2$ for \cref{kappa_delta}, the integral in \cref{theta_bar} is of the following general form \cite{Mathematica}:
 
 \begin{equation}\label{nonelementary_integral}
-    \int e^{z^4}\,dz = - \frac{z \Gamma \left( \frac{1}{4}, -z^4\right)}{4 \sqrt[4]{-z^4}} + C
+    \int e^{z^4}\,dz = - \frac{z \Gamma \left( \frac{1}{4}, -z^4\right)}{4 \sqrt[4]{-z^4}} + C 
 \end{equation}
 
 Because this integral lacks a closed-form solution, the coefficients (\cref{rho_bar}) and the source term (\cref{full_q}) cannot be readily expressed analytically.
 Consequently, numerical integration is required, for the vertical integrals in \cref{theta_bar,p_bar}, as well as solving for $\psi$ in \cref{qgpv}.
 The solver set-up for \cref{qgpv} is given in the following subsections.
-
-Unfortunately the framework used does not offer a simple way to evaluate the vertical integrals in \cref{theta_bar,p_bar} efficiently, so a non-trivial alternative method is explained in full in \cref{app:vert_int}.
 
 \subsection{Choice of Solver Framework}
 
@@ -387,6 +385,8 @@ This work will use the Python library \href{https://www.firedrakeproject.org/}{F
 It allows a high level specification of PDEs, automatic highly optimised C code generation and automatic Jacobian computation.
 These features significantly reduce development time, ensuring the project remains within the scope of an honours thesis.
 Furthermore, Firedrake provides access to some of the most efficient matrix solvers and precondtioners, such as conjugate gradient and polynomial multigrid, by simply changing a few lines in the solver parameters \cite{FiredrakeUserManual}.
+
+Unfortunately Firedrake does not offer a simple way to evaluate purely vertical integrals (such as \cref{theta_bar,p_bar}) efficiently, so a non-trivial alternative method is explained in full in \cref{app:vert_int}.
 
 \subsection{Building the Mesh}\label{sec:mesh}
 To optimize mesh generation, a two-dimensional base mesh is extruded into a three-dimensional domain.
@@ -424,7 +424,7 @@ We compute the ratio of advection to diffusion:
      \frac{C_1(z)}{C_2(z)} = \frac{\overline{N}^2}{\overline{\rho}}\frac{\partial}{\partial z}\frac{\overline{\rho}}{\overline{N}^2} = \frac{\partial}{\partial z} \ln \left( \frac{\overline{\rho}}{\overline{N}^2}\right)
 \end{equation}
 
-Numerically calculating the maximum value of \cref{adv_diff_ratio} for $z \in [0, H]$ reveals that $|C_1/C_2| < 0.005$, meaning that in the vertical direction \cref{qgpv} is heavily dominated by diffusion.
+Numerically calculating the maximum value of \cref{adv_diff_ratio} for $z \in [0, H]$ reveals that $|C_1/C_2| < 0.005$, meaning that in the vertical direction \cref{qgpv} is heavily dominated by diffusion. 
 
 It is likely that increasing $p$ will stabilise these oscillations on a 3D mesh (as it does on a 1D and 2D mesh \cite{CAI2014}).
 Nevertheless, we calculate a \textbf{heuristic} stability parameter based on the concept of a mesh Péclet number \cite{Donea2003}. Here $h$ is the local mesh spacing.
@@ -513,7 +513,7 @@ The horizontal normal vector is denoted as $\bm {\hat n_{xy}} = (n_x, n_y, 0)$.
     I_z = \underbrace{\oint _A {\frac{\overline \rho}{\overline N^2} \phi \psi_z n_z \, dA}}_{I_{zb}} - \int_V {\frac{\overline \rho}{\overline N^2} \phi_z \psi_z \,dV}
 \end{equation}
 
-We can then expand the boundary integrals $I_{hb}$ and $I_{zb}$ to implement the boundary conditions
+We can then expand the boundary integrals $I_{hb}$ and $I_{zb}$ to implement the boundary conditions 
 (\cref{qgpv_bcs_hor,qgpv_bcs_vert}):
 \begin{equation}
     I_{hb} = \oint_A {\overline \rho \phi \left( \psi_x n_x + \psi_y n_y\right)\,dA}
@@ -529,7 +529,7 @@ We then substitute everything into equation \eqref{weak_form_1} and move terms a
     \underbrace{\oint_A {\overline \rho \phi \left( v n_x - u n_y\right)\,dA} + f^2 \oint _A {\phi\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA} - \int_V { \overline\rho \phi q  \,dV}}_{L(\phi)} = \underbrace{\int_V {\overline\rho\,\nabla_h \psi \cdot \nabla_h \phi \, dV} + \int_V {\frac{ f^2\overline \rho}{\overline N^2} \phi_z \psi_z \,dV}}_{a(\psi, \phi)}
 \end{equation}
 
-Now \cref{qgpv}, with the boundary conditions embedded, is in a weak form that can easily be expressed in Firedrake's syntax as seen in \cref{app:weak_form}.
+Now \cref{qgpv}, with the boundary conditions embedded, is in a weak form that can easily be expressed in Firedrake's syntax \footnote{as shown in \cref{app:weak_form}}.
 
 Establishing certain properties of the matrix arising from $\alpha$ will aid in optimising the numerical solver later on.
 We notice that $\alpha$ is symmetric, as $\alpha(\psi, \phi) = \alpha(\phi, \psi)$.
@@ -604,7 +604,7 @@ From this reasonably extensive search, the fastest combination of solver paramet
     \item \textbf{Krylov Subspace Solver:} The Conjugate Gradient (CG) method. This can be used because it was shown that the matrix arising from the bilinear weak form (\cref{final_weak_form}) is symmetric and positive semi-definite \cite{Saad2003}.
     \item \textbf{Pre-conditioner:} A $p$-multigrid scheme using the \mintinline{python}{'firedrake.PMGPC'} pre-conditioner \cite{FiredrakeUserManual}.
     \item \textbf{Multigrid Smoother:} A Jacobi pre-conditioner is applied across the refined multigrid levels.
-    \item \textbf{Coarse Grid Solver:} LU factorisation is conducted exactly once at the first solve of the $p=1$ coarse mesh. Each subsequent solve using the constant Jacobian is a highly efficient $\mathcal{O}(\text{non-zero entries})$ operation \cite{Davis2006}.
+    \item \textbf{Coarse Grid Solver:} LU factorisation is conducted exactly once at the first solve of the $p=1$ coarse mesh. Each subsequent solve using the constant Jacobian is a highly efficient $\mathcal{O}(\text{non-zero entries})$ operation \cite{Davis2006}. 
 \end{itemize}
 
 A detailed implementation of the solver set-up is given in \cref{app:solver_params}.
@@ -622,7 +622,7 @@ Because modern CPUs can compute operations much faster than memory can supply da
 However, in the specific case of solving the quasigeostrophic potential vorticity equation, \cref{final_weak_form} relies on spatially varying coefficients that lack an analytical expression (as discussed alongside \cref{nonelementary_integral}).
 Consequently, these coefficients must be stored in memory.
 For a mesh where $N_x=N_y=N_z=35$ and $p=4$, the system has \num{2803221} degrees of freedom (see \cref{degrees_of_freedom}).
-Storing the source term (\cref{full_q}) with double precision floating poitns requires $\qty{8}{\byte} \times \num{2803221} \approx \qty{22}{\mega\byte}$ of memory.
+Storing the source term (\cref{full_q}) with double precision floating points requires $\qty{8}{\byte} \times \num{2803221} \approx \qty{22}{\mega\byte}$ of memory.
 This exceeds the L3 cache capacity of the primary testing hardware (see \cref{app:hardware}), meaning the source term must be fetched entirely from RAM every time it is evaluated.
 
 In essence, matrix-free methods typically excel by minimizing slow memory accesses \cite{Muench2024}.
@@ -634,7 +634,7 @@ Nevertheless, the following caveats should be noted:
     \item
     If \cref{final_weak_form} is solved only once, matrix-free methods actually outperform the assembled approach.
     The assembled matrix method only becomes significantly faster during subsequent solves, once the Jacobian has already been computed.
-
+    
     \item
     The memory footprint of the assembled matrix solver is substantially larger than that of the matrix-free alternative.
     This severely limits the maximum mesh sizes that can be simulated on consumer-grade hardware (see \cref{app:solver_params}).
@@ -685,7 +685,7 @@ Equation \eqref{qgpv} then reduces to a simple advection-diffusion equation with
     \item Cut off lows in south africa
     \item Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping
     \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting
-    \item Explain basic derivation of QG PV equation, including splitting into reference and peturbation
+    \item Brief overview of QGPV equation and the assumptions that arise from it.
     \item \st{Specify background states and plot them. Explain where necessary}
     \item \st{Specify q and plot it}
     \item \st{Why we will use finite element and firedrake}
@@ -696,10 +696,10 @@ Equation \eqref{qgpv} then reduces to a simple advection-diffusion equation with
     \item \st{Specifying the equation in Firedrake}
     \item \st{Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol - why matrix free is slower (check notebooklm) - why are the coefficients not analytically expressible}
     \item \st{Running with MPI}
-    \item Verify setup is correct using MMS
+    \item \textbf{Verify setup is correct using MMS}
     \item Calculate time complexity and order of accuracy
-    \item Calculating derived quantities such as pressure, velocity and relative vorticity
-    \item Reproduction of a few of Barnes' experiments
+    \item \textbf{Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude}
+    \item Reproduction of a few of Barnes' experiments - min surface pressure and vorticity
     \item What happens if we change Brunt-Vaisala to be more realistic
     \item Potentially investigate alternative backgrounds
     \item Potentially frame as an optimisation problem to maximise the surface cyclogenetic forcing to parameterise worst-case scenarios (requires code refactor to allow changing parameters without rebuilding solver)
@@ -769,7 +769,7 @@ The annotated code that performs the integration up to 4th order accuracy is giv
 def compute_vertical_integral(integrand, func_space):
     """
     Computes the vertical integral I(z) = \int_{z_{bottom}}^z f(\xi) d\xi.
-
+    
     Collapses the mesh into a single 1D vertical profile. The integration is handled by SciPy's CubicSpline, which maintains high-order accuracy compatible with higher-degree Firedrake function spaces, before mapping the result back to a 3D Firedrake Function.
     """
     mesh = func_space.mesh()
@@ -848,7 +848,7 @@ z_base = n[2] * (f**2) * phi * rho_N2
 L_x = x_base * ds_v((1, 2)) # Tuple that refers to both x-boundaries on the extruded mesh
 L_y = y_base * ds_v((3, 4)) # Same but for y-boundaries
 L_bottom = z_base * bottom_boundary * ds_b # ds_b is the bottom boundary in an extruded mesh
-L_top = z_base * top_boundary * ds_t # ds_t is the top boundary in an extruded mesh
+L_top = z_base * top_boundary * ds_t # ds_t is the top boundary in an extruded mesh 
 L_vol = -q * rho_bar * phi * dx
 
 # Linear form L
