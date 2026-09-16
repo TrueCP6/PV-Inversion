@@ -47,9 +47,11 @@ class DiagnosticSolver:
         if self.solver is not None:
             self.solver.invalidate_jacobian()
 
-    def step(self, q, theta_star):
+    def update_q(self, q):
         assert isinstance(self.atmos, BarnesAtmosphere)
+
         self._q.interpolate(q)
+        theta_star = self.atmos.calc_theta_star(q)
         self._vertical_boundary.interpolate(self.atmos.new_vertical_boundary(theta_star))
 
     def _specify_equation(self):

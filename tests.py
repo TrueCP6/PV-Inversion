@@ -204,7 +204,7 @@ class SolverTests(unittest.TestCase):
         # Create new parameters, but only alter the anomaly, and only pass through the new anomaly to the step function
         phys_params_2 = PhysicalParams(anomaly_mag=-1e-6)
         atmos_2 = BarnesAtmosphere(domain, phys_params_2)
-        solver.step(atmos_2.q_init(), atmos_2.theta_star_init())
+        solver.update_q(atmos_2.q_init())
 
         solver.solve_psi()
         psi_2 = solver.psi_soln

@@ -110,10 +110,18 @@ class BarnesAtmosphere(AtmosphereBuilder):
 
     @lru_cache(maxsize=1)
     def theta_star_init(self):
-        const = self.calc_theta_star(self.q_init())
-        return Function(self.dg_space).assign(const)
+        return self.calc_theta_star(self.q_init())
 
     def calc_theta_star(self, q):
+        numerator = assemble(self.rho_bar() * q * dx)
+        denom = self._const_denom()
+        theta_star = numerator / denom
+
+        PETSc.Sys.Print("theta_star = ", theta_star)
+        return theta_star
+
+    @lru_cache(maxsize=1)
+    def _const_denom(self): # the denominator in the theta_star calculation - unchanging with q
         N_bar = self.N_bar()
         theta_bar = self.theta_bar()
         rho_bar = self.rho_bar()
@@ -129,8 +137,4 @@ class BarnesAtmosphere(AtmosphereBuilder):
             - rho_bar(bot) / (N_bar(bot) ** 2 * theta_bar(bot))
         ))
 
-        numerator = assemble(rho_bar * q * dx)
-        theta_star = numerator / denom
-
-        PETSc.Sys.Print("theta_star = ", theta_star)
-        return theta_star
+        return denom
