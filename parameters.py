@@ -28,10 +28,10 @@ class PhysicalParams:
     anomaly_y_size: float = 200e3
     anomaly_z_size: float = 5000
     anomaly_mag: float = -4e-6
-    jet_x_size: float = 500e3
+    jet_y_size: float = 500e3
     jet_z_size: float = 2e3
     jet_magnitude: float = 35
-    jet_x_pos: float = Lx/2
+    jet_y_pos: float = Lx / 2
 
     @property
     def theta_bar_bottom(self):

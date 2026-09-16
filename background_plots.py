@@ -330,7 +330,7 @@ def main():
         "Jet Stream",
         r"$\overline{u}$ [\unit{\meter\per\second}]",
         levels=np.arange(0, 35, 5),
-        normal_dir='y'
+        normal_dir='x'
     )
 
     # todo add reference in writeup to geostrophic vorticity being zero with the jet stream

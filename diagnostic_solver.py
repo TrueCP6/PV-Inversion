@@ -34,6 +34,7 @@ class DiagnosticSolver:
         assert self.cg_space == atmos.cg_space, "Use the same Function Space that you created the solver with" # Possible to implement but I'm too lazy
         assert self.solver_params == atmos.solver_params, "You must use the same solver parameters for a single solver"
 
+        # todo investigate possibility of switching these to assign (I don't think it will work)
         self.atmos = atmos
         self._f.assign(atmos.phys_params.f)
         self._vertical_boundary.interpolate(atmos.vertical_boundary())
@@ -108,7 +109,7 @@ class DiagnosticSolver:
         matrix_type = "matfree" if self.mat_free else "assembled"
         PETSc.Sys.Print(f"Set up solver with N={max_n}, p={self.solver_params.polynomial_order}, {matrix_type}")
 
-    def solve_psi(self, zero_initial_guess : bool = False): #todo may be necessary to make this return a deep copy of the solution when timestepping is added
+    def solve_psi(self, zero_initial_guess : bool = False):
         if zero_initial_guess: # Reset initial guess (used for benchmarking)
             self.psi_soln.assign(0)
 

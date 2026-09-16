@@ -16,15 +16,15 @@ class BarnesAtmosphere(AtmosphereBuilder):
         self.kappa = self.phys_params.kappa
 
     @lru_cache(maxsize=1) # todo maybe allow height above tropopause of jet to vary
-    def u(self): # Function of x and z
-        exponent = - ((self.x - self.phys_params.jet_x_pos) / self.phys_params.jet_x_size) ** 2 \
-            - ((self.z - self.phys_params.trop_height) / self.phys_params.jet_z_size) ** 2
-
-        return self.phys_params.jet_magnitude * exp(exponent)
+    def u(self): # Function of x and z todo fix this bullshit
+        return Function(self.cg_space).assign(0)
 
     @lru_cache(maxsize=1)
     def v(self):
-        return Function(self.cg_space).assign(0)
+        exponent = - ((self.y - self.phys_params.jet_y_pos) / self.phys_params.jet_y_size) ** 2 \
+                   - ((self.z - self.phys_params.trop_height) / self.phys_params.jet_z_size) ** 2
+
+        return self.phys_params.jet_magnitude * exp(exponent)
 
     def vertical_boundary(self):
         return self.new_vertical_boundary(self.theta_star_init())
