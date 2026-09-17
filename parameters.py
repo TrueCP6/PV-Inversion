@@ -28,8 +28,6 @@ class PhysicalParams:
     anomaly_y_size: float = 200e3
     anomaly_z_size: float = 5000
     anomaly_mag: float = -4e-6
-    # jet_y_size: float = 730e3
-    # jet_z_size: float = 4e3
     jet_y_size: float = 500e3
     jet_z_size: float = 2e3
     jet_magnitude: float = 35

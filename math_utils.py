@@ -79,45 +79,6 @@ def kink_function(x, delta):
 def scaled_kink(x, delta, left_val, right_val, kink_width, kink_centre):
     return (right_val - left_val) * kink_function((x-kink_centre)/kink_width + 0.5, delta) + left_val
 
-def plot_func_slice(func : Function, z_scale : float = 50, normal = 'x'):
-    file_name = "temp_func.pvd"
-    func_name = "Provided Function"
-    func.rename(func_name)
-
-    # Temporarily save function as a pvd file
-    outfile = VTKFile(file_name)
-    outfile.write(func)
-
-    # Get the current MPI process running this method
-    rank = MPI.COMM_WORLD.Get_rank()
-
-    # Only let the main process plot the figure
-    if rank != 0:
-        return
-
-    # Load file and create slice
-    multiblock = pv.read(file_name)
-    mesh = multiblock.combine()
-
-    x_min, x_max, y_min, y_max, z_min, z_max = mesh.bounds
-    x_mid = 0.5 * (x_min + x_max)
-    y_mid = 0.5 * (y_min + y_max)
-    z_mid = 0.5 * (z_min + z_max)
-
-    slice = mesh.slice(normal=normal, origin=(x_mid, y_mid, z_mid))
-
-    # Do actual plotting
-    plotter = pv.Plotter()
-    plotter.add_mesh(
-        slice,
-        scalars=func_name,
-        cmap="viridis",
-        show_edges=True
-    )
-    plotter.camera_position = 'xyz'.replace(normal, '')
-    plotter.set_scale(zscale=z_scale)
-    plotter.show()
-
 def relative_error(exact, numerical : Function, norm_type='L2', compare_on='fine'):
     """Relative error norm between exact and numerical, cross-mesh-interpolating one onto
     the other's function space if they differ.

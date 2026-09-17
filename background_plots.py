@@ -326,15 +326,14 @@ def main():
         r"$\overline{\theta}$ [\unit{\kelvin}]"
     )
 
-    plot_slice_heatmap(
+    multislice(
         Function(cg_space).interpolate(atmos.u()),
         "Jet Stream",
         r"$\overline{u}$ [\unit{\meter\per\second}]",
         levels=np.arange(0, 35, 5),
-        normal_dir='x'
+        normals='x'
     )
 
-    # todo add reference in writeup to geostrophic vorticity being zero with the jet stream
     multislice(
         Function(cg_space).interpolate(atmos.geostrophic_vorticity()),
         "Background Geostrophic Vorticity",

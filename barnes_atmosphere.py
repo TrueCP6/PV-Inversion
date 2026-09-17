@@ -35,16 +35,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
         return self.phys_params.g * theta_star \
             / (self.phys_params.f * self.theta_bar())
 
-    # def new_vertical_boundary(self, theta_star):
-    #     # d(psi)/dz on the top and bottom. The background jet carries its own thermal
-    #     # anomaly there, which is negligible for a shallow jet but not once jet_z_size is
-    #     # large enough for the Gaussian to reach z=H. It does not disturb calc_theta_star:
-    #     # d(psi_bar)/dz goes as erf((y - y_jet)/L_jet), antisymmetric about the jet axis,
-    #     # so its contribution to the net boundary flux is zero.
-    #     return self.phys_params.g * theta_star \
-    #         / (self.phys_params.f * self.theta_bar()) \
-    #         + self.psi_bar().dx(2)
-
     @lru_cache(maxsize=1)
     def rho_bar(self):
         p_bar = self.p_bar()
@@ -100,19 +90,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def geostrophic_vorticity(self):
         return self.v().dx(0) - self.u().dx(1)
 
-    # @lru_cache(maxsize=1)
-    # def q_bar(self):
-    #     """Background QGPV: the full QG operator applied to psi_bar, i.e. zeta_g plus the
-    #     stretching term. The stretching term is not a correction here - it is roughly an
-    #     order of magnitude larger than zeta_g in L2, because the jet core sits on the
-    #     N_bar kink where d/dz(rho_bar/N_bar^2) is sharpest. Taking q_bar = zeta_g would
-    #     mean the inversion does not return the jet that was specified.
-    #     """
-    #     f = self.phys_params.f
-    #     rho_N2 = self.rho_bar() / self.N_bar() ** 2
-    #     return self.geostrophic_vorticity() \
-    #         + (f ** 2 / self.rho_bar()) * (rho_N2 * self.psi_bar().dx(2)).dx(2)
-
     def Q_bar(self):
         # Background state
         background = self.phys_params.f * self.theta_bar() * self.N_bar() ** 2 \
@@ -128,7 +105,8 @@ class BarnesAtmosphere(AtmosphereBuilder):
         ANO_exponent = -((self.z - self.phys_params.anomaly_z_pos) / self.phys_params.anomaly_z_size) ** 2 \
                        - ((self.x - self.phys_params.anomaly_x_pos) / self.phys_params.anomaly_x_size) ** 2 \
                        - ((self.y - self.phys_params.anomaly_y_pos) / self.phys_params.anomaly_y_size) ** 2
-        ANO = self.phys_params.anomaly_mag * exp(ANO_exponent)
+
+        ANO = max_value(-1.5e-6, self.phys_params.anomaly_mag * exp(ANO_exponent))
 
         return background + ANO
 
