@@ -334,6 +334,13 @@ def main():
     )
 
     # todo add reference in writeup to geostrophic vorticity being zero with the jet stream
+    multislice(
+        Function(cg_space).interpolate(atmos.geostrophic_vorticity()),
+        "Background Geostrophic Vorticity",
+        r"$\overline{\zeta_g}$ [\unit{\per\second}]",
+        levels=10,
+        normals='xy'
+    )
 
     multislice(
         derived.geostrophic_vorticity(),

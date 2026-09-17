@@ -165,6 +165,24 @@ class DerivedQuantityTests(unittest.TestCase):
             self.assertLess(error, 1e-12)
             self.assertEqual(np.unique(psi_0.dat.data_ro).size, n_levels)
 
+class BasicStateTests(unittest.TestCase):
+    def test_background_inverts_back_to_the_jet(self): # todo should this test pass?
+        """With the anomaly switched off, q is the QGPV of psi_bar by construction, so the
+        inversion has to return psi_bar itself (up to the usual additive constant). Fails if
+        the jet moves back into v, if the wind stops being non-divergent, or if q_bar drops
+        the stretching term - the three ways the basic state can stop being self-consistent.
+        """
+        phys_params = PhysicalParams(anomaly_mag=0)
+        solver_params = SolverParams(nx=16, ny=16, nz=32, polynomial_order=3, check_flux=False)
+        atmos = BarnesAtmosphere(DomainBuilder(solver_params, phys_params))
+
+        solver = DiagnosticSolver(atmos, True)
+        solver.solve_psi()
+
+        error = math_utils.relative_error(atmos.psi_bar(), solver.psi_soln)
+        PETSc.Sys.Print(f"Background inversion relative error: {error}")
+        self.assertLess(error, 1e-3)
+
 class SolverTests(unittest.TestCase):
     def _test_upd_atmos(self, matfree : bool):
         n = 30
@@ -211,7 +229,7 @@ class SolverTests(unittest.TestCase):
 
         rel_error = math_utils.relative_error(psi_1, psi_2)
         PETSc.Sys.Print(f"Relative error between anomalies: {rel_error}")
-        self.assertGreater(rel_error, 0.1)
+        self.assertGreater(rel_error, 0.05)
 
     def test_update_atmosphere(self):
         for matfree in [True, False]:

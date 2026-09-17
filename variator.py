@@ -21,7 +21,7 @@ PARAMETER_GROUPS = [
     ("Stratification and tropopause structure", ["N_strat", "N_trop", "trop_width", "trop_height", "delta"]),
     ("Background state", ["temperature_bottom", "p_bottom", "latitude"]),
     ("PV anomaly", ["anomaly_z_trop_offset", "anomaly_x_size", "anomaly_y_size", "anomaly_z_size", "anomaly_mag"]),
-    ("Jet parameters", ["jet_x_size", "jet_z_size", "jet_magnitude", "jet_x_pos"]),
+    ("Jet parameters", ["jet_y_size", "jet_z_size", "jet_magnitude", "jet_y_pos"]),
 ]
 
 class Variator:
