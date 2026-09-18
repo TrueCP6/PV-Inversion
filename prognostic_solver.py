@@ -69,10 +69,11 @@ class PrognosticSolver:
         form_compiler_params = self._solver_params.form_compiler_params
         problem = LinearVariationalProblem(
             a, L, self._stage_q,
+            constant_jacobian=True,
             form_compiler_parameters=form_compiler_params
         )
 
-        params = {'ksp_type': 'preonly', 'pc_type': 'bjacobi', 'sub_pc_type': 'ilu'}
+        params = {'mat_type': 'matfree', 'ksp_type': 'cg', 'ksp_rtol': 1e-12, 'ksp_atol': 0, 'pc_type': 'jacobi'}
 
         return LinearVariationalSolver(problem, solver_parameters=params)
 
