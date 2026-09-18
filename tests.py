@@ -166,14 +166,14 @@ class DerivedQuantityTests(unittest.TestCase):
             self.assertEqual(np.unique(psi_0.dat.data_ro).size, n_levels)
 
 class BasicStateTests(unittest.TestCase):
-    def test_background_inverts_back_to_the_jet(self): # todo should this test pass?
+    def test_background_inverts_back_to_the_jet(self):
         """With the anomaly switched off, q is the QGPV of psi_bar by construction, so the
         inversion has to return psi_bar itself (up to the usual additive constant). Fails if
         the jet moves back into v, if the wind stops being non-divergent, or if q_bar drops
         the stretching term - the three ways the basic state can stop being self-consistent.
         """
         phys_params = PhysicalParams(anomaly_mag=0)
-        solver_params = SolverParams(nx=16, ny=16, nz=32, polynomial_order=3, check_flux=False)
+        solver_params = SolverParams()
         atmos = BarnesAtmosphere(DomainBuilder(solver_params, phys_params))
 
         solver = DiagnosticSolver(atmos, True)

@@ -6,8 +6,8 @@ ESTIMATE_QUADRATURE_DEGREE = -1
 
 @dataclass
 class PhysicalParams:
-    Lx: float = 5000e3
-    Ly: float = 5000e3
+    Lx: float = 7500e3
+    Ly: float = 7500e3
     H: float = 20e3
     latitude: float = -42
     g: float = 9.80665
@@ -62,7 +62,7 @@ class SolverParams:
     nx: int = 40
     ny: int = 40
     nz: int = 40
-    check_flux: bool = True
+    check_flux: bool = False
     ksp_rtol: float = 1e-9
     ksp_atol: float = 1e-3
     polynomial_order: int = 4

@@ -91,11 +91,13 @@ class BarnesAtmosphere(AtmosphereBuilder):
         return self.v().dx(0) - self.u().dx(1)
 
     def Q_bar(self):
-        # Background state
-        background = self.phys_params.f * self.theta_bar() * self.N_bar() ** 2 \
-                     / (self.phys_params.g * self.rho_bar()) \
-                     * (1 + self.geostrophic_vorticity() / self.phys_params.f)
-        return background
+        p = self.phys_params
+        return (self.q_bar() + p.f) * self.theta_bar() * (self.N_bar()**2) / (self.rho_bar() * p.g)
+
+    def q_bar(self):
+        f = self.phys_params.f
+        inside_deriv = self.rho_bar() * self.psi_bar().dx(2) / (self.N_bar() **2)
+        return self.geostrophic_vorticity() + (f**2) * inside_deriv.dx(2) / self.rho_bar()
 
     @lru_cache(maxsize=1)
     def ertel_pv(self):

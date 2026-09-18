@@ -300,7 +300,15 @@ def main():
         highlight_level=-1.5  # dynamical tropopause
     )
 
-    PETSc.Sys.Print("Saved EPV plots")
+    multislice(
+        atmos.q_init(),
+        "QGPV",
+        r"$q$ [\unit{\per \second}]",
+        levels=np.linspace(-0.001, 0.001, 11),
+        normals='xyz'
+    )
+
+    PETSc.Sys.Print("Saved PV plots")
 
     plot_function_vs_z(
         atmos.N_bar(),
@@ -338,7 +346,7 @@ def main():
         Function(cg_space).interpolate(atmos.geostrophic_vorticity()),
         "Background Geostrophic Vorticity",
         r"$\overline{\zeta_g}$ [\unit{\per\second}]",
-        levels=10,
+        levels=np.linspace(-5e-5, 5e-5, 11),
         normals='xy'
     )
 
@@ -346,7 +354,7 @@ def main():
         derived.geostrophic_vorticity(),
         "Geostrophic Vorticity",
         r"$\zeta_g$ [\unit{\per\second}]",
-        levels=10,
+        levels=np.linspace(-0.0002, 0.00005, 11),
         normals='xyz'
     )
 
