@@ -1,5 +1,7 @@
 from math_utils import use_same_hash
 use_same_hash()
+from tests import PrognosticMMSTests
+import unittest
 import json
 from petsc4py import PETSc
 from variator import *
@@ -13,11 +15,9 @@ def main():
     # todo determine correct stability constraint for rk4
     # todo add support for updated params in derived_quantities
 
-    phys_params = PhysicalParams()
-    solver_params = SolverParams()
-    domain = DomainBuilder(solver_params, phys_params)
-    atmos = BarnesAtmosphere(domain)
-    atmos.theta_star_init()
+    suite = unittest.TestLoader().loadTestsFromTestCase(PrognosticMMSTests)
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
 
 if __name__ == "__main__":
     main()

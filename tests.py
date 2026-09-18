@@ -10,6 +10,7 @@ from mms_checker import *
 from barnes_atmosphere import *
 from derived_quantities import *
 from prognostic_solver import *
+from prognostic_mms_checker import *
 
 class UtilTests(unittest.TestCase):
     def test_vertical_integral(self):
@@ -262,6 +263,25 @@ class PrognosticTests(unittest.TestCase):
         PETSc.Sys.Print(f"dt = {dt}, relative change in background q: {change}")
         self.assertGreater(dt, 0)
         self.assertLess(change, 1e-3)
+
+class PrognosticMMSTests(unittest.TestCase):
+    def test_convergence(self):
+        PETSc.Sys.Print("Testing prognostic solver converges to the MMS solution")
+        p = 4
+        phys_params = PhysicalParams(Lx=1e6, Ly=1e6, H=20e3)
+        ns = [4, 8, 16]
+
+        errors = []
+        for n in ns:
+            checker = PrognosticMMSChecker(SolverParams(nx=n, ny=n, nz=1, polynomial_order=p), phys_params)
+            errors.append(checker.run(T=2e4))
+            PETSc.Sys.Print(f"n={n}: relative L2 error {errors[-1]}")
+
+        rates = np.log2(np.array(errors[:-1]) / np.array(errors[1:]))
+        PETSc.Sys.Print(f"Convergence rates: {rates}")
+        # dt shrinks with h, so RK4's O(dt^4) sits under the O(h^(p+1)) spatial error
+        self.assertGreater(rates[-1], p + 0.5)
+        self.assertLess(errors[-1], 1e-3)
 
 if __name__ == '__main__':
     unittest.main()
