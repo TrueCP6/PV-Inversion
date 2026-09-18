@@ -121,7 +121,6 @@ class BarnesAtmosphere(AtmosphereBuilder):
         denom = self._const_denom()
         theta_star = numerator / denom
 
-        PETSc.Sys.Print("theta_star = ", theta_star)
         return theta_star
 
     @lru_cache(maxsize=1)
@@ -142,3 +141,10 @@ class BarnesAtmosphere(AtmosphereBuilder):
         ))
 
         return denom
+
+    @property
+    def dxy_min(self):
+        return min(
+            self.phys_params.Lx / self.solver_params.nx,
+            self.phys_params.Ly / self.solver_params.ny
+        )

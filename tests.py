@@ -9,6 +9,7 @@ from diagnostic_solver import *
 from mms_checker import *
 from barnes_atmosphere import *
 from derived_quantities import *
+from prognostic_solver import *
 
 class UtilTests(unittest.TestCase):
     def test_vertical_integral(self):
@@ -235,6 +236,32 @@ class SolverTests(unittest.TestCase):
         for matfree in [True, False]:
             self._test_upd_atmos(matfree)
             self._test_step_atmos(matfree)
+
+class PrognosticTests(unittest.TestCase):
+    def test_rhs_is_advection(self):
+        """The DG operator should approximate -u.grad(q) for a smooth q. Fails on a sign error,
+        a wrong facet flux, or u and v swapped. The anomaly is kept below ertel_pv's -1.5e-6
+        clip and the domain shrunk so it is resolved."""
+        phys_params = PhysicalParams(Lx=2e6, Ly=2e6, jet_y_pos=1e6, anomaly_mag=-1e-6)
+        solver = PrognosticSolver(SolverParams(nx=16, ny=16, nz=16), phys_params, True)
+        rhs = solver.RHS(solver.q)
+        exact = -(solver._u * solver.q.dx(0) + solver._v * solver.q.dx(1))
+
+        error = errornorm(exact, rhs) / norm(exact)
+        PETSc.Sys.Print(f"RHS vs -u.grad(q) relative error: {error}")
+        self.assertLess(error, 0.02)
+
+    def test_background_is_steady(self):
+        """Without the anomaly, q depends on y and z only and the jet blows along x, so a
+        step must leave q (almost) unchanged. Fails if RK4 updates or the state buffer are wrong."""
+        solver = PrognosticSolver(SolverParams(nx=10, ny=10, nz=10), PhysicalParams(anomaly_mag=0), True)
+        q_0 = solver.q.copy(deepcopy=True)
+        dt = solver.step()
+
+        change = errornorm(q_0, solver.q) / norm(q_0)
+        PETSc.Sys.Print(f"dt = {dt}, relative change in background q: {change}")
+        self.assertGreater(dt, 0)
+        self.assertLess(change, 1e-3)
 
 if __name__ == '__main__':
     unittest.main()
