@@ -22,7 +22,7 @@ class MMSChecker(AtmosphereBuilder):
         self.c_3 = 1.225
         self.c_4 = ln(0.08803 / self.c_3) / self.H
         self.N = 0.01
-        self.c_5 = (self.phys_params.f/self.N)**2
+        self.c_5 = (self.ufl_params.f/self.N)**2
         self.A = (self.c_2 - self.c_1)/(2*self.H)
         self.B = self.c_1
 

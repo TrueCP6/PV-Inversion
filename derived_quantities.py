@@ -11,7 +11,7 @@ class ResolvedAtmosphere:
     def __init__(self, psi : Function, atmosphere : BarnesAtmosphere):
         self.psi = psi
         self.atmos = atmosphere
-        self.phys_params = atmosphere.phys_params
+        self.ufl_params = atmosphere.ufl_params
         self.solver_params = atmosphere.solver_params
         self.func_space = psi.function_space()
         self.mesh = self.func_space.mesh()
@@ -37,8 +37,8 @@ class ResolvedAtmosphere:
 
     @lru_cache(maxsize=1)
     def potential_temperature_anomaly(self):
-        f = self.phys_params.f
-        g = self.phys_params.g
+        f = self.ufl_params.f
+        g = self.ufl_params.g
         theta_bar = self.atmos.theta_bar()
         psi_z = self.psi.dx(2)
 
@@ -140,7 +140,7 @@ class ResolvedAtmosphere:
     @lru_cache(maxsize=1)
     def pressure_anomaly(self):
         rho_bar = self.atmos.rho_bar()
-        f = self.phys_params.f
+        f = self.ufl_params.f
         psi_0 = self._psi_0()
 
         return self._interp(rho_bar * f * (self.psi - psi_0))
@@ -157,8 +157,8 @@ class ResolvedAtmosphere:
     @lru_cache(maxsize=1)
     def temperature_anomaly(self):
         p_bar = self.atmos.p_bar()
-        p_s = self.phys_params.p_ref
-        kappa = self.phys_params.kappa
+        p_s = self.ufl_params.p_ref
+        kappa = self.ufl_params.kappa
         theta_star = self.potential_temperature_anomaly()
         theta_bar = self.atmos.theta_bar()
         p_star = self.pressure_anomaly()
@@ -196,14 +196,13 @@ class ResolvedAtmosphere:
         and theta_bar_bottom - no field evaluation needed for either. Only psi itself
         varies horizontally, so psi_surf is the only piece that touches the mesh.
         """
-        phys = self.phys_params
-        p_bar_0 = phys.p_bottom
-        rho_bar_0 = p_bar_0 ** (1 - phys.kappa) * phys.p_ref ** phys.kappa / (phys.R * phys.theta_bar_bottom)
-        psi_0_0 = self._psi_0_profile()[0]
+        p = self.ufl_params
+        rho_bar_0 = p.p_bottom ** (1 - p.kappa) * p.p_ref ** p.kappa / (p.R * p.theta_bar_bottom)
+        psi_0_0 = Constant(self._psi_0_profile()[0])  # changes with every solve, so not a literal
         psi_surf = self._psi_surf()
 
         pressure = self._interp(
-            1e-2 * (rho_bar_0 * phys.f * (psi_surf - psi_0_0)),
+            1e-2 * (rho_bar_0 * p.f * (psi_surf - psi_0_0)),
             self._surface_func_space()
         )
 

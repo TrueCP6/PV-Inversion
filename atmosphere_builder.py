@@ -5,6 +5,17 @@ from ufl import SpatialCoordinate
 from domain_builder import DomainBuilder
 from parameters import PhysicalParams
 
+class ParamConstants:
+    """Every PhysicalParams field and property as a firedrake Constant, for use in UFL."""
+    def __init__(self, phys_params : PhysicalParams):
+        self._phys_params = phys_params
+        self._constants = {}
+
+    def __getattr__(self, name):
+        if name not in self._constants:
+            self._constants[name] = Constant(getattr(self._phys_params, name))
+        return self._constants[name]
+
 class AtmosphereBuilder(ABC):
     def __init__(self, domain : DomainBuilder, phys_params : PhysicalParams = None):
         self.domain = domain
@@ -18,6 +29,8 @@ class AtmosphereBuilder(ABC):
             self.phys_params = domain.phys_params
         else:
             self.phys_params = phys_params
+        self.ufl_params = ParamConstants(self.phys_params)
+
     @abstractmethod
     def u(self):
         pass

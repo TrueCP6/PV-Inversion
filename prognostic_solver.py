@@ -19,6 +19,7 @@ class PrognosticSolver:
 
         self.t = 0.0
         self._t = Constant(0.0) # time of the stage being evaluated, seen by _q_in and _source
+        self._dt = Constant(0.0) # the step's dt changes with the CFL limit, so it goes in UFL as a Constant
         self._u = Function(self._cg_space)
         self._v = Function(self._cg_space)
         self.q = Function(self._dg_space).interpolate(self._q_initial()) # prognostic state
@@ -101,9 +102,11 @@ class PrognosticSolver:
         k1 = self.RHS(q, t) # also sets u, v for the current state, which dt() needs
         if dt is None:
             dt = self.dt()
-        k2 = self.RHS(q + dt/2 * k1, t + dt/2)
-        k3 = self.RHS(q + dt/2 * k2, t + dt/2)
-        k4 = self.RHS(q + dt * k3, t + dt)
-        q.assign(q + dt/6 * (k1 + 2*k2 + 2*k3 + k4))
+        self._dt.assign(dt)
+        h = self._dt
+        k2 = self.RHS(q + h/2 * k1, t + dt/2)
+        k3 = self.RHS(q + h/2 * k2, t + dt/2)
+        k4 = self.RHS(q + h * k3, t + dt)
+        q.assign(q + h/6 * (k1 + 2*k2 + 2*k3 + k4))
         self.t = t + dt
         return dt

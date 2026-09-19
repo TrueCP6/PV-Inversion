@@ -13,11 +13,11 @@ class BarnesAtmosphere(AtmosphereBuilder):
         self.Lx = self.phys_params.Lx
         self.Ly = self.phys_params.Ly
         self.H = self.phys_params.H
-        self.kappa = self.phys_params.kappa
+        self.kappa = self.ufl_params.kappa
 
     @lru_cache(maxsize=1) # todo maybe allow height above tropopause of jet to vary
     def psi_bar(self):
-        p = self.phys_params
+        p = self.ufl_params
         return -(p.jet_magnitude * sqrt(pi) * p.jet_y_size / 2) \
             * erf((self.y - p.jet_y_pos) / p.jet_y_size) \
             * exp(-((self.z - p.trop_height) / p.jet_z_size) ** 2)
@@ -25,22 +25,24 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def u(self): # zonal jet, a function of y and z
         return -self.psi_bar().dx(1)
 
-    def v(self): # zero: no meridional flow in the basic state
-        return self.psi_bar().dx(0)
+    @lru_cache(maxsize=1)
+    def v(self): # todo set this back once the firedrake issue has been fixed.
+        return Function(self.cg_space)
 
     def vertical_boundary(self):
         return self.new_vertical_boundary(self.theta_star_init())
 
-    def new_vertical_boundary(self, theta_star):
-        return self.phys_params.g * theta_star \
-            / (self.phys_params.f * self.theta_bar())
+    def new_vertical_boundary(self, theta_star : float):
+        # theta_star changes with every q, so it goes in as a Constant to keep this kernel reusable
+        return self.ufl_params.g * Constant(theta_star) \
+            / (self.ufl_params.f * self.theta_bar())
 
     @lru_cache(maxsize=1)
     def rho_bar(self):
         p_bar = self.p_bar()
         theta_bar = self.theta_bar()
-        p_s = self.phys_params.p_ref
-        R = self.phys_params.R
+        p_s = self.ufl_params.p_ref
+        R = self.ufl_params.R
         kappa = self.kappa
 
         full_expr = p_bar**(1-kappa) * p_s**kappa / (R * theta_bar)
@@ -51,11 +53,11 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def N_bar(self):
         full_expr = scaled_kink(
             self.z,
-            self.phys_params.delta,
-            self.phys_params.N_trop,
-            self.phys_params.N_strat,
-            self.phys_params.trop_width,
-            self.phys_params.trop_height
+            self.ufl_params.delta,
+            self.ufl_params.N_trop,
+            self.ufl_params.N_strat,
+            self.ufl_params.trop_width,
+            self.ufl_params.trop_height
         )
         fn = Function(self.cg_space).interpolate(full_expr)
         return fn
@@ -63,7 +65,7 @@ class BarnesAtmosphere(AtmosphereBuilder):
     @lru_cache(maxsize=1)
     def theta_bar(self):
         integral = compute_vertical_integral(self.N_bar() ** 2, self.cg_space)
-        full_expr = self.phys_params.theta_bar_bottom * exp(integral / self.phys_params.g)
+        full_expr = self.ufl_params.theta_bar_bottom * exp(integral / self.ufl_params.g)
         fn = Function(self.cg_space).interpolate(full_expr)
         return fn
 
@@ -71,18 +73,18 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def p_bar(self):
         integral = compute_vertical_integral(1 / self.theta_bar(), self.cg_space)
         inner_term = (
-                (self.kappa * self.phys_params.g / self.phys_params.R)
-                * (self.phys_params.p_ref / self.phys_params.p_bottom) ** self.kappa
+                (self.kappa * self.ufl_params.g / self.ufl_params.R)
+                * (self.ufl_params.p_ref / self.ufl_params.p_bottom) ** self.kappa
                 * integral
             )
-        return self.phys_params.p_bottom * (1 - inner_term)**(1/self.kappa)
+        return self.ufl_params.p_bottom * (1 - inner_term)**(1/self.kappa)
 
     @lru_cache(maxsize=1)
     def q_init(self):
         full_expr = ( # convert from ertel pv to qg pv
-            self.ertel_pv() * self.rho_bar() * self.phys_params.g
+            self.ertel_pv() * self.rho_bar() * self.ufl_params.g
             / (self.theta_bar() * self.N_bar()**2)
-            - self.phys_params.f
+            - self.ufl_params.f
         )
         return Function(self.dg_space).interpolate(full_expr)
 
@@ -91,11 +93,11 @@ class BarnesAtmosphere(AtmosphereBuilder):
         return self.v().dx(0) - self.u().dx(1)
 
     def Q_bar(self):
-        p = self.phys_params
+        p = self.ufl_params
         return (self.q_bar() + p.f) * self.theta_bar() * (self.N_bar()**2) / (self.rho_bar() * p.g)
 
     def q_bar(self):
-        f = self.phys_params.f
+        f = self.ufl_params.f
         inside_deriv = self.rho_bar() * self.psi_bar().dx(2) / (self.N_bar() **2)
         return self.geostrophic_vorticity() + (f**2) * inside_deriv.dx(2) / self.rho_bar()
 
@@ -104,11 +106,11 @@ class BarnesAtmosphere(AtmosphereBuilder):
         background = self.Q_bar()
 
         # Specify anomaly
-        ANO_exponent = -((self.z - self.phys_params.anomaly_z_pos) / self.phys_params.anomaly_z_size) ** 2 \
-                       - ((self.x - self.phys_params.anomaly_x_pos) / self.phys_params.anomaly_x_size) ** 2 \
-                       - ((self.y - self.phys_params.anomaly_y_pos) / self.phys_params.anomaly_y_size) ** 2
+        ANO_exponent = -((self.z - self.ufl_params.anomaly_z_pos) / self.ufl_params.anomaly_z_size) ** 2 \
+                       - ((self.x - self.ufl_params.anomaly_x_pos) / self.ufl_params.anomaly_x_size) ** 2 \
+                       - ((self.y - self.ufl_params.anomaly_y_pos) / self.ufl_params.anomaly_y_size) ** 2
 
-        ANO = max_value(-1.5e-6, self.phys_params.anomaly_mag * exp(ANO_exponent))
+        ANO = max_value(Constant(-1.5e-6), self.ufl_params.anomaly_mag * exp(ANO_exponent))
 
         return background + ANO
 
