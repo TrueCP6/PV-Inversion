@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 import numpy as np
 import sweep
+from matplotlib.ticker import ScalarFormatter, LogLocator
 
 # Define a way to store run results
 @dataclass
@@ -51,7 +52,7 @@ def _dofs_vs_time(records):
     times = [np.mean(grouped[d]) for d in dofs]
     return np.array(dofs), np.array(times)
 
-def plot_time_complexity(json_path, output_path="tex/time_complexity.pdf"):
+def plot_time_complexity(json_path, output_path="tex/plots/time_complexity.pdf"):
     """
     Create a log-log plot of solve time vs degrees of freedom from a
     time_complexity_*.json results file.
@@ -72,6 +73,7 @@ def plot_time_complexity(json_path, output_path="tex/time_complexity.pdf"):
 
     plt.figure(figsize=plot_utils.FIGURE_SIZE)
 
+    all_dofs, all_times = [], []
     for label, matfree, initial_run, color, marker, linestyle in series:
         subset = [r for r in records if r.matfree == matfree and r.initial_run == initial_run]
         if not subset:
@@ -79,12 +81,27 @@ def plot_time_complexity(json_path, output_path="tex/time_complexity.pdf"):
         dofs, times = _dofs_vs_time(subset)
         plt.loglog(dofs, times, color=color, marker=marker, linestyle=linestyle,
                    linewidth=1.5, markersize=4, label=label)
+        all_dofs.extend(dofs)
+        all_times.extend(times)
 
         print(f"{label}: average log-log slope = {plot_utils.log_log_slope(dofs, times):.3f}")
 
+    # Linear-scaling reference, anchored at the geometric mean of the data so it runs through the middle of it
+    all_dofs, all_times = np.array(all_dofs), np.array(all_times)
+    ref_dofs = np.array([all_dofs.min(), all_dofs.max()])
+    time_per_dof = np.exp(np.mean(np.log(all_times / all_dofs)))
+    plt.loglog(ref_dofs, time_per_dof * ref_dofs, color='0.4', linestyle=':', linewidth=1.2,
+               label=r'$\mathcal{O}(\text{DoF})$')
+
+    ax = plt.gca()
+    ax.yaxis.set_major_locator(LogLocator(base=10, subs=[1, 2, 4, 6, 8]))
+    ax.yaxis.set_major_formatter(ScalarFormatter())
+    ax.yaxis.get_major_formatter().set_scientific(False)
+    ax.yaxis.set_minor_formatter(plt.NullFormatter())  # avoid unlabeled minor-tick clutter
+
     plt.xlabel(r'Degrees of freedom')
     plt.ylabel(r'Solve time [\unit{\second}]')
-    plot_utils.finish_figure(output_path)
+    plot_utils.finish_figure(output_path, legend_kwargs={'loc': 'upper center', 'bbox_to_anchor': (0.5, -0.15), 'ncol': 2, 'frameon': False})
 
 def main():
     parser = argparse.ArgumentParser(description='Get performance results for the psi solver')
