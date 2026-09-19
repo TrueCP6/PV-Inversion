@@ -102,8 +102,7 @@ class SolverParams:
             "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
             "pmg_mg_coarse_assembled_pc_type": "cholesky",
             "pmg_mg_coarse_assembled_pc_factor_mat_solver_type": "mumps",
-            "pmg_mg_coarse_assembled_mat_mumps_icntl_24": 1,  # detect & null out the known null pivot
-            "ksp_converged_reason": None
+            "pmg_mg_coarse_assembled_mat_mumps_icntl_24": 1  # detect & null out the known null pivot
         }
 
     @property
@@ -118,6 +117,5 @@ class SolverParams:
             "pmg_mg_levels_pc_type": "jacobi",
             "pmg_mg_coarse_ksp_type": "preonly",
             "pmg_mg_coarse_pc_type": "hypre",
-            "pmg_mg_coarse_pc_hypre_type": "boomeramg",
-            "ksp_converged_reason": None
+            "pmg_mg_coarse_pc_hypre_type": "boomeramg"
         }

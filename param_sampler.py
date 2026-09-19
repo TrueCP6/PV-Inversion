@@ -6,6 +6,8 @@ import numpy as np
 from parameters import PhysicalParams
 from dataclasses import asdict
 import argparse
+import json
+import sweep
 
 class ParamSampler:
     def __init__(self, optimise_for="pres", seed=4623):
@@ -58,7 +60,7 @@ class ParamSampler:
         elif self.optimise_for == "vort":
             cost = derived.min_surf_vort()
         elif self.optimise_for == "wind":
-            cost = derived.max_surf_wind_speed()
+            cost = -derived.max_surf_wind_speed()
         else:
             raise ValueError
 
@@ -76,14 +78,33 @@ class ParamSampler:
 
         return wind, vort, pres, dist, trop
 
+    def random_sample_data(self, num_samples):
+        all_data = [self.all_data(self.sample_normalised()) for _ in range(num_samples)]
+        wind, vort, pres, dist, trop = list(map(list, zip(*all_data)))
+
+        return {
+            "max_surface_wind": wind,
+            "min_surf_vort": vort,
+            "min_surf_pres": pres,
+            "dist_to_control": dist,
+            "min_dyn_trop_height": trop,
+        }
+
 def main():
+    sweep.quiet_petsc()
     parser = argparse.ArgumentParser(description='Generate data for quantity variation plots')
-    parser.add_argument('-n', '--num_points', type=int, default=10)
+    parser.add_argument('-n', '--num_samples', type=int, default=10)
     parser.add_argument('-j', '--job_id', type=int, default=0)
     args = parser.parse_args()
 
-    vary = Variator()
-    data = vary.varying_single_param_data(args.num_points)
+    sampler = ParamSampler()
+    data = sampler.random_sample_data(args.num_samples)
 
-    with open(f"variator_{args.job_id}.json", "w") as f:
+    if not sweep.is_main_rank():
+        return
+
+    with open(f"random_samples_{args.job_id}.json", "w") as f:
         json.dump(data, f)
+
+if __name__ == "__main__":
+    main()

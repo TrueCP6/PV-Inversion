@@ -15,6 +15,7 @@ from matplotlib.lines import Line2D
 import numpy as np
 import plot_utils
 from decimal import Decimal
+import sweep
 
 # Related parameters grouped into one panel per figure, so each panel carries few enough lines/colours to stay readable
 PARAMETER_GROUPS = [
@@ -113,6 +114,7 @@ class Variator:
         }
 
 def main():
+    sweep.quiet_petsc()
     parser = argparse.ArgumentParser(description='Generate data for quantity variation plots')
     parser.add_argument('-n', '--num_points', type=int, default=10)
     parser.add_argument('-j', '--job_id', type=int, default=0)
@@ -120,6 +122,9 @@ def main():
 
     vary = Variator()
     data = vary.varying_single_param_data(args.num_points)
+
+    if not sweep.is_main_rank():
+        return
 
     with open(f"variator_{args.job_id}.json", "w") as f:
         json.dump(data, f)
