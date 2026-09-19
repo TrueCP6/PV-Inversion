@@ -36,5 +36,4 @@ apptainer exec \
     --max_dofs_matfree 20000000 \
     --num_resolutions 30 \
     --ranks 40 \
-    --num_initial_solves 3 \
-    --min_dofs 100000
+    --num_initial_solves 3

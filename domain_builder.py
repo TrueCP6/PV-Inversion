@@ -1,4 +1,4 @@
-from math_utils import use_same_hash
+from hash_seed import use_same_hash
 use_same_hash()
 from functools import lru_cache
 from firedrake import *
