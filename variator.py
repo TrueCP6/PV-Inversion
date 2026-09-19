@@ -34,7 +34,7 @@ class Variator:
         atmos = BarnesAtmosphere(self.domain)
         self.solver = DiagnosticSolver(atmos, True)
 
-    def _get_derived(self, params) -> ResolvedAtmosphere:
+    def get_derived(self, params) -> ResolvedAtmosphere:
         phys_params = PhysicalParams(**params)
 
         atmos = BarnesAtmosphere(self.domain, phys_params)
@@ -65,7 +65,7 @@ class Variator:
             ("jet_z_size", (1e3, 4e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
             ("jet_magnitude", (10, 100), 1, r"$U_\text{jet} \in [min, max]$ [\unit{\meter\per\second}]"),
             ("jet_y_pos", (mx-1500e3, mx+1500e3), 1e-3, r"$y_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
-            ("latitude", (-40, -20), 1, r"$\varphi \in [\qty{min}{\degree}, \qty{max}{\degree}]$")
+            ("latitude", (-50, -20), 1, r"$\varphi \in [\qty{min}{\degree}, \qty{max}{\degree}]$")
         ]
 
         # helper function that outputs the float as a string with 3 significant figures, but not in scientific notation
@@ -82,7 +82,7 @@ class Variator:
 
         return output
 
-    def get_data(self, num_points : int):
+    def varying_single_param_data(self, num_points : int):
         normalised_pts = np.linspace(0, 1, num_points)
 
         values_per_qty = []
@@ -93,7 +93,7 @@ class Variator:
             wind_vals, vort_vals, trop_vals, pres_vals = [], [], [], []
 
             for x in x_pts:
-                d = self._get_derived({param_name: x})
+                d = self.get_derived({param_name: x})
                 wind_vals.append(d.max_surf_wind_speed())
                 vort_vals.append(d.min_surf_vort())
                 trop_vals.append(d.min_dyn_tropopause_height())
@@ -119,7 +119,7 @@ def main():
     args = parser.parse_args()
 
     vary = Variator()
-    data = vary.get_data(args.num_points)
+    data = vary.varying_single_param_data(args.num_points)
 
     with open(f"variator_{args.job_id}.json", "w") as f:
         json.dump(data, f)

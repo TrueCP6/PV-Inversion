@@ -117,7 +117,10 @@ class BarnesAtmosphere(AtmosphereBuilder):
         return self.calc_theta_star(self.q_init())
 
     def calc_theta_star(self, q):
-        numerator = assemble(self.rho_bar() * q * dx)
+        n = FacetNormal(self.mesh)
+        lateral = (self.rho_bar() * self.v() * n[0] * ds_v((1, 2))
+                   - self.rho_bar() * self.u() * n[1] * ds_v((3, 4)))
+        numerator = assemble(self.rho_bar() * q * dx - lateral)
         denom = self._const_denom()
         theta_star = numerator / denom
 
