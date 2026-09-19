@@ -25,6 +25,29 @@ PARAMETER_GROUPS = [
     ("Jet parameters", ["jet_y_size", "jet_z_size", "jet_magnitude", "jet_y_pos"]),
 ]
 
+# y-axis labels of the three tropopause-correlation panels, in panel order
+TROP_PANEL_LABELS = [
+    r"$\min\, p^*_{z=0}$ [\unit{\hecto\pascal}]",
+    r"$\max\left|\mathbf{u}\right|_{z=0}$ [\unit{\meter\per\second}]",
+    r"$\min\, \zeta_g|_{z=0}$ [\unit{\per\second}]",
+]
+
+def trop_correlation_axes():
+    """Styled figure of three panels plotting surface pressure, wind and vorticity against tropopause height."""
+    plot_utils.apply_style()
+
+    fig, axes = plt.subplots(1, 3, figsize=(plot_utils.FIGURE_SIZE[0], plot_utils.SQUARE_HALF_FIGURE_SIZE[1] * 0.85),
+                              constrained_layout=True)
+    fig.set_constrained_layout_pads(wspace=0.02, w_pad=0.02, h_pad=0.02)
+
+    for ax, y_label in zip(axes, TROP_PANEL_LABELS):
+        ax.set_xlabel(r"$\min\, z_\text{trop}$ [\unit{\meter}]")
+        ax.set_ylabel(y_label)
+        ax.grid(True, which='both', linestyle=':', alpha=0.5)
+    axes[2].ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+
+    return fig, axes
+
 class Variator:
     def __init__(self):
         solver_params = SolverParams(check_flux=False)
@@ -133,8 +156,6 @@ def plot_trop_correlation(json_path):
     if MPI.COMM_WORLD.rank != 0:
         return
 
-    plot_utils.apply_style()
-
     with open(json_path) as f:
         data = json.load(f)
 
@@ -155,17 +176,9 @@ def plot_trop_correlation(json_path):
         "vorticity_values": delta_qty["vorticity_values"][control_idx],
     }
 
-    panels = [
-        ("pressure_values", r"$\min\, p^*_{z=0}$ [\unit{\hecto\pascal}]"),
-        ("wind_values", r"$\max\left|\mathbf{u}\right|_{z=0}$ [\unit{\meter\per\second}]"),
-        ("vorticity_values", r"$\min\, \zeta_g|_{z=0}$ [\unit{\per\second}]"),
-    ]
+    fig, axes = trop_correlation_axes()
 
-    fig, axes = plt.subplots(1, 3, figsize=(plot_utils.FIGURE_SIZE[0], plot_utils.SQUARE_HALF_FIGURE_SIZE[1] * 0.85),
-                              constrained_layout=True)
-    fig.set_constrained_layout_pads(wspace=0.02, w_pad=0.02, h_pad=0.02)
-
-    for ax, (key, y_label) in zip(axes, panels):
+    for ax, key in zip(axes, ["pressure_values", "wind_values", "vorticity_values"]):
         for qty, colour in zip(values_per_qty, colours):
             ax.scatter(qty["trop_height_values"], qty[key], color=colour,
                        s=10, alpha=0.85, linewidths=0)
@@ -174,12 +187,6 @@ def plot_trop_correlation(json_path):
                    s=80, edgecolors='white', linewidths=0.5, zorder=5)
         ax.annotate("Control", (control_x, control_y[key]), fontsize=7,
                     xytext=(4, 4), textcoords='offset points')
-
-        ax.set_xlabel(r"$\min\, z_\text{trop}$ [\unit{\meter}]")
-        ax.set_ylabel(y_label)
-        ax.grid(True, which='both', linestyle=':', alpha=0.5)
-        if key == "vorticity_values":
-            ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
 
     handles = [Line2D([0], [0], marker='o', linestyle='', color=colour, markersize=5)
                for colour in colours]
