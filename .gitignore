@@ -199,3 +199,4 @@ tex/plots/*.pdf
 *.err
 *.out
 CLAUDE.md
+*.csv

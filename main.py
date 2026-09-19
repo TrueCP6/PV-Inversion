@@ -21,9 +21,8 @@ def main():
     # runner.run(suite)
 
     sampler = ParamSampler()
-    for i in range(5):
-        point = sampler.sample_normalised()
-        PETSc.Sys.Print(sampler.all_data(point))
+    optimal = sampler.optimise(30)
+    PETSc.Sys.Print(optimal)
 
 if __name__ == "__main__":
     main()

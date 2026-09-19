@@ -16,7 +16,8 @@ class ParamSampler:
         self.variator = Variator()
         self.param_tuple = self._get_effectual_params()
         self.dim = len(self.param_tuple)
-        self.rank = COMM_WORLD.Get_rank()
+        self.comm = COMM_WORLD
+        self.rank = self.comm.Get_rank()
         self.rng = np.random.default_rng(seed) # not shared between all ranks but all ranks will have the same seed
         self.normalised_control = self.record_to_normalised(PhysicalParams()) # A representation of the control in normalised space
         self.optimise_for = optimise_for
@@ -67,6 +68,46 @@ class ParamSampler:
             raise ValueError
 
         return cost
+
+    def driver_cost(self, x):
+        self.comm.bcast(("eval", x), root=0)  # wake the other ranks, so every rank takes part in the collective solve
+        f = self.cost(x)
+        with open("optimise.csv", "a") as fh:
+            fh.write(",".join(map(str, [*x, f])) + "\n")
+        return f
+
+    def optimise(self, max_evals):
+        """Minimise the cost over the normalised parameter box with Py-BOBYQA, starting from the control.
+
+        Py-BOBYQA runs on rank 0 only, while the other ranks wait for each point it asks for and
+        solve alongside it. Returns (x, f) of the best point found on every rank.
+        """
+        if self.rank != 0:
+            while True:
+                cmd, payload = self.comm.bcast(None, root=0)
+                if cmd == "stop":
+                    return payload
+                self.cost(payload)
+
+        import pybobyqa
+        result = None
+        try:
+            soln = pybobyqa.solve(
+                self.driver_cost,
+                x0=self.normalised_control,
+                bounds=(np.zeros(self.dim), np.ones(self.dim)),
+                rhobeg=0.1,
+                rhoend=0.001,
+                maxfun=max_evals,
+                seek_global_minimum=True
+            )
+            print(soln)
+            result = (soln.x, soln.f)
+        finally:
+            # Always release the other ranks, even if the optimiser raises, or they would wait forever
+            self.comm.bcast(("stop", result), root=0)
+
+        return result
 
     def all_data(self, x):
         params = self.normalised_to_dict(x)

@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --account maths
-#SBATCH --time=8:00:00
+#SBATCH --time=24:00:00
 #SBATCH --nodes=1 --ntasks=40
 #SBATCH --mem=300G
 #SBATCH --job-name="firedrake"
