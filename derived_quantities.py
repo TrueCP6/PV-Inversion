@@ -6,6 +6,7 @@ from barnes_atmosphere import BarnesAtmosphere
 from math_utils import get_global_max, get_global_min, get_global_extrema
 from mpi4py import MPI
 import numpy as np
+import tropopause
 
 class ResolvedAtmosphere:
     def __init__(self, psi : Function, atmosphere : BarnesAtmosphere):
@@ -167,12 +168,10 @@ class ResolvedAtmosphere:
         return self._interp(expr)
 
     @lru_cache(maxsize=1)
-    def min_dyn_tropopause_height(self): #todo interpolate more finely
-        z = SpatialCoordinate(self.mesh)[2]
-        in_stratosphere = abs(self.atmos.ertel_pv()) >= 1.5e-6
-        masked_z = self._interp(conditional(in_stratosphere, z, 1e30))
-
-        return get_global_min(masked_z)
+    def min_dyn_tropopause_height(self):
+        """Lowest height of the 1.5 PVU surface bounding the stratosphere - see tropopause.min_height."""
+        pv = self._interp(self.atmos.ertel_pv())
+        return tropopause.min_height(pv, self.atmos.phys_params.f)
 
     @lru_cache(maxsize=1)
     def min_surf_vort(self):

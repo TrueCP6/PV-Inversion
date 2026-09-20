@@ -11,6 +11,7 @@ from barnes_atmosphere import *
 from derived_quantities import *
 from prognostic_solver import *
 from prognostic_mms_checker import *
+import tropopause
 
 class UtilTests(unittest.TestCase):
     def test_vertical_integral(self):
@@ -166,6 +167,82 @@ class DerivedQuantityTests(unittest.TestCase):
             PETSc.Sys.Print(f"Boundary average error: {error}")
             self.assertLess(error, 1e-12)
             self.assertEqual(np.unique(psi_0.dat.data_ro).size, n_levels)
+
+class TropopauseTests(unittest.TestCase):
+    """The dynamical tropopause is the 1.5 PVU contour bounding the stratosphere, so these
+    check the two things that distinguish it from the lowest stratospheric dof: where inside
+    an element the contour falls, and which side of it a given pocket of air is on.
+    """
+    CORIOLIS = -1e-4 # southern hemisphere, so stratospheric air is Q <= -1.5 PVU
+    H = 10e3
+
+    def _cg_space(self):
+        phys_params = PhysicalParams(Lx=1e6, Ly=1e6, H=self.H)
+        return DomainBuilder(SolverParams(nx=8, ny=8, nz=8, polynomial_order=4), phys_params).cg_space()
+
+    def _height(self, V, pvu):
+        """Tropopause height of a field written as a positive number of PVU, negated to put
+        it in the hemisphere CORIOLIS belongs to."""
+        pv = Function(V).interpolate(-tropopause.PVU * pvu)
+        return tropopause.min_height(pv, self.CORIOLIS)
+
+    def _level_spacing(self, V):
+        return np.diff(tropopause.column_layout(V).z).max()
+
+    def test_crossing_is_found_inside_the_element(self):
+        """A tropopause put deliberately between two dofs. |Q| is a cubic in z, which the
+        p=4 space holds exactly, so the root is the only thing left to get wrong - and a
+        search over dofs alone could not have come closer than 58 m."""
+        V = self._cg_space()
+        _, _, z = SpatialCoordinate(V.mesh())
+
+        height = self._height(V, 0.5 + 3 * (z / self.H)**3)
+        exact = self.H * (1/3)**(1/3)
+
+        PETSc.Sys.Print(f"Tropopause height error: {abs(height - exact)} m")
+        self.assertLess(abs(height - exact), 1e-6)
+        self.assertGreater(np.abs(tropopause.column_layout(V).z - exact).min(), 50)
+
+    def test_pocket_under_the_tropopause_is_not_the_tropopause(self):
+        """A ball of stratospheric air sitting on its own in the middle troposphere. It is
+        the lowest such air in the domain, and it is not the tropopause."""
+        V = self._cg_space()
+        x, y, z = SpatialCoordinate(V.mesh())
+        trop, centre, radius = 5000, 2000, 800
+
+        pocket = (x - 5e5)**2 + (y - 5e5)**2 + (z - centre)**2 < radius**2
+        stratospheric = Or(z >= trop, pocket)
+        height = self._height(V, conditional(stratospheric, 2.0, 0.5))
+
+        # The pocket is resolved and is far lower - it is what a search over dofs returns
+        lowest = get_global_min(Function(V).interpolate(conditional(stratospheric, z, 1e30)))
+        PETSc.Sys.Print(f"Tropopause at {height} m, lowest stratospheric dof at {lowest} m")
+        self.assertLess(lowest, centre)
+        self.assertAlmostEqual(height, trop, delta=self._level_spacing(V))
+
+    def test_fold_joined_to_the_stratosphere_does_count(self):
+        """A tongue of stratospheric air sloping down and away from an otherwise flat
+        tropopause. Tropospheric air lies above it, so a column by column search from the
+        model top misses it, but it joins the stratosphere at the shallow end and the
+        tropopause follows it all the way down."""
+        V = self._cg_space()
+        x, _, z = SpatialCoordinate(V.mesh())
+        trop, descent, thickness = 5000, 3000, 1500
+
+        tongue_top = trop - descent * x / 1e6
+        tongue = And(z <= tongue_top, z >= tongue_top - thickness)
+        height = self._height(V, conditional(Or(z >= trop, tongue), 2.0, 0.5))
+
+        PETSc.Sys.Print(f"Tropopause follows the fold down to {height} m")
+        self.assertAlmostEqual(height, trop - descent - thickness, delta=self._level_spacing(V))
+
+    def test_columns_with_nothing_to_cross(self):
+        """Air that is stratospheric everywhere puts the tropopause on the ground, and air
+        that is stratospheric nowhere leaves it at the model top."""
+        V = self._cg_space()
+
+        self.assertEqual(self._height(V, Constant(2.0)), 0.0)
+        self.assertEqual(self._height(V, Constant(0.5)), self.H)
 
 class BasicStateTests(unittest.TestCase):
     def test_background_inverts_back_to_the_jet(self):
