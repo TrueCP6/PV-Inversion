@@ -92,9 +92,12 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def geostrophic_vorticity(self):
         return self.v().dx(0) - self.u().dx(1)
 
-    def Q_bar(self):
+    def ertel_from_qgpv(self, q):
         p = self.ufl_params
-        return (self.q_bar() + p.f) * self.theta_bar() * (self.N_bar()**2) / (self.rho_bar() * p.g)
+        return (q + p.f) * self.theta_bar() * (self.N_bar()**2) / (self.rho_bar() * p.g)
+
+    def Q_bar(self):
+        return self.ertel_from_qgpv(self.q_bar())
 
     def q_bar(self):
         f = self.ufl_params.f

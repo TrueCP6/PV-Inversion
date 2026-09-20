@@ -5,6 +5,9 @@ from domain_builder import DomainBuilder
 from parameters import SolverParams, PhysicalParams
 from firedrake import *
 
+# Fraction of the CFL limit a step is taken at, unless the caller asks for another.
+SAFETY = 1
+
 class PrognosticSolver:
     def __init__(self, solver_params : SolverParams, phys_params : PhysicalParams, matfree : bool):
         self._solver_params = solver_params
@@ -78,14 +81,31 @@ class PrognosticSolver:
 
         return LinearVariationalSolver(problem, solver_parameters=params)
 
-    def dt(self):
+    @property
+    def atmos(self):
+        return self._atmos
+
+    @property
+    def psi(self):
+        """Streamfunction of the state the velocity was last updated from."""
+        return self._diag_solver.psi_soln
+
+    def resolve(self):
+        """Bring psi, u and v back into step with the current q.
+
+        step() leaves them at the last RK stage rather than at the state it just landed on,
+        so diagnostics taken straight after a step would be reading the wrong field.
+        """
+        self._update_velocity(self.q)
+
+    def dt(self, safety=SAFETY):
         dx = self._atmos.dxy_min # CFL is set by the smallest cell
         vel = Function(self._cg_space).interpolate(sqrt(self._u**2 + self._v**2))
         max_vel = math_utils.get_global_max(vel)
         p = self._solver_params.polynomial_order
 
-        safety = 0.8
-
+        # safety is the Courant number the step is taken at - 1.0 is the CFL limit itself,
+        # which timestepping.py's scan drives through to check the limit is where this says.
         return safety * dx / (max_vel*(2*p+1))
 
     def RHS(self, q, t=None) -> Function:

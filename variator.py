@@ -80,7 +80,7 @@ class Variator:
             ("temperature_bottom", (273.15, 273.15+30), 1, r"$\overline{T}(0) \in [min, max]$ [\unit{\kelvin}]"),
             ("p_bottom", (795 * 1e2, 1013.25 * 1e2), 1e-2, r"$\overline{p}(0) \in [min, max]$ [\unit{\hecto\pascal}]"),
             ("delta", (2, 10), 1, r"$\delta \in [min, max]$"),
-            ("anomaly_z_trop_offset", (-2500, 2500), 1, r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\meter}]"),
+            ("anomaly_z_trop_offset", (-2500, 2500), 1e-3, r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\kilo\meter}]"),
             ("anomaly_x_size", (100e3, 800e3), 1e-3, r"$x_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("anomaly_y_size", (100e3, 800e3), 1e-3, r"$y_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("anomaly_z_size", (3500, 7000), 1, r"$z_\text{size} \in [min, max]$ [\unit{\meter}]"),

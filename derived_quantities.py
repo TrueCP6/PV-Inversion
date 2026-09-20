@@ -9,9 +9,14 @@ import numpy as np
 import tropopause
 
 class ResolvedAtmosphere:
-    def __init__(self, psi : Function, atmosphere : BarnesAtmosphere):
+    def __init__(self, psi : Function, atmosphere : BarnesAtmosphere, q : Function = None):
+        """q is the timestepped qg pv, when there is one. Left out, the diagnostics read the
+        pv straight off the atmosphere, which is the initial state - fine for a single solve,
+        but it would pin the tropopause to t=0 for every step of a run.
+        """
         self.psi = psi
         self.atmos = atmosphere
+        self.q = q
         self.ufl_params = atmosphere.ufl_params
         self.solver_params = atmosphere.solver_params
         self.func_space = psi.function_space()
@@ -170,8 +175,8 @@ class ResolvedAtmosphere:
     @lru_cache(maxsize=1)
     def min_dyn_tropopause_height(self):
         """Lowest height of the 1.5 PVU surface bounding the stratosphere - see tropopause.min_height."""
-        pv = self._interp(self.atmos.ertel_pv())
-        return tropopause.min_height(pv, self.atmos.phys_params.f)
+        pv = self.atmos.ertel_pv() if self.q is None else self.atmos.ertel_from_qgpv(self.q)
+        return tropopause.min_height(self._interp(pv), self.atmos.phys_params.f)
 
     @lru_cache(maxsize=1)
     def min_surf_vort(self):
