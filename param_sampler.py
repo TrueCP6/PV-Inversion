@@ -10,6 +10,8 @@ import json
 import sweep
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from matplotlib.lines import Line2D
+from scipy.stats import spearmanr
 
 class ParamSampler:
     def __init__(self, optimise_for="pres", seed=4623):
@@ -155,8 +157,13 @@ def plot_trop_correlation(json_path, output_path="tex/plots/random_sample_trop_c
 
     fig, axes = trop_correlation_axes()
     for ax, key in zip(axes, ["min_surf_pres", "max_surface_wind", "min_surf_vort"]):
-        points = ax.scatter(trop, np.asarray(data[key])[order], c=dist, cmap=cmap,
+        values = np.asarray(data[key])[order]
+        points = ax.scatter(trop, values, c=dist, cmap=cmap,
                             vmin=0, vmax=dist.max(), s=size, alpha=alpha, linewidths=0)
+
+        rho = spearmanr(trop, values).statistic
+        ax.legend([Line2D([], [], linestyle='none')], [rf"$\rho = {rho:.2f}$"], loc='best', fontsize=9,
+                  handlelength=0, handletextpad=0, borderpad=0.3, framealpha=0.8, edgecolor='none')
 
     colourbar = fig.colorbar(points, ax=axes, location='bottom', shrink=0.5, aspect=40)
     colourbar.set_label("Normalised distance from control")
