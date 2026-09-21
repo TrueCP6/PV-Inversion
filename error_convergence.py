@@ -50,7 +50,7 @@ def run_sweep(args):
         for N in sweep.resolutions_for_dofs(args.max_dofs, args.num_resolutions, p):
             try:
                 psi = _solve_psi(int(N), p, args)
-                error = relative_error(exact, psi, compare_on='coarse')
+                error = relative_error(exact, psi)
             # a point that dies takes the sweep with it if it dies on only some ranks
             except Exception as exc:
                 PETSc.Sys.Print(f"p = {p}, N = {N} failed ({exc}), skipping it")
