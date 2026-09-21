@@ -16,6 +16,7 @@ export APPTAINERENV_XDG_CACHE_HOME=$HOST_CACHE_DIR
 export APPTAINERENV_PYOP2_CACHE_DIR=${HOST_CACHE_DIR}/pyop2
 
 apptainer exec \
+    --bind /scratch/eltrob002 \
     --bind $HOST_CACHE_DIR \
     ~/firedrake.sif \
     mpiexec -n 40 \
