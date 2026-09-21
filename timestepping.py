@@ -1,10 +1,5 @@
 """Timestepped run diagnostics: how the flow evolves, and whether the CFL limit is where
 prognostic_solver.dt() says it is.
-
-Solving and plotting are separate entry points, as in time_complexity.py - the solve writes
-a json and the plotting reads one, so the figures can be drawn wherever LaTeX is installed
-rather than only where Firedrake is. Firedrake is imported inside the solve functions for
-the same reason.
 """
 from hash_seed import use_same_hash
 use_same_hash()
@@ -13,6 +8,7 @@ from dataclasses import dataclass
 import time
 import numpy as np
 import sweep
+from parameters import PhysicalParams
 
 DAY = 24 * 3600
 
@@ -85,12 +81,6 @@ def _max_abs(diagnostics):
 
 def _overshoot(records):
     """How far q has strayed outside its initial range, as a fraction of that range.
-
-    Advection moves extrema around but makes no new ones, and the inflow carries in the
-    initial field, so nothing here should push q past where it started. Anything above zero
-    is the discretisation overshooting - the Gibbs oscillation a high polynomial order
-    throws off a feature the mesh cannot resolve, which is what puts spurious specks of
-    stratospheric air either side of the tropopause.
     """
     q_min = np.array([r.q_min for r in records])
     q_max = np.array([r.q_max for r in records])
@@ -247,21 +237,40 @@ def plot_conservation(json_path, output_path="tex/plots/timestepping_conservatio
     a smooth bounded drift is the expected picture. What the figure is for is the other
     case: a knee or a run away in any panel is the scheme coming apart. The third panel is
     the sharper of the three, since it is zero for any scheme behaving itself.
+
+    The first panel is scaled by the size of q rather than by its own initial value. q
+    changes sign across the domain and very nearly cancels, so its mean comes out around a
+    thousandth of its rms, and dividing by that mean magnifies the drift by the same factor
+    - it reads as hundreds of percent where the field has moved by a fraction of one. Over
+    rms(q) * V instead, the panel says how far the mean of q has moved in units of a
+    typical q, which is the number that decides whether the run is still meaningful.
+    Enstrophy is positive definite and needs no such care, so it stays a relative drift.
     """
+    if not sweep.is_main_rank():
+        return
+
     records = sweep.load_records(json_path, StepRecord)
 
-    def drift(field):
+    def change(field):
         values = np.array([getattr(r, field) for r in records])
-        return (values - values[0]) / abs(values[0])
+        return values - values[0]
+
+    volume = PhysicalParams().domain_volume
+    q_rms = np.sqrt(records[0].enstrophy / volume)
 
     _stacked_panels(records, [
-        (drift("mass"), r"Drift in $\int q \,\mathrm{d}V$", True),
-        (drift("enstrophy"), r"Drift in $\int q^2 \,\mathrm{d}V$", True),
+        (change("mass") / (q_rms * volume),
+         r"$\Delta \overline{q} \,/\, q_\text{rms}$", True),
+        (change("enstrophy") / abs(records[0].enstrophy),
+         r"Drift in $\int q^2 \,\mathrm{d}V$", True),
         (_overshoot(records), r"$q$ beyond its initial range", True),
     ], output_path, height=1.7)
 
 def plot_diagnostics(json_path, output_path="tex/plots/timestepping_diagnostics.pdf"):
     """The resolved-atmosphere diagnostics against time, one panel each."""
+    if not sweep.is_main_rank():
+        return
+
     records = sweep.load_records(json_path, StepRecord)
 
     _stacked_panels(records, [
@@ -273,6 +282,9 @@ def plot_cfl(json_path, output_path="tex/plots/cfl_verification.pdf"):
     """Growth of max|q| against Courant number, either side of the predicted limit."""
     import matplotlib.pyplot as plt
     import plot_utils
+
+    if not sweep.is_main_rank():
+        return
 
     records = sorted(sweep.load_records(json_path, CflRecord), key=lambda r: r.courant)
     plot_utils.apply_style()

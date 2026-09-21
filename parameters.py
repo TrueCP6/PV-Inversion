@@ -6,8 +6,8 @@ ESTIMATE_QUADRATURE_DEGREE = -1
 
 @dataclass
 class PhysicalParams:
-    Lx: float = 7500e3
-    Ly: float = 7500e3
+    Lx: float = 5000e3
+    Ly: float = 5000e3
     H: float = 20e3
     latitude: float = -42
     g: float = 9.80665
@@ -28,6 +28,8 @@ class PhysicalParams:
     anomaly_y_size: float = 200e3
     anomaly_z_size: float = 5000
     anomaly_mag: float = -4e-6
+    anomaly_clip: float = -1.5e-6
+    anomaly_clip_smoothing: float = 0.075 # a fraction of anomaly_mag
     jet_y_size: float = 500e3
     jet_z_size: float = 2e3
     jet_magnitude: float = 35
@@ -56,6 +58,10 @@ class PhysicalParams:
     @property
     def anomaly_z_pos(self):
         return self.trop_height + self.anomaly_z_trop_offset
+
+    @property
+    def domain_volume(self):
+        return self.Lx * self.Ly * self.H
 
 @dataclass
 class SolverParams:

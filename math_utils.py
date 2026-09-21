@@ -69,6 +69,11 @@ def kink_function(x, delta):
            conditional(x <= 0.5, val_lower_mid,
            conditional(x <= 1.0, val_upper_mid, val_greater_than_1)))
 
+def smooth_max(a, b, smoothing):
+    if smoothing <= 0:
+        return max_value(a, b)
+    return max_value(a, b) + smoothing * ln(1 + exp(-abs(a - b) / smoothing))
+
 def scaled_kink(x, delta, left_val, right_val, kink_width, kink_centre):
     return (right_val - left_val) * kink_function((x-kink_centre)/kink_width + 0.5, delta) + left_val
 

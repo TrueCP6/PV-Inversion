@@ -113,7 +113,11 @@ class BarnesAtmosphere(AtmosphereBuilder):
                        - ((self.x - self.ufl_params.anomaly_x_pos) / self.ufl_params.anomaly_x_size) ** 2 \
                        - ((self.y - self.ufl_params.anomaly_y_pos) / self.ufl_params.anomaly_y_size) ** 2
 
-        ANO = max_value(Constant(-1.5e-6), self.ufl_params.anomaly_mag * exp(ANO_exponent))
+        smoothing = self.phys_params.anomaly_clip_smoothing * abs(self.phys_params.anomaly_mag)
+        clip = self.ufl_params.anomaly_clip
+        far_field = smooth_max(self.phys_params.anomaly_clip, 0.0, smoothing)
+        ANO = smooth_max(clip, self.ufl_params.anomaly_mag * exp(ANO_exponent),
+                         smoothing) - Constant(far_field)
 
         return background + ANO
 

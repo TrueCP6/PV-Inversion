@@ -23,8 +23,6 @@ class PrognosticSolver:
         self.t = 0.0
         self._t = Constant(0.0) # time of the stage being evaluated, seen by _q_in and _source
         self._dt = Constant(0.0) # the step's dt changes with the CFL limit, so it goes in UFL as a Constant
-        self._u = Function(self._cg_space)
-        self._v = Function(self._cg_space)
         self.q = Function(self._dg_space).interpolate(self._q_initial()) # prognostic state
         self._temp_q = Function(self._dg_space) # RHS input
         self._stage_q = Function(self._dg_space) # RHS output
@@ -41,18 +39,19 @@ class PrognosticSolver:
     def _source(self):
         return Constant(0.0)
 
-    def _update_velocity(self, q):
+    def _velocity(self):
         if not hasattr(self, "_diag_solver"): # built on first use, so overrides never pay for it
             self._diag_solver = DiagnosticSolver(self._atmos, self._matfree)
-        self._diag_solver.update_q(q)
-        self._diag_solver.solve_psi()
         psi = self._diag_solver.psi_soln
-        self._u.interpolate(-psi.dx(1))
-        self._v.interpolate(psi.dx(0))
+        return as_vector([-psi.dx(1), psi.dx(0), 0])
+
+    def _update_velocity(self, q):
+        self._diag_solver.update_q(q) # _build_solver went through _velocity, so this exists
+        self._diag_solver.solve_psi()
 
     def _build_solver(self):
         V = self._dg_space
-        u = as_vector([self._u, self._v, 0])
+        u = self._velocity()
         q = self._temp_q
         q_in = self._q_in()
 
@@ -90,17 +89,14 @@ class PrognosticSolver:
         """Streamfunction of the state the velocity was last updated from."""
         return self._diag_solver.psi_soln
 
-    def resolve(self):
-        """Bring psi, u and v back into step with the current q.
-
-        step() leaves them at the last RK stage rather than at the state it just landed on,
-        so diagnostics taken straight after a step would be reading the wrong field.
-        """
+    def resolve(self): # An extra solve purely for diagnostic
         self._update_velocity(self.q)
 
     def dt(self, safety=SAFETY):
         dx = self._atmos.dxy_min # CFL is set by the smallest cell
-        vel = Function(self._cg_space).interpolate(sqrt(self._u**2 + self._v**2))
+        u = self._velocity()
+        # Into the dg space, not the cg one: u is discontinuous, and interpolating it somewhere continuous would average the peaks
+        vel = Function(self._dg_space).interpolate(sqrt(u[0]**2 + u[1]**2))
         max_vel = math_utils.get_global_max(vel)
         p = self._solver_params.polynomial_order
 

@@ -11,8 +11,7 @@ class PrognosticMMSChecker(PrognosticSolver):
     q_exact solve dq/dt + u.grad(q) = S. This checks the transport and RK4 alone - the
     inversion has its own MMS in mms_checker.py.
 
-    u depends only on y and v only on x, so the flow is non-divergent (even after
-    interpolation) and crosses every lateral boundary, exercising both inflow and outflow."""
+    u is non-divergent, and it crosses every lateral boundary, exercising both inflow and outflow."""
     def __init__(self, solver_params : SolverParams, phys_params : PhysicalParams):
         self.L = phys_params.Lx
         if self.L != phys_params.Ly:
@@ -50,9 +49,11 @@ class PrognosticMMSChecker(PrognosticSolver):
         q = self.q_exact(t)
         return diff(q, t) + self.u_exact() * q.dx(0) + self.v_exact() * q.dx(1)
 
+    def _velocity(self):
+        return as_vector([self.u_exact(), self.v_exact(), 0])
+
     def _update_velocity(self, q):
-        self._u.interpolate(self.u_exact())
-        self._v.interpolate(self.v_exact())
+        pass # u is prescribed and steady, so there is nothing to bring back into step
 
     def calc_error(self):
         # Not math_utils.relative_error: that removes the mean, which q (unlike psi) must get right
