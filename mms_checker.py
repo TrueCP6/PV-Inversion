@@ -8,34 +8,25 @@ from firedrake import *
 from domain_builder import DomainBuilder
 
 class MMSChecker(AtmosphereBuilder):
-    # Fitted amplitude, horizontal and vertical scales and centre height of the anomaly blob
-    psi_ano = 8e6
-    L_ano = 500e3
-    H_ano = 5e3
-    z_ano = 8.75e3
-    # Fitted vertical shear of the theta* adjustment
-    shear = 45.0
-
-    # Simplified coefficient profiles, so that the source term stays short enough to write down
-    N = 0.01
-    rho_bottom = 1.225
-    rho_scale_height = 8.5e3
-
     def __init__(self, domain : DomainBuilder):
         super().__init__(domain)
         self._barnes = BarnesAtmosphere(domain, self.phys_params)
 
     @lru_cache(maxsize=1)
     def _blob(self):
+        # Stands in for the response to the PV anomaly. A Lorentzian, not a Gaussian: the
+        # inversion spreads a Gaussian source into far broader tails. Amplitude and scales are a
+        # least-squares fit to the control solution, which psi() reproduces to 3% relative L2.
         p = self.ufl_params
-        return self.psi_ano / (
-            1 + ((self.x - p.Lx / 2)**2 + (self.y - p.Ly / 2)**2) / self.L_ano**2
-            + ((self.z - self.z_ano) / self.H_ano)**2
+        return 8e6 / (
+            1 + ((self.x - p.Lx / 2)**2 + (self.y - p.Ly / 2)**2) / 500e3**2
+            + ((self.z - 8.75e3) / 5e3)**2
         )
 
     @lru_cache(maxsize=1)
     def psi(self):
-        return self._barnes.psi_bar() + self._blob() + self.shear * self.z
+        # Jet, anomaly response, and the fitted 45 m/s shear of the uniform theta* adjustment
+        return self._barnes.psi_bar() + self._blob() + 45.0 * self.z
 
     def u(self):
         return -self.psi().dx(1)
@@ -47,11 +38,11 @@ class MMSChecker(AtmosphereBuilder):
     def vertical_boundary(self):
         return self.psi().dx(2)
 
-    def rho_bar(self):
-        return self.rho_bottom * exp(-self.z / self.rho_scale_height)
+    def rho_bar(self): # simplified profiles, so the source term stays short enough to write down
+        return 1.225 * exp(-self.z / 8.5e3)
 
     def N_bar(self):
-        return Constant(self.N)
+        return Constant(0.01)
 
     def q_init(self):
         psi = self.psi()

@@ -4,6 +4,4 @@ mpiexec -n 2 ~/venv-firedrake/bin/python ../error_convergence.py \
   --job_id 1 \
   --max_p 6 \
   --max_dofs 350000 \
-  --num_resolutions 3 \
-  --exact_N 35 \
-  --exact_p 4
+  --num_resolutions 3

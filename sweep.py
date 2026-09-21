@@ -35,8 +35,9 @@ def resolutions_for_dofs(max_dofs : int, num_resolutions : int, p : int):
     return np.unique(np.round((np.cbrt(dofs) - 1) / p).astype(int))
 
 def build_solver(N : int, p : int, matfree : bool, ksp_rtol : float = SolverParams.ksp_rtol,
-                 quadrature_degree : int = SolverParams.quadrature_degree):
-    """Set up the psi solver on an N x N x N mesh of Q_p elements."""
+                 quadrature_degree : int = SolverParams.quadrature_degree, atmos_cls = None):
+    """Set up the psi solver on an N x N x N mesh of Q_p elements, over the Barnes atmosphere
+    unless atmos_cls asks for another one (MMSChecker, for the error convergence sweep)."""
     from domain_builder import DomainBuilder
     from barnes_atmosphere import BarnesAtmosphere
     from diagnostic_solver import DiagnosticSolver
@@ -46,7 +47,7 @@ def build_solver(N : int, p : int, matfree : bool, ksp_rtol : float = SolverPara
                                  ksp_rtol=ksp_rtol, quadrature_degree=quadrature_degree)
 
     domain = DomainBuilder(solver_params, phys_params)
-    atmos = BarnesAtmosphere(domain)
+    atmos = (atmos_cls or BarnesAtmosphere)(domain)
 
     return DiagnosticSolver(atmos, matfree)
 

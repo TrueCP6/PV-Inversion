@@ -1,8 +1,9 @@
 """Measure how the psi solution converges as the mesh is refined.
 
-There is no analytical solution to compare against, so a faux exact solution is solved
-once on a mesh far finer and of far higher order than any sweep point, to a tight Krylov
-tolerance, and held in memory while every sweep point is measured against it in turn.
+The manufactured solution of mms_checker.py is the exact solution here, so every sweep point
+is measured against it directly - no reference solve, and nothing held in memory between
+points. It is shaped like the solution at the control parameters (see MMSChecker), so the
+orders measured are the ones the real problem sees.
 """
 
 from hash_seed import use_same_hash
@@ -24,24 +25,21 @@ class ErrorRecord:
     def dofs(self):
         return sweep.dof_count(self.p, self.N)
 
-def _solve_psi(N, p, args):
-    """Solve psi at one (p, N) and hand back just the solution, so the solver behind it -
-    and the PMG hierarchy it holds - can be collected before the next point is built."""
+def _measure_error(N, p, args):
+    """Solve psi at one (p, N) against the manufactured solution and hand back just the error,
+    so the solver - and the PMG hierarchy it holds - can be collected before the next point."""
+    from mms_checker import MMSChecker
+
     solver = sweep.build_solver(N, p, matfree=True, ksp_rtol=args.ksp_rtol,
-                               quadrature_degree=args.quadrature_degree)
+                               quadrature_degree=args.quadrature_degree, atmos_cls=MMSChecker)
     solver.solve_psi()
-    return solver.psi_soln
+    return solver.atmos.calc_error(solver.psi_soln)
 
 def run_sweep(args):
-    """Solve the reference, then sweep every (p, N) point against it, writing the results
-    so far after each one."""
+    """Sweep every (p, N) point against the manufactured solution, writing the results so far
+    after each one."""
     sweep.quiet_petsc()
     from firedrake.petsc import PETSc
-    from math_utils import relative_error
-
-    exact = _solve_psi(args.exact_N, args.exact_p, args)
-    PETSc.Sys.Print(f"Solved the reference at p = {args.exact_p}, N = {args.exact_N} "
-                    f"({sweep.dof_count(args.exact_p, args.exact_N):.3g} dofs)")
 
     out_path = f"error_convergence_{args.job_id}.json"
     records, skipped = [], []
@@ -49,8 +47,7 @@ def run_sweep(args):
     for p in range(2, args.max_p + 1):
         for N in sweep.resolutions_for_dofs(args.max_dofs, args.num_resolutions, p):
             try:
-                psi = _solve_psi(int(N), p, args)
-                error = relative_error(exact, psi)
+                error = _measure_error(int(N), p, args)
             # a point that dies takes the sweep with it if it dies on only some ranks
             except Exception as exc:
                 PETSc.Sys.Print(f"p = {p}, N = {N} failed ({exc}), skipping it")
@@ -61,7 +58,6 @@ def run_sweep(args):
             records.append(ErrorRecord(p=int(p), N=int(N),
                                        dx=PhysicalParams().Lx / int(N), error=error))
 
-            del psi
             PETSc.garbage_cleanup(PETSc.COMM_WORLD)
 
             # Rewritten every point, so a run that is killed part way through still
@@ -104,12 +100,12 @@ def plot_error_convergence(json_path, output_path="tex/plots/error_convergence.p
         print(f"p = {p}: average log-log slope = {plot_utils.log_log_slope(dz, errors):.3f}")
 
         # Points are finest-first, so a resolved series rises with dx. Where it does not, the
-        # reference is likely too close in resolution to the sweep points, which makes the
-        # slope above meaningless rather than merely noisy.
+        # errors have likely bottomed out on the Krylov tolerance rather than the
+        # discretisation, which makes the slope above meaningless rather than merely noisy.
         stalled = sum(1 for a, b in zip(errors, errors[1:]) if b <= a)
         if stalled:
             print(f"p = {p}: WARNING {stalled} of {len(errors) - 1} refinement steps did not "
-                  f"reduce the error - check the reference is fine enough to measure this")
+                  f"reduce the error - check ksp_rtol is tight enough to measure this")
 
     plt.xscale('log')
     plt.yscale('log')
@@ -129,9 +125,10 @@ def main():
     parser.add_argument('-mp', '--max_p', type=int, default=10, help='Highest polynomial order to sweep; orders run 2, 3, ... max_p')
     parser.add_argument('-nr', '--num_resolutions', type=int, default=5)
     parser.add_argument('-md', '--max_dofs', type=float, default=12e6, help='Skip any (p, N) pair needing more degrees of freedom than this')
-    parser.add_argument('--exact_N', type=int, default=32, help='Mesh resolution of the faux exact solution')
-    parser.add_argument('--exact_p', type=int, default=12, help='Polynomial order of the faux exact solution')
-    parser.add_argument('--ksp_rtol', type=float, default=1e-12, help='Krylov tolerance for every solve, tight enough that discretisation error dominates')
+    # psi_a is O(1e8), so a relative residual below roughly 1e-9 is past what double precision
+    # can deliver - CG breaks down on an indefinite preconditioner there rather than converging.
+    # 1e-8 leaves the measured errors unmoved from 1e-6, so discretisation still dominates.
+    parser.add_argument('--ksp_rtol', type=float, default=1e-8, help='Krylov tolerance for every solve, tight enough that discretisation error dominates')
     parser.add_argument('-qd', '--quadrature_degree', type=int, default=None, help="Quadrature degree for every form. Defaults to 3p, which integrates the bilinear form exactly. Pass -1 to go back to UFL's own estimate of roughly 6p.")
     sweep.add_common_arguments(parser)
     args = parser.parse_args()

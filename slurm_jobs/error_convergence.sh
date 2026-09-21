@@ -33,6 +33,4 @@ apptainer exec \
     --max_p 6 \
     --num_resolutions 12 \
     --max_dofs 40000000 \
-    --exact_N 150 \
-    --exact_p 4 \
-    --ksp_rtol 1e-12
+    --ksp_rtol 1e-8
