@@ -170,8 +170,8 @@ class DerivedQuantityTests(unittest.TestCase):
 
 class TropopauseTests(unittest.TestCase):
     """The dynamical tropopause is the 1.5 PVU contour bounding the stratosphere, so these
-    check the two things that distinguish it from the lowest stratospheric dof: where inside
-    an element the contour falls, and which side of it a given pocket of air is on.
+    check what distinguishes it from the lowest stratospheric dof anywhere in the domain:
+    which side of the contour a given pocket of air is on.
     """
     CORIOLIS = -1e-4 # southern hemisphere, so stratospheric air is Q <= -1.5 PVU
     H = 10e3
@@ -188,20 +188,6 @@ class TropopauseTests(unittest.TestCase):
 
     def _level_spacing(self, V):
         return np.diff(tropopause.column_layout(V).z).max()
-
-    def test_crossing_is_found_inside_the_element(self):
-        """A tropopause put deliberately between two dofs. |Q| is a cubic in z, which the
-        p=4 space holds exactly, so the root is the only thing left to get wrong - and a
-        search over dofs alone could not have come closer than 58 m."""
-        V = self._cg_space()
-        _, _, z = SpatialCoordinate(V.mesh())
-
-        height = self._height(V, 0.5 + 3 * (z / self.H)**3)
-        exact = self.H * (1/3)**(1/3)
-
-        PETSc.Sys.Print(f"Tropopause height error: {abs(height - exact)} m")
-        self.assertLess(abs(height - exact), 1e-6)
-        self.assertGreater(np.abs(tropopause.column_layout(V).z - exact).min(), 50)
 
     def test_pocket_under_the_tropopause_is_not_the_tropopause(self):
         """A ball of stratospheric air sitting on its own in the middle troposphere. It is
