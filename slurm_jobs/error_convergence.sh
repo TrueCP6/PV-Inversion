@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --account maths
-#SBATCH --time=6:00:00
+#SBATCH --time=12:00:00
 #SBATCH --nodes=1 --ntasks=40
 #SBATCH --mem=300G
 #SBATCH --job-name="firedrake"
@@ -23,20 +23,16 @@ mkdir -p $HOST_CACHE_DIR
 export APPTAINERENV_XDG_CACHE_HOME=$HOST_CACHE_DIR
 export APPTAINERENV_PYOP2_CACHE_DIR=${HOST_CACHE_DIR}/pyop2
 
-# Location to store exact solution
-EXACT_FILE=/tmp/psi_exact_${SLURM_JOB_ID}.h5
-
 apptainer exec \
     --bind /scratch/eltrob002 \
     --bind $HOST_CACHE_DIR \
-    ~/firedrake.sif python3 Thesis/error_convergence.py \
+    ~/firedrake.sif \
+    mpiexec -n 40 \
+    python3 Thesis/error_convergence.py \
     --job_id ${SLURM_JOB_ID} \
     --max_p 6 \
-    --min_dofs 100000 \
-    --num_resolutions 20 \
-    --max_dofs 5000000 \
-    --exact_N 100 \
+    --num_resolutions 12 \
+    --max_dofs 40000000 \
+    --exact_N 150 \
     --exact_p 4 \
-    --ksp_rtol 1e-12 \
-    --exact ${EXACT_FILE} \
-    --ranks 40
+    --ksp_rtol 1e-12

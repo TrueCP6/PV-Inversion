@@ -23,17 +23,15 @@ mkdir -p $HOST_CACHE_DIR
 export APPTAINERENV_XDG_CACHE_HOME=$HOST_CACHE_DIR
 export APPTAINERENV_PYOP2_CACHE_DIR=${HOST_CACHE_DIR}/pyop2
 
-# 5. Each resolution runs its own `mpiexec -n 40` (time_complexity.py forks one per
-# data point so every test gets the full node - see time_complexity.py for why).
-# time_complexity.py loops over resolutions itself, so tests run sequentially.
 apptainer exec \
     --bind /scratch/eltrob002 \
     --bind $HOST_CACHE_DIR \
-    ~/firedrake.sif python3 Thesis/time_complexity.py \
+    ~/firedrake.sif \
+    mpiexec -n 40 \
+    python3 Thesis/time_complexity.py \
     --job_id ${SLURM_JOB_ID} \
     --num_solves 2 \
     --max_dofs_assembled 20000000 \
     --max_dofs_matfree 20000000 \
     --num_resolutions 30 \
-    --ranks 40 \
     --num_initial_solves 3

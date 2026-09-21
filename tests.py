@@ -14,6 +14,27 @@ from prognostic_mms_checker import *
 import tropopause
 
 class UtilTests(unittest.TestCase):
+    def test_resolutions_for_dofs(self):
+        """The sweep floor scales with the ranks the job was launched under, and the
+        resolutions handed back bracket the range asked for."""
+        import sweep
+        from mpi4py import MPI
+
+        self.assertEqual(sweep.min_dofs(), sweep.MIN_DOFS_PER_RANK * MPI.COMM_WORLD.size)
+
+        max_dofs = 100 * sweep.min_dofs()
+        Ns = sweep.resolutions_for_dofs(max_dofs, 8, p=4)
+
+        self.assertTrue(all(a < b for a, b in zip(Ns, Ns[1:])))  # unique and rising
+        # Rounding to a whole N moves an end point by less than one element either way
+        self.assertGreater(sweep.dof_count(4, int(Ns[0])), sweep.min_dofs() / 2)
+        self.assertLess(sweep.dof_count(4, int(Ns[-1])), 2 * max_dofs)
+
+        # A max below the floor would otherwise hand back a descending range, and with it
+        # meshes too coarse to solve on at all
+        with self.assertRaises(ValueError):
+            sweep.resolutions_for_dofs(sweep.min_dofs() - 1, 3, p=4)
+
     def test_vertical_integral(self):
         mesh2d = UnitSquareMesh(10, 10, quadrilateral=True)
         mesh = ExtrudedMesh(mesh2d, layers=10, layer_height=0.1)

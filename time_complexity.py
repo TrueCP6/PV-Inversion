@@ -19,29 +19,41 @@ class TimeRecord:
     def dofs(self):
         return sweep.dof_count(self.p, self.N)
 
-def _run_point(args):
-    """Time repeated solves at one (N, matfree) point and write them to args.out."""
-    sweep.quiet_petsc()
-
-    solver = sweep.build_solver(args.N, args.polynomial_order, args.matfree)
-    records = [
-        TimeRecord(initial_run=index == 0, p=args.polynomial_order, matfree=args.matfree,
-                   N=args.N, time=solver.solve_psi(True))
+def _time_point(args, N, matfree):
+    """Time args.num_solves repeated solves on a freshly built solver, so the first of them
+    still pays the setup cost that makes it the initial run."""
+    solver = sweep.build_solver(N, args.polynomial_order, matfree)
+    return [
+        TimeRecord(initial_run=index == 0, p=args.polynomial_order, matfree=matfree,
+                   N=N, time=solver.solve_psi(True))
         for index in range(args.num_solves)
     ]
 
-    if sweep.is_main_rank():
-        sweep.save_records(args.out, records)
+def run_sweep(args):
+    """Time every (N, matfree) point in turn, writing the results so far after each one."""
+    sweep.quiet_petsc()
+    from firedrake.petsc import PETSc
 
-def eval_ns(Ns, p : int, matfree : bool, num_solves : int, max_ranks : int):
-    """Time every resolution in Ns, one fresh process per point."""
+    out_path = f"time_complexity_{args.job_id}.json"
     records = []
-    for N in Ns:
-        ranks = sweep.calc_ranks(p, N, max_ranks)
-        point_args = (["-N", N, "-p", p, "-ns", num_solves]
-                      + (["--matfree"] if matfree else []))
-        records.extend(sweep.run_point(__file__, ranks, point_args, TimeRecord))
-    return records
+
+    for _ in range(args.num_initial_solves):
+        for matfree, max_dofs in [(False, args.max_dofs_assembled), (True, args.max_dofs_matfree)]:
+            for N in sweep.resolutions_for_dofs(max_dofs, args.num_resolutions, args.polynomial_order):
+                try:
+                    records.extend(_time_point(args, int(N), matfree))
+                # ponytail: a point that dies takes the sweep with it if it dies on only some ranks
+                except Exception as exc:
+                    PETSc.Sys.Print(f"N = {N}, matfree = {matfree} failed ({exc}), skipping it")
+                    continue
+
+                PETSc.Sys.Print(f"N = {N}, matfree = {matfree}: "
+                                f"{records[-1].time:.3f} s per subsequent solve")
+                PETSc.garbage_cleanup(PETSc.COMM_WORLD)
+
+                # Rewritten every point, so a run that is killed part way through still
+                # leaves the timings taken before it.
+                sweep.save_records(out_path, records, indent=2)
 
 def _dofs_vs_time(records):
     """Average solve time per degrees-of-freedom value across a list of TimeRecords."""
@@ -112,30 +124,13 @@ def main():
     parser.add_argument('-n', '--num_resolutions', type=int, default=5)
     parser.add_argument('-ni', '--num_initial_solves', type=int, default=1)
     sweep.add_common_arguments(parser)
-    sweep.add_point_arguments(parser)
-    # Internal re-exec entry point - not for direct use.
-    parser.add_argument('--matfree', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
-
-    if args.single_point:
-        _run_point(args)
-        return
 
     if args.plot:
         plot_time_complexity(args.plot)
         return
 
-    min_dofs = args.ranks * 100000
-
-    records = []
-    for _ in range(args.num_initial_solves):
-
-        for matfree, max_dofs in [(False, args.max_dofs_assembled), (True, args.max_dofs_matfree)]:
-
-            Ns = sweep.resolutions_for_dofs(min_dofs, max_dofs, args.num_resolutions, args.polynomial_order)
-            records.extend(eval_ns(Ns, args.polynomial_order, matfree, args.num_solves, args.ranks))
-
-    sweep.save_records(f"time_complexity_{args.job_id}.json", records, indent=2)
+    run_sweep(args)
 
 if __name__ == '__main__':
     main()
