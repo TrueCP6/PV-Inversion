@@ -8,7 +8,6 @@
 #SBATCH --mail-type=ALL
 #SBATCH --output=firedrake_%j.out
 #SBATCH --error=firedrake_%j.err
-#SBATCH --constraint=large
 
 HOST_CACHE_DIR=/tmp/firedrake_cache_${SLURM_JOB_ID}
 mkdir -p $HOST_CACHE_DIR
@@ -24,4 +23,4 @@ apptainer exec \
     --job_id ${SLURM_JOB_ID} \
     -n 80 \
     -p 2 \
-    -T 24
+    -T 168

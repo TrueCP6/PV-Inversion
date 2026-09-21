@@ -292,6 +292,14 @@ def main():
     )
 
     multislice(
+        derived.horizontal_wind_speed(),
+        "Wind Speed",
+        r"$\left|\mathbf{u}\right|$ [\unit{\meter \per \second}]",
+        levels=np.arange(0, 50, 5),
+        normals="xy"
+    )
+
+    multislice(
         Function(cg_space).interpolate(atmos.ertel_pv() * 1e6),
         "EPV",
         r"$Q$ [\unit{PVU}]",
@@ -396,7 +404,7 @@ def main():
         "Temperature Anomaly",
         r"$T^*$ [\unit{\kelvin}/\unit{\celsius}]",
         levels=np.arange(-20, 20, 1),
-        normals='xyz'
+        normals='xy'
     )
 
 if __name__ == "__main__":

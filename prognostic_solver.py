@@ -14,7 +14,6 @@ class PrognosticSolver:
         self._phys_params = phys_params
 
         domain = DomainBuilder(self._solver_params, self._phys_params)
-        self._cg_space = domain.cg_space()
         self._dg_space = domain.dg_space()
 
         self._atmos = BarnesAtmosphere(domain)
