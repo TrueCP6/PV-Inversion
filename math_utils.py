@@ -1,6 +1,5 @@
 from firedrake import *
 from mpi4py import MPI
-import pyvista as pv
 import numpy as np
 from scipy.interpolate import CubicSpline
 from firedrake import Function, interpolate, SpatialCoordinate
@@ -77,7 +76,7 @@ def smooth_max(a, b, smoothing):
 def scaled_kink(x, delta, left_val, right_val, kink_width, kink_centre):
     return (right_val - left_val) * kink_function((x-kink_centre)/kink_width + 0.5, delta) + left_val
 
-CROSS_MESH_CHUNKS = 16
+CROSS_MESH_CHUNKS = 32
 
 def chunked_interpolate(source : Function, target_func_space, chunks : int = CROSS_MESH_CHUNKS):
     """Cross-mesh interpolate source into target_func_space a slice of the target's dofs

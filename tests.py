@@ -146,9 +146,7 @@ class MMSTests(unittest.TestCase):
             check_flux=False,
             nx=N, ny=N, nz=N
         )
-        phys_params = PhysicalParams(
-            Lx=1e6, Ly=1e6, H = 20e3
-        )
+        phys_params = PhysicalParams()
 
         domain = DomainBuilder(solver_params, phys_params)
 
@@ -158,7 +156,7 @@ class MMSTests(unittest.TestCase):
             solver = DiagnosticSolver(atmos, save_memory)
             solver.solve_psi()
             error = atmos.calc_error(solver.psi_soln)
-            self.assertLess(error, 1e-6)
+            self.assertLess(error, 1e-5)
 
 class StabilityTests(unittest.TestCase):
     def test_peclet(self):

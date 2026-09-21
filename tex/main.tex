@@ -658,16 +658,34 @@ If the solver's numerical solution matches $\psi_a$ to some high degree of preci
 Some simplifications to the coefficients of \cref{qgpv,qgpv_bcs_hor,qgpv_bcs_vert} are made to make this process more concise and readable:
 
 \begin{itemize}
-    \item A square horizontal domain: $L_x = L_y = L$
     \item Constant reference stability profile: $\overline{N}(z)=N$
     \item An exponential density profile $\overline{\rho}(z)=c_3 \exp (c_4 z)$, with arbitrary constants $c_3 > 0$ and $c_4 < 0$.
 \end{itemize}
 
 Equation \eqref{qgpv} then reduces to a simple advection-diffusion equation with constant coefficients, where $c_5 = f^2 / N^2$:
 
-\begin{equation}
+\begin{equation}\label{mms_source}
     q = \frac{\partial ^2 \psi_a}{\partial x^2} + \frac{\partial ^2 \psi_a}{\partial y^2} + c_5 \left( c_4 \frac{\partial \psi_a}{\partial z} + \frac{\partial ^2 \psi_a}{\partial z^2}\right)
 \end{equation}
+
+The manufactured solution is built from the three structures the true solution possesses -- the jet stream, the response to the PV anomaly of \cref{Q_star}, and the vertically uniform $\theta^*$ adjustment of \cref{sec:solv_cond}:
+
+\begin{equation}\label{mms_psi}
+    \psi_a(x,y,z) = \overline{\psi}(y,z)
+    + \frac{\Psi_a}{1 + \dfrac{\left(x - x_\text{ano}\right)^2 + \left(y - y_\text{ano}\right)^2}{L_a^2} + \left(\dfrac{z - z_a}{h_a}\right)^2}
+    + \Lambda z
+\end{equation}
+
+Here $\overline{\psi}$ is the streamfunction of the jet stream of \cref{u_boundary}, recovered from $\overline u = -\partial \overline \psi / \partial y$:
+
+\begin{equation}\label{mms_psi_bar}
+    \overline{\psi}(y,z) = -\frac{\sqrt{\pi}}{2} U_\text{jet}\, L_\text{jet} \operatorname{erf}\left(\frac{y - y_\text{jet}}{L_\text{jet}}\right) \exp \left[- \left(\frac{z - z_\text{trop}}{z_\text{jet}}\right)^2\right]
+\end{equation}
+
+The anomaly term is a Lorentzian rather than a Gaussian because inverting \cref{qgpv} spreads the Gaussian source of \cref{Q_star} into a profile with far broader tails.
+A least-squares fit against the numerical solution at the control parameters gives $\Psi_a = \qty{8e6}{\meter\squared\per\second}$, $L_a = \qty{500}{\km}$, $h_a = \qty{5}{\km}$, $z_a = \qty{8.75}{\km}$ and $\Lambda = \qty{45}{\meter\per\second}$, at which \cref{mms_psi} is within \qty{3}{\percent} of that solution in the relative $L^2$ norm.
+The solver is therefore verified against a problem carrying the same length scales, gradients and magnitudes as the one it is built to solve.
+Substituting \cref{mms_psi} into \cref{mms_source} supplies the source term, and its first derivatives supply the boundary data of \cref{qgpv_bcs_hor,qgpv_bcs_vert}.
 
 
 
