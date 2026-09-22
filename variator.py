@@ -21,7 +21,7 @@ import sweep
 PARAMETER_GROUPS = [
     ("Stratification and tropopause structure", ["N_strat_variation", "N_trop", "trop_width_variation", "trop_height_variation", "delta"]),
     ("Background state", ["temperature_bottom_variation", "p_bottom", "latitude"]),
-    ("PV anomaly", ["anomaly_z_trop_offset", "anomaly_x_size", "anomaly_y_size", "anomaly_z_size", "anomaly_mag"]),
+    ("PV anomaly", ["anomaly_z_trop_offset", "anomaly_x_size", "anomaly_y_size", "anomaly_z_size", "anomaly_mag", "anomaly_clip"]),
     ("Jet parameters", ["jet_y_size", "jet_z_size", "jet_magnitude", "jet_y_pos"]),
 ]
 
@@ -86,11 +86,12 @@ class Variator:
             ("anomaly_y_size", (100e3, 800e3), 1e-3, r"$y_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("anomaly_z_size", (3500, 7000), 1, r"$z_\text{size} \in [min, max]$ [\unit{\meter}]"),
             ("anomaly_mag", (-4e-6, -1e-6), 1e6, r"$Q_\text{anomag} \in [min, max]$ [\unit{PVU}]"),
+            ("anomaly_clip", (-2e-6, -1e-6), 1e6, r"$Q_\text{anoclip} \in [min, max]$ [\unit{PVU}]"),
             ("jet_y_size", (100e3, 1000e3), 1e-3, r"$L_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("jet_z_size", (1e3, 4e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
             ("jet_magnitude", (10, 100), 1, r"$U_\text{jet} \in [min, max]$ [\unit{\meter\per\second}]"),
             ("jet_y_pos", (mx-1500e3, mx+1500e3), 1e-3, r"$y_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
-            ("latitude", (-50, -20), 1, r"$\varphi \in [\qty{min}{\degree}, \qty{max}{\degree}]$")
+            ("latitude", (-50, -30), 1, r"$\varphi \in [\qty{min}{\degree}, \qty{max}{\degree}]$")
         ]
 
         # helper function that outputs the float as a string with 3 significant figures, but not in scientific notation

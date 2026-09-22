@@ -58,7 +58,7 @@ class PhysicalParams:
     Lx: float = 5000e3
     Ly: float = 5000e3
     H: float = 20e3
-    latitude: float = -42
+    latitude: float = -42   # Barnes et al. (2022) p. 1293; see sources/bounds/latitude.md
     g: float = 9.80665
     N_strat_variation: float = 0
     N_trop: float = 0.01
@@ -113,6 +113,12 @@ class PhysicalParams:
     @property
     def kappa(self):
         return self.R / self.c_p
+
+    @property
+    def rossby_number(self):
+        """Jet Rossby number U/(|f| L). QG assumes this is small (Vallis 2017, p. 177),
+        and it grows sharply toward the equator as f shrinks."""
+        return self.jet_magnitude / (abs(self.f) * self.jet_y_size)
 
     @property
     def f(self):
