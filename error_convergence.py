@@ -5,7 +5,6 @@ is measured against it directly - no reference solve, and nothing held in memory
 points. It is shaped like the solution at the control parameters (see MMSChecker), so the
 orders measured are the ones the real problem sees.
 """
-
 from hash_seed import use_same_hash
 use_same_hash()
 import argparse
@@ -13,6 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 import sweep
 from parameters import PhysicalParams
+from petsc4py import PETSc
 
 # Define a way to store run results
 @dataclass
@@ -75,6 +75,9 @@ def plot_error_convergence(json_path, output_path="tex/plots/error_convergence.p
     Create a log-log plot of relative error vs mesh spacing from an
     error_convergence_*.json results file, one line per polynomial order.
     """
+    if not sweep.is_main_rank():
+        return
+
     import matplotlib.pyplot as plt
     from matplotlib.ticker import ScalarFormatter, LogLocator
     import plot_utils
@@ -97,14 +100,14 @@ def plot_error_convergence(json_path, output_path="tex/plots/error_convergence.p
         plt.scatter(dz, errors, color=colour, marker=markers[index % len(markers)],
                    s=30, label=rf'$p = {p}$')
 
-        print(f"p = {p}: average log-log slope = {plot_utils.log_log_slope(dz, errors):.3f}")
+        PETSc.Sys.Print(f"p = {p}: average log-log slope = {plot_utils.log_log_slope(dz, errors):.3f}")
 
         # Points are finest-first, so a resolved series rises with dx. Where it does not, the
         # errors have likely bottomed out on the Krylov tolerance rather than the
         # discretisation, which makes the slope above meaningless rather than merely noisy.
         stalled = sum(1 for a, b in zip(errors, errors[1:]) if b <= a)
         if stalled:
-            print(f"p = {p}: WARNING {stalled} of {len(errors) - 1} refinement steps did not "
+            PETSc.Sys.Print(f"p = {p}: WARNING {stalled} of {len(errors) - 1} refinement steps did not "
                   f"reduce the error - check ksp_rtol is tight enough to measure this")
 
     plt.xscale('log')

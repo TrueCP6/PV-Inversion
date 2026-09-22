@@ -14,7 +14,7 @@ from matplotlib.lines import Line2D
 from scipy.stats import spearmanr
 
 class ParamSampler:
-    def __init__(self, optimise_for="pres", seed=4623):
+    def __init__(self, optimise_for="pres", seed=4623, job_id=0):
         self.variator = Variator()
         self.param_tuple = self._get_effectual_params()
         self.dim = len(self.param_tuple)
@@ -23,6 +23,7 @@ class ParamSampler:
         self.rng = np.random.default_rng(seed) # not shared between all ranks but all ranks will have the same seed
         self.normalised_control = self.record_to_normalised(PhysicalParams()) # A representation of the control in normalised space
         self.optimise_for = optimise_for
+        self.job_id = job_id
 
     def _get_effectual_params(self): # Reduce dimensionality by removing parameters that don't make a difference
         ineffectual_params = ["delta", "N_strat", "trop_width"]
@@ -74,7 +75,7 @@ class ParamSampler:
     def driver_cost(self, x):
         self.comm.bcast(("eval", x), root=0)  # wake the other ranks, so every rank takes part in the collective solve
         f = self.cost(x)
-        with open("optimise.csv", "a") as fh:
+        with open(f"optimise_{self.job_id}.csv", "a") as fh:
             fh.write(",".join(map(str, [*x, f])) + "\n")
         return f
 
@@ -179,20 +180,30 @@ def main():
     parser.add_argument('-j', '--job_id', type=int, default=0)
     parser.add_argument('-s', '--seed', type=int, default=4623, help='Random seed for the parameter samples - vary it to add new samples rather than repeat old ones')
     parser.add_argument('--plot', metavar='JSON_PATH', help='Plot the given results file instead of generating new data, then exit')
+    parser.add_argument('-o', '--optimise_for', choices=['pres', 'vort', 'wind'],
+                        help='Search for the parameters that extremise this quantity instead of sampling at random, spending at most --num_samples solves')
     args = parser.parse_args()
 
     if args.plot:
         plot_trop_correlation(args.plot)
         return
 
-    sampler = ParamSampler(seed=args.seed)
-    data = sampler.random_sample_data(args.num_samples)
+    sampler = ParamSampler(optimise_for=args.optimise_for, seed=args.seed, job_id=args.job_id)
+
+    if args.optimise_for:
+        x, _ = sampler.optimise(args.num_samples)
+        # Only the parameters the Variator moves - PhysicalParams defaults the rest
+        data = sampler.normalised_to_dict(x)
+        out_path = f"optimised_{args.optimise_for}_{args.job_id}.json"
+    else:
+        data = sampler.random_sample_data(args.num_samples)
+        out_path = f"random_samples_{args.job_id}.json"
 
     if not sweep.is_main_rank():
         return
 
-    with open(f"random_samples_{args.job_id}.json", "w") as f:
-        json.dump(data, f)
+    with open(out_path, "w") as f:
+        json.dump(data, f, indent=2)
 
 if __name__ == "__main__":
     main()

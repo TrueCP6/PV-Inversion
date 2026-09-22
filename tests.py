@@ -35,6 +35,19 @@ class UtilTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             sweep.resolutions_for_dofs(sweep.min_dofs() - 1, 3, p=4)
 
+    def test_optimised_params_rebuild_physical_params(self):
+        """The dict written out by the optimise entry point has to be usable as
+        PhysicalParams(**dict), so every key must be a real field and land in bounds."""
+        from param_sampler import ParamSampler
+
+        sampler = ParamSampler(optimise_for="pres")
+        params = sampler.normalised_to_dict(sampler.normalised_control)
+
+        rebuilt = PhysicalParams(**params)
+        for name, (low, high), _ in sampler.param_tuple:
+            self.assertAlmostEqual(getattr(rebuilt, name), getattr(PhysicalParams(), name))
+            self.assertTrue(low <= params[name] <= high)
+
     def test_vertical_integral(self):
         mesh2d = UnitSquareMesh(10, 10, quadrilateral=True)
         mesh = ExtrudedMesh(mesh2d, layers=10, layer_height=0.1)
