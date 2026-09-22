@@ -387,7 +387,7 @@ class PrognosticTests(unittest.TestCase):
         a wrong facet flux, or u and v swapped. The anomaly is kept below ertel_pv's -1.5e-6
         clip and the domain shrunk so it is resolved."""
         phys_params = PhysicalParams(Lx=2e6, Ly=2e6, jet_y_pos=1e6, anomaly_mag=-1e-6)
-        solver = PrognosticSolver(SolverParams(nx=16, ny=16, nz=16), phys_params, True)
+        solver = PrognosticSolver(SolverParams(nx=16, ny=16, nz=32), phys_params, True)
         rhs = solver.RHS(solver.q)
         u = solver._velocity() # the velocity the form actually transports with
         exact = -(u[0] * solver.q.dx(0) + u[1] * solver.q.dx(1))
