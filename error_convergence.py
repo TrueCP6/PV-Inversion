@@ -97,8 +97,8 @@ def plot_error_convergence(json_path, output_path="tex/plots/error_convergence.p
         dz = PhysicalParams.H / np.array([r.N for r in points])
         errors = np.array([r.error for r in points])
 
-        plt.scatter(dz, errors, color=colour, marker=markers[index % len(markers)],
-                   s=30, label=rf'$p = {p}$')
+        plt.plot(dz, errors, color=colour, marker=markers[index % len(markers)],
+                 linewidth=1.5, markersize=4, label=rf'$p = {p}$')
 
         PETSc.Sys.Print(f"p = {p}: average log-log slope = {plot_utils.log_log_slope(dz, errors):.3f}")
 
