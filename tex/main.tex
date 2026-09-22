@@ -748,29 +748,35 @@ independently in \texttt{Variator.quantities\_to\_vary()}. % TODO fill in the bo
     \centering
     \small
     \caption{Bounds over which each physical parameter is varied independently, with the
-    source justifying each. Bounds marked \textcolor{BrickRed}{---} are not yet settled.}
+    source justifying each. Primed symbols denote a departure from a fixed, latitude-dependent
+    mean rather than an absolute value; for those, the quantity used by the model is
+    $X = \overline{X}(\varphi) + X'$, and only $X'$ is varied. Bounds marked
+    \textcolor{BrickRed}{---} are not yet settled.}
     \label{tab:param_bounds}
     \begin{tabular}{llccl p{4.2cm}}
         \toprule
         Symbol & Quantity & Min & Max & Unit & Justification \\
         \midrule
-        $\overline{N}_\text{strat}$ & Stratospheric stability & & & \unit{\per\second} &
-            Control value \cite[p.~1293]{Barnes2022main}; observed stratospheric $N^2$
-            \cite[\P28]{Birner2006}, \cite[p.~2278]{Grise2010},
-            \cite[p.~4492]{RandelWuForster2007} \\
+        $\overline{N}'_\text{strat}$ & Stratospheric stability, departure from latitudinal mean & & & \unit{\per\second} &
+            Mean: $N^2$ from \num{4.5e-4} to \num{7.0e-4}\,\unit{\per\second\squared}
+            across the band \cite[\P28]{Birner2006}. Variation: vertical decay above the
+            TIL and circulation type \cite[p.~4492]{RandelWuForster2007},
+            \cite[p.~2282]{Grise2010} \\
         $\overline{N}_\text{trop}$ & Tropospheric stability & & & \unit{\per\second} &
             \cite[p.~99]{Vallis2017}, \cite[p.~56]{HOLTON_chapter2}; observed $N^2$
             \cite[\P28]{Birner2006}, \cite[p.~2278]{Grise2010},
             \cite[Fig.~4b, p.~4492]{RandelWuForster2007} \\
-        $w_\text{trop}$ & Tropopause transition width & & & \unit{\meter} &
-            Thickness of the tropopause inversion layer, \SIrange{500}{2000}{\meter} over
-            \SIrange{33}{48}{\degree} latitude \cite[\P23]{Birner2006} \\
-        $z_\text{trop}$ & Tropopause height & & & \unit{\kilo\meter} &
-            Barnes' sweep \cite[Table~1, p.~1297]{Barnes2022main}; SH zonal-mean
-            tropopause height \cite[Fig.~1, p.~2278]{Grise2010},
-            \cite[p.~525]{Vallis2017} \\
-        $\overline{T}(0)$ & Surface temperature & & & \unit{\kelvin} &
-            \textcolor{BrickRed}{---} \\
+        $w'_\text{trop}$ & Tropopause transition width, departure from latitudinal mean & & & \unit{\meter} &
+            Mean: TIL thickness \SIrange{500}{2000}{\meter} over
+            \SIrange{33}{48}{\degree} \cite[\P23,~\P53]{Birner2006}. Variation: seasonal
+            only, and weak in the zonal mean \cite[\P39]{Birner2006},
+            \cite[p.~2282]{Grise2010}~--- provisional \\
+        $z'_\text{trop}$ & Tropopause height, departure from latitudinal mean & & & \unit{\kilo\meter} &
+            Mean: SH zonal-mean tropopause height \cite[Fig.~1, p.~2278]{Grise2010},
+            \cite[p.~515]{Vallis2017}. Variation: synoptic and seasonal standard
+            deviations \cite[\P20--22]{SeidelRandel2006}, \cite[\P38]{Birner2006} \\
+        $\overline{T}'(0)$ & Surface temperature, departure from latitudinal mean & & & \unit{\kelvin} &
+            \textcolor{BrickRed}{--- mean table unsourced} \\
         $\overline{p}(0)$ & Surface pressure & & & \unit{\hecto\pascal} &
             \textcolor{BrickRed}{---} \\
         $\delta$ & Kink sharpness & & & --- &
@@ -783,7 +789,9 @@ independently in \texttt{Variator.quantities\_to\_vary()}. % TODO fill in the bo
             \textcolor{BrickRed}{---} \\
         $z_\text{size}$ & Anomaly vertical radius & & & \unit{\meter} &
             \textcolor{BrickRed}{---} \\
-        $Q^*_\text{mag}$ & Anomaly magnitude & & & \unit{PVU} &
+        $Q^*_\text{mag}$ & Anomaly Gaussian amplitude, before clipping & & & \unit{PVU} &
+            \textcolor{BrickRed}{---} \\
+        $Q^*_\text{clip}$ & Anomaly plateau value & & & \unit{PVU} &
             \textcolor{BrickRed}{---} \\
         $L_\text{jet}$ & Jet meridional width & & & \unit{\kilo\meter} &
             \textcolor{BrickRed}{---} \\
@@ -793,8 +801,14 @@ independently in \texttt{Variator.quantities\_to\_vary()}. % TODO fill in the bo
             \textcolor{BrickRed}{---} \\
         $y_\text{jet}$ & Jet meridional position & & & \unit{\kilo\meter} &
             \textcolor{BrickRed}{---} \\
-        $\varphi$ & Latitude & & & \unit{\degree} &
-            \textcolor{BrickRed}{---} \\
+        $\varphi$ & Latitude & \num{-50} & \num{-30} & \unit{\degree} &
+            SH cut-off-low latitudes, spanning the control at \qty{-42}{\degree}
+            \cite[p.~1293]{Barnes2022main}. Equatorward limit set by the Hadley-cell
+            edge at \qtyrange{25}{30}{\degree}, poleward of which the extratropical
+            balanced-flow picture holds \cite[p.~297]{Vallis2017}.
+            \textbf{QG is marginal throughout}: $\mathrm{Ro}$ runs
+            \numrange{0.63}{0.96}, never $\ll 1$ \cite[p.~177]{Vallis2017},
+            \cite[p.~187]{HOLTON_chapter6} \\
         \bottomrule
     \end{tabular}
 \end{table}

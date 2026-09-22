@@ -151,35 +151,24 @@ class UtilTests(unittest.TestCase):
         self.assertAlmostEqual(
             PhysicalParams(latitude=-25, anomaly_z_trop_offset=500).anomaly_z_pos, 16.5e3)
 
-    def test_trop_width_and_N_strat_track_latitude(self):
-        """Birner's TIL thickness and stratospheric N both steepen toward the pole."""
-        from parameters import trop_width_mean, N_strat_mean
+    def test_N_strat_tracks_latitude(self):
+        """Birner's stratospheric N steepens toward the tropics; trop_width does not vary."""
+        from parameters import N_strat_mean
 
-        # Birner (2006) P23: 500 m at 33 deg, 2 km at 48 deg, flat equatorward of 33.
-        self.assertAlmostEqual(trop_width_mean(-33), 500)
-        self.assertAlmostEqual(trop_width_mean(-48), 2000)
-        self.assertAlmostEqual(trop_width_mean(-20), 500)
         # P28: N^2 rises from 4.5e-4 in the extratropics to 7.0e-4 at the tropical edge.
         self.assertAlmostEqual(N_strat_mean(-45) ** 2, 4.5e-4, places=6)
         self.assertAlmostEqual(N_strat_mean(-30) ** 2, 7.0e-4, places=6)
         self.assertGreater(N_strat_mean(-25), N_strat_mean(-50))
-        self.assertAlmostEqual(trop_width_mean(-40.5), 1250)   # interpolated between anchors
 
-        # Variation is a pure offset, and both are read-only.
-        self.assertAlmostEqual(
-            PhysicalParams(latitude=-48, trop_width_variation=-500).trop_width, 1500)
+        # Variation is a pure offset, and N_strat is read-only.
         self.assertAlmostEqual(
             PhysicalParams(latitude=-30, N_strat_variation=0.001).N_strat,
             N_strat_mean(-30) + 0.001)
         with self.assertRaises(AttributeError):
-            PhysicalParams().trop_width = 1000
-        with self.assertRaises(AttributeError):
             PhysicalParams().N_strat = 0.03
 
-        # A variation that drives either non-positive divides by zero downstream, so it
+        # A variation that drives N_strat non-positive divides by zero downstream, so it
         # has to fail loudly rather than hand back a profile full of NaNs.
-        with self.assertRaises(ValueError):
-            PhysicalParams(latitude=-20, trop_width_variation=-500).trop_width
         with self.assertRaises(ValueError):
             PhysicalParams(N_strat_variation=-1).N_strat
 

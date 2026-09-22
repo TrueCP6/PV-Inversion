@@ -16,11 +16,6 @@ _TROP_HEIGHT_MEAN = ((-50, -45, -40, -35, -30, -25, -20),
 _TEMPERATURE_BOTTOM_MEAN = ((-50, -45, -40, -35, -30, -25, -20),
                             (281.15, 284.15, 288.15, 291.15, 294.15, 296.15, 297.15))
 
-# Thickness of the tropopause inversion layer [m]: Birner (2006) P23 gives about 2 km at
-# 48 deg and about 500 m at 33 deg, and P53 holds it at "about 500 m at the tropical edge"
-# equatorward of that. See sources/bounds/trop_width.md.
-_TROP_WIDTH_MEAN = ((-48, -33), (2000., 500.))
-
 # Squared stratospheric buoyancy frequency [1/s^2]: Birner (2006) P28 gives about 4.5e-4
 # "in the extratropics" and about 7.0e-4 "at the tropical edge". Interpolated in N^2, not
 # in N, since N^2 is the measured quantity. See sources/bounds/N_strat.md.
@@ -37,15 +32,12 @@ def trop_height_mean(latitude):
 def temperature_bottom_mean(latitude):
     return _lat_mean(latitude, _TEMPERATURE_BOTTOM_MEAN)
 
-def trop_width_mean(latitude):
-    return _lat_mean(latitude, _TROP_WIDTH_MEAN)
-
 def N_strat_mean(latitude):
     return sqrt(_lat_mean(latitude, _N_STRAT_SQ_MEAN))
 
 def _positive(name, value):
-    """Both of these divide by zero somewhere downstream, so catch it here rather than
-    letting a NaN propagate silently into a result."""
+    """Divides by zero somewhere downstream, so catch it here rather than letting a NaN
+    propagate silently into a result."""
     if value <= 0:
         raise ValueError(f"{name} must be positive, got {value}")
     return value
@@ -62,7 +54,7 @@ class PhysicalParams:
     g: float = 9.80665
     N_strat_variation: float = 0
     N_trop: float = 0.01
-    trop_width_variation: float = 0
+    trop_width: float = 1000
     trop_height_variation: float = 0
     temperature_bottom_variation: float = 0
     # Constants for dry air
@@ -88,12 +80,6 @@ class PhysicalParams:
     def trop_height(self):
         """Tropopause height: the latitudinal mean, offset by the varied departure from it."""
         return trop_height_mean(self.latitude) + self.trop_height_variation
-
-    @property
-    def trop_width(self):
-        """Tropopause transition thickness: the latitudinal mean, offset by the varied departure."""
-        return _positive("trop_width",
-                         trop_width_mean(self.latitude) + self.trop_width_variation)
 
     @property
     def N_strat(self):

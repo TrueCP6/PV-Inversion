@@ -26,7 +26,7 @@ class ParamSampler:
         self.job_id = job_id
 
     def _get_effectual_params(self): # Reduce dimensionality by removing parameters that don't make a difference
-        ineffectual_params = ["delta", "N_strat_variation", "trop_width_variation"]
+        ineffectual_params = ["delta", "N_strat_variation", "trop_width"]
         all_params = Variator.quantities_to_vary()
         return [param for param in all_params if param[0] not in ineffectual_params]
 
