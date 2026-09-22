@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 import sweep
 from parameters import PhysicalParams
-from petsc4py import PETSc
+from firedrake.petsc import PETSc
 
 # Define a way to store run results
 @dataclass
@@ -38,8 +38,6 @@ def _measure_error(N, p, args):
 def run_sweep(args):
     """Sweep every (p, N) point against the manufactured solution, writing the results so far
     after each one."""
-    sweep.quiet_petsc()
-    from firedrake.petsc import PETSc
 
     out_path = f"error_convergence_{args.job_id}.json"
     records, skipped = [], []
@@ -124,6 +122,7 @@ def plot_error_convergence(json_path, output_path="tex/plots/error_convergence.p
     plot_utils.finish_figure(output_path)
 
 def main():
+    sweep.quiet_petsc()
     parser = argparse.ArgumentParser(description='Get error convergence results for the psi solver')
     parser.add_argument('-mp', '--max_p', type=int, default=10, help='Highest polynomial order to sweep; orders run 2, 3, ... max_p')
     parser.add_argument('-nr', '--num_resolutions', type=int, default=5)

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 import sweep
 from matplotlib.ticker import ScalarFormatter, LogLocator
-from petsc4py import PETSc
+from firedrake.petsc import PETSc
 
 # Define a way to store run results
 @dataclass
@@ -32,8 +32,6 @@ def _time_point(args, N, matfree):
 
 def run_sweep(args):
     """Time every (N, matfree) point in turn, writing the results so far after each one."""
-    sweep.quiet_petsc()
-    from firedrake.petsc import PETSc
 
     out_path = f"time_complexity_{args.job_id}.json"
     records = []
@@ -99,7 +97,7 @@ def plot_time_complexity(json_path, output_path="tex/plots/time_complexity.pdf")
         all_dofs.extend(dofs)
         all_times.extend(times)
 
-        PETSc.Sys.Print("{label}: average log-log slope = {plot_utils.log_log_slope(dofs, times):.3f}")
+        PETSc.Sys.Print(f"{label}: average log-log slope = {plot_utils.log_log_slope(dofs, times):.3f}")
 
     # Linear-scaling reference, anchored at the geometric mean of the data so it runs through the middle of it
     all_dofs, all_times = np.array(all_dofs), np.array(all_times)
@@ -119,6 +117,7 @@ def plot_time_complexity(json_path, output_path="tex/plots/time_complexity.pdf")
     plot_utils.finish_figure(output_path, legend_kwargs={'loc': 'upper center', 'bbox_to_anchor': (0.5, -0.15), 'ncol': 2, 'frameon': False})
 
 def main():
+    sweep.quiet_petsc()
     parser = argparse.ArgumentParser(description='Get performance results for the psi solver')
     parser.add_argument('-p', '--polynomial_order', type=int, default=4)
     parser.add_argument('-ns', '--num_solves', type=int, default=2)
