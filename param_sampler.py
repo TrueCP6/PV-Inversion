@@ -59,7 +59,12 @@ class ParamSampler:
 
     def cost(self, x):
         params = self.normalised_to_dict(x)
-        derived = self.variator.get_derived(params)
+        try:
+            derived = self.variator.get_derived(params)
+        except ConvergenceError as exc:
+            if self.rank == 0:
+                print(f"solve diverged at {params}: {exc}, scoring it 0", flush=True)
+            return 0.0  # all three quantities are negative where they are interesting
 
         if self.optimise_for == "pres":
             cost = derived.min_surf_pressure_ano_hpa()
@@ -114,7 +119,13 @@ class ParamSampler:
 
     def all_data(self, x):
         params = self.normalised_to_dict(x)
-        derived = self.variator.get_derived(params)
+        try:
+            derived = self.variator.get_derived(params)
+        # Same collective failure on every rank, so they all drop the same sample
+        except ConvergenceError as exc:
+            if self.rank == 0:
+                print(f"solve diverged at {params}: {exc}, dropping the sample", flush=True)
+            return None
 
         wind = derived.max_surf_wind_speed()
         vort = derived.min_surf_vort()
@@ -126,7 +137,9 @@ class ParamSampler:
 
     def random_sample_data(self, num_samples):
         all_data = [self.all_data(self.sample_normalised()) for _ in range(num_samples)]
-        wind, vort, pres, dist, trop = list(map(list, zip(*all_data)))
+        all_data = [data for data in all_data if data is not None]
+        # zip of nothing unpacks to nothing, so spell out the every-sample-diverged case
+        wind, vort, pres, dist, trop = list(map(list, zip(*all_data))) if all_data else ([],) * 5
 
         return {
             "max_surface_wind": wind,

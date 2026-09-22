@@ -48,6 +48,21 @@ class UtilTests(unittest.TestCase):
             self.assertAlmostEqual(getattr(rebuilt, name), getattr(PhysicalParams(), name))
             self.assertTrue(low <= params[name] <= high)
 
+    def test_cost_penalises_a_diverged_solve_instead_of_raising(self):
+        """A single point the solver cannot converge on used to abort the whole optimise job."""
+        from param_sampler import ParamSampler
+        from firedrake.exceptions import ConvergenceError
+
+        sampler = ParamSampler(optimise_for="pres")
+
+        def blow_up(_params):
+            raise ConvergenceError("DIVERGED_LINEAR_SOLVE")
+        sampler.variator.get_derived = blow_up
+
+        self.assertEqual(sampler.cost(sampler.normalised_control), 0.0)
+        self.assertIsNone(sampler.all_data(sampler.normalised_control))
+        self.assertEqual(sampler.random_sample_data(3)["min_surf_pres"], [])
+
     def test_vertical_integral(self):
         mesh2d = UnitSquareMesh(10, 10, quadrilateral=True)
         mesh = ExtrudedMesh(mesh2d, layers=10, layer_height=0.1)
