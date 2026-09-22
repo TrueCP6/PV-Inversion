@@ -1,5 +1,54 @@
 from dataclasses import dataclass
 from math import sin, pi, sqrt
+import numpy as np
+
+# Latitude-dependent means. Each is (latitudes, values) with latitudes increasing; values
+# are held flat outside the tabulated range. Anchor points are stored as the source states
+# them, so nothing here is a hand-computed intermediate.
+
+# Annual-mean, zonal-mean thermal tropopause height [m], read off Grise et al. (2010)
+# Fig. 1, p. 2278 at 5-degree intervals. See sources/bounds/trop_height.md.
+_TROP_HEIGHT_MEAN = ((-50, -45, -40, -35, -30, -25, -20),
+                     (10.0e3, 10.5e3, 11.3e3, 12.8e3, 14.5e3, 16.0e3, 16.5e3))
+
+# ponytail: PLACEHOLDER, not from any source yet - replace before citing anything.
+# Annual-mean, zonal-mean surface air temperature [K].
+_TEMPERATURE_BOTTOM_MEAN = ((-50, -45, -40, -35, -30, -25, -20),
+                            (281.15, 284.15, 288.15, 291.15, 294.15, 296.15, 297.15))
+
+# Thickness of the tropopause inversion layer [m]: Birner (2006) P23 gives about 2 km at
+# 48 deg and about 500 m at 33 deg, and P53 holds it at "about 500 m at the tropical edge"
+# equatorward of that. See sources/bounds/trop_width.md.
+_TROP_WIDTH_MEAN = ((-48, -33), (2000., 500.))
+
+# Squared stratospheric buoyancy frequency [1/s^2]: Birner (2006) P28 gives about 4.5e-4
+# "in the extratropics" and about 7.0e-4 "at the tropical edge". Interpolated in N^2, not
+# in N, since N^2 is the measured quantity. See sources/bounds/N_strat.md.
+_N_STRAT_SQ_MEAN = ((-45, -30), (4.5e-4, 7.0e-4))
+
+def _lat_mean(latitude, table):
+    """Linear interpolation of a latitude-tabulated mean, clamped outside the table."""
+    latitudes, values = table
+    return float(np.interp(latitude, latitudes, values))
+
+def trop_height_mean(latitude):
+    return _lat_mean(latitude, _TROP_HEIGHT_MEAN)
+
+def temperature_bottom_mean(latitude):
+    return _lat_mean(latitude, _TEMPERATURE_BOTTOM_MEAN)
+
+def trop_width_mean(latitude):
+    return _lat_mean(latitude, _TROP_WIDTH_MEAN)
+
+def N_strat_mean(latitude):
+    return sqrt(_lat_mean(latitude, _N_STRAT_SQ_MEAN))
+
+def _positive(name, value):
+    """Both of these divide by zero somewhere downstream, so catch it here rather than
+    letting a NaN propagate silently into a result."""
+    if value <= 0:
+        raise ValueError(f"{name} must be positive, got {value}")
+    return value
 
 # Let UFL estimate a quadrature degree.
 ESTIMATE_QUADRATURE_DEGREE = -1
@@ -11,11 +60,11 @@ class PhysicalParams:
     H: float = 20e3
     latitude: float = -42
     g: float = 9.80665
-    N_strat: float = 0.03
+    N_strat_variation: float = 0
     N_trop: float = 0.01
-    trop_width: float = 1000
-    trop_height: float = 12500
-    temperature_bottom: float = 273.15 + 20
+    trop_width_variation: float = 0
+    trop_height_variation: float = 0
+    temperature_bottom_variation: float = 0
     # Constants for dry air
     R: float = 287.05
     c_p : float = 1005
@@ -34,6 +83,28 @@ class PhysicalParams:
     jet_z_size: float = 2e3
     jet_magnitude: float = 35
     jet_y_pos: float = Ly / 2
+
+    @property
+    def trop_height(self):
+        """Tropopause height: the latitudinal mean, offset by the varied departure from it."""
+        return trop_height_mean(self.latitude) + self.trop_height_variation
+
+    @property
+    def trop_width(self):
+        """Tropopause transition thickness: the latitudinal mean, offset by the varied departure."""
+        return _positive("trop_width",
+                         trop_width_mean(self.latitude) + self.trop_width_variation)
+
+    @property
+    def N_strat(self):
+        """Stratospheric buoyancy frequency: the latitudinal mean, offset by the varied departure."""
+        return _positive("N_strat",
+                         N_strat_mean(self.latitude) + self.N_strat_variation)
+
+    @property
+    def temperature_bottom(self):
+        """Surface temperature: the latitudinal mean, offset by the varied departure from it."""
+        return temperature_bottom_mean(self.latitude) + self.temperature_bottom_variation
 
     @property
     def theta_bar_bottom(self):

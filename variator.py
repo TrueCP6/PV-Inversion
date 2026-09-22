@@ -19,8 +19,8 @@ import sweep
 
 # Related parameters grouped into one panel per figure, so each panel carries few enough lines/colours to stay readable
 PARAMETER_GROUPS = [
-    ("Stratification and tropopause structure", ["N_strat", "N_trop", "trop_width", "trop_height", "delta"]),
-    ("Background state", ["temperature_bottom", "p_bottom", "latitude"]),
+    ("Stratification and tropopause structure", ["N_strat_variation", "N_trop", "trop_width_variation", "trop_height_variation", "delta"]),
+    ("Background state", ["temperature_bottom_variation", "p_bottom", "latitude"]),
     ("PV anomaly", ["anomaly_z_trop_offset", "anomaly_x_size", "anomaly_y_size", "anomaly_z_size", "anomaly_mag"]),
     ("Jet parameters", ["jet_y_size", "jet_z_size", "jet_magnitude", "jet_y_pos"]),
 ]
@@ -73,11 +73,12 @@ class Variator:
     def quantities_to_vary():
         mx = PhysicalParams.Lx / 2
         quantities_to_vary = [ #todo make writeup more consistent with this notation
-            ("N_strat", (0.02, 0.03), 1, r"$\overline{N}_\text{strat} \in [min, max]$ [\unit{\per\second}]"),
+            # todo every _variation bound here is a placeholder - see sources/bounds/
+            ("N_strat_variation", (-0.004, 0.004), 1, r"$\overline{N}'_\text{strat} \in [min, max]$ [\unit{\per\second}]"),
             ("N_trop", (0.01, 0.02), 1, r"$\overline{N}_\text{trop} \in [min, max]$ [\unit{\per\second}]"),
-            ("trop_width", (500, 2000), 1, r"$w_\text{trop} \in [min, max]$ [\unit{\meter}]"),
-            ("trop_height", (10e3, 15e3), 1e-3, r"$z_\text{trop} \in [min, max]$ [\unit{\kilo\meter}]"),
-            ("temperature_bottom", (273.15, 273.15+30), 1, r"$\overline{T}(0) \in [min, max]$ [\unit{\kelvin}]"),
+            ("trop_width_variation", (-400, 800), 1, r"$w'_\text{trop} \in [min, max]$ [\unit{\meter}]"),
+            ("trop_height_variation", (-2e3, 2e3), 1e-3, r"$z'_\text{trop} \in [min, max]$ [\unit{\kilo\meter}]"),
+            ("temperature_bottom_variation", (-10, 10), 1, r"$\overline{T}'(0) \in [min, max]$ [\unit{\kelvin}]"),
             ("p_bottom", (795 * 1e2, 1013.25 * 1e2), 1e-2, r"$\overline{p}(0) \in [min, max]$ [\unit{\hecto\pascal}]"),
             ("delta", (2, 10), 1, r"$\delta \in [min, max]$"),
             ("anomaly_z_trop_offset", (-2500, 2500), 1e-3, r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\kilo\meter}]"),
