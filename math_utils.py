@@ -76,96 +76,31 @@ def smooth_max(a, b, smoothing):
 def scaled_kink(x, delta, left_val, right_val, kink_width, kink_centre):
     return (right_val - left_val) * kink_function((x-kink_centre)/kink_width + 0.5, delta) + left_val
 
-CROSS_MESH_CHUNKS = 32
-
-def chunked_interpolate(source : Function, target_func_space, chunks : int = CROSS_MESH_CHUNKS):
-    """Cross-mesh interpolate source into target_func_space a slice of the target's dofs
-    at a time, giving the same result as a plain interpolate for a fraction of the memory.
-
-    Firedrake's cross-mesh interpolation builds a VertexOnlyMesh over the target space's
-    dofs, and VertexOnlyMesh gathers every target point onto every rank (an Allgatherv in
-    mesh._parent_mesh_embedding, plus a point location run on the full global array). That
-    replication costs roughly 200 bytes per global target dof on each rank, so it scales
-    with target dofs times ranks - interpolating a 5M dof solution onto a 64M dof reference
-    across 40 ranks needs hundreds of GB, none of it the actual data.
-
-    Interpolating a slice at a time divides that replication by the chunk count. The parent
-    mesh's rtree is cached across the calls, so the point location itself is not repeated,
-    only split up - the measured cost is under a quarter of the interpolation time, which
-    is itself small next to the solve that produced source.
-    """
-    source_mesh = source.function_space().mesh()
-    target_mesh = target_func_space.mesh()
-
-    # Nothing to gain unless this is genuinely the cross-mesh path, and the slice-wise dof
-    # write below only makes sense for a scalar space whose dofs are point evaluations.
-    if (chunks <= 1 or target_mesh is source_mesh or target_func_space.value_shape != ()
-            or not target_func_space.finat_element.has_pointwise_dual_basis):
-        return Function(target_func_space).interpolate(source)
-
-    coord_space = VectorFunctionSpace(target_mesh, target_func_space.ufl_element())
-    coords = assemble(interpolate(target_mesh.coordinates, coord_space)).dat.data_ro.reshape(
-        -1, target_mesh.geometric_dimension)
-
-    result = Function(target_func_space)
-    # VertexOnlyMesh is collective, so every rank must make the same number of calls. Each
-    # rank splits its own dofs into that many slices, contributing an empty one where it
-    # holds fewer dofs than chunks.
-    bounds = np.linspace(0, len(coords), chunks + 1).astype(int)
-    for low, high in zip(bounds, bounds[1:]):
-        vom = VertexOnlyMesh(source_mesh, coords[low:high], redundant=False)
-        values = assemble(interpolate(source, FunctionSpace(vom, "DG", 0)))
-        # The points were redistributed to whichever rank owns the containing cell, so come
-        # back through the input ordering to line them up with coords[low:high] again.
-        values = assemble(interpolate(values, FunctionSpace(vom.input_ordering, "DG", 0)))
-        result.dat.data[low:high] = values.dat.data_ro
-
-    return result
-
 def relative_error(exact, numerical : Function, norm_type='L2'):
-    """Relative error norm between exact and numerical, cross-mesh-interpolating the
-    coarser onto the finer's function space if they differ.
+    """Relative error norm between exact and numerical, both living on numerical's mesh.
+
+    The solver pins psi only up to an additive constant, so the mean offset between the two
+    is removed before the norm is taken.
     """
-    # Make sure exact is not a plain UFL expression
-    if not isinstance(exact, Function):
-        exact = Function(numerical.function_space()).interpolate(exact)
+    # High enough that integrating the squared error of a Q_p field against a
+    # non-polynomial exact solution is not itself what sets the floor.
+    degree = 3 * numerical.function_space().ufl_element().embedded_superdegree + 6
+    dx_q = dx(domain=numerical.function_space().mesh(), degree=degree)
 
-    # If the two function spaces are not the same, interpolate one onto the other's mesh
-    if exact.function_space() != numerical.function_space():
-        if exact.function_space().dim() > numerical.function_space().dim():
-            target_func_space = exact.function_space()
-            numerical = chunked_interpolate(numerical, target_func_space)
-        else:
-            target_func_space = numerical.function_space()
-            exact = chunked_interpolate(exact, target_func_space)
-    else:
-        target_func_space = exact.function_space()
+    def mean_removed(expr):
+        return expr - assemble(expr * dx_q) / volume
 
-    # Define a mesh-specific measure on the target mesh to prevent integration ambiguity
-    dx_target = dx(domain=target_func_space.mesh())
+    def norm_of(expr):
+        squared = expr ** 2
+        if norm_type == 'H1':
+            squared += dot(grad(expr), grad(expr))
+        elif norm_type != 'L2':
+            raise ValueError(f"unsupported norm_type {norm_type!r}")
+        return np.sqrt(assemble(squared * dx_q))
 
-    # calculate mean offset between numerical and analytical solutions, as we don't know what constant the solver added to psi
-    total_offset = assemble((numerical - exact) * dx_target)
-    volume = assemble(Constant(1) * dx_target)
-    mean_offset = total_offset / volume
+    volume = assemble(Constant(1) * dx_q)
 
-    shifted = Function(target_func_space)
-
-    # shift the numerical solution by that constant we have worked out
-    shifted.assign(numerical)
-    shifted.dat.data[:] -= mean_offset
-
-    absolute_error = errornorm(exact, shifted, norm_type=norm_type)
-
-    # compute mean of exact solution
-    exact_mean = assemble(exact * dx_target) / volume
-    # shift exact solution, to prevent similar problem to before
-    shifted.assign(exact)
-    shifted.dat.data[:] -= exact_mean
-
-    exact_norm = norm(shifted, norm_type=norm_type)
-
-    return absolute_error / exact_norm
+    return float(norm_of(mean_removed(numerical - exact)) / norm_of(mean_removed(exact)))
 
 def get_global_extrema(func : Function):
     with func.dat.vec_ro as v:
