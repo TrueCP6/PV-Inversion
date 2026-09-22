@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 import sweep
 from matplotlib.ticker import ScalarFormatter, LogLocator
+from petsc4py import PETSc
 
 # Define a way to store run results
 @dataclass
@@ -69,8 +70,10 @@ def plot_time_complexity(json_path, output_path="tex/plots/time_complexity.pdf")
     Create a log-log plot of solve time vs degrees of freedom from a
     time_complexity_*.json results file.
     """
-    import matplotlib.pyplot as plt
+    if not sweep.is_main_rank():
+        return
 
+    import matplotlib.pyplot as plt
     import plot_utils
     plot_utils.apply_style()
 
@@ -96,7 +99,7 @@ def plot_time_complexity(json_path, output_path="tex/plots/time_complexity.pdf")
         all_dofs.extend(dofs)
         all_times.extend(times)
 
-        print(f"{label}: average log-log slope = {plot_utils.log_log_slope(dofs, times):.3f}")
+        PETSc.Sys.Print("{label}: average log-log slope = {plot_utils.log_log_slope(dofs, times):.3f}")
 
     # Linear-scaling reference, anchored at the geometric mean of the data so it runs through the middle of it
     all_dofs, all_times = np.array(all_dofs), np.array(all_times)

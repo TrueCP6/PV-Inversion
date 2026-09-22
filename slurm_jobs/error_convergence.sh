@@ -31,6 +31,6 @@ apptainer exec \
     python3 Thesis/error_convergence.py \
     --job_id ${SLURM_JOB_ID} \
     --max_p 6 \
-    --num_resolutions 12 \
-    --max_dofs 40000000 \
-    --ksp_rtol 1e-8
+    --num_resolutions 10 \
+    --max_dofs 20000000 \
+    --ksp_rtol 1e-10

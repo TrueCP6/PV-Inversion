@@ -125,9 +125,6 @@ def main():
     parser.add_argument('-mp', '--max_p', type=int, default=10, help='Highest polynomial order to sweep; orders run 2, 3, ... max_p')
     parser.add_argument('-nr', '--num_resolutions', type=int, default=5)
     parser.add_argument('-md', '--max_dofs', type=float, default=12e6, help='Skip any (p, N) pair needing more degrees of freedom than this')
-    # psi_a is O(1e8), so a relative residual below roughly 1e-9 is past what double precision
-    # can deliver - CG breaks down on an indefinite preconditioner there rather than converging.
-    # 1e-8 leaves the measured errors unmoved from 1e-6, so discretisation still dominates.
     parser.add_argument('--ksp_rtol', type=float, default=1e-8, help='Krylov tolerance for every solve, tight enough that discretisation error dominates')
     parser.add_argument('-qd', '--quadrature_degree', type=int, default=None, help="Quadrature degree for every form. Defaults to 3p, which integrates the bilinear form exactly. Pass -1 to go back to UFL's own estimate of roughly 6p.")
     sweep.add_common_arguments(parser)
