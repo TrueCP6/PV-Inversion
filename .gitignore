@@ -200,3 +200,4 @@ tex/plots/*.pdf
 *.out
 CLAUDE.md
 *.csv
+sources/*

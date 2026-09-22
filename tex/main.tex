@@ -5,7 +5,8 @@
 \usepackage[a4paper,top=2cm,bottom=2cm,left=2.5cm,right=2.5cm,marginparwidth=1.75cm]{geometry}
 \usepackage{amsmath}
 \usepackage{graphicx}
-\usepackage{minted} %TODO improve formatting
+\graphicspath{{plots/}}
+\usepackage[outputdir=../tex_out]{minted} %TODO improve formatting
 \setminted{linenos, frame=single, breaklines}
 \usepackage{siunitx}
 \usepackage{subcaption}
@@ -307,7 +308,7 @@ We will let
 
 \begin{figure}[hbtp]
     \centering
-    \includegraphics[width=0.96\linewidth]{jet_stream.pdf}%TODO change to \overline u
+    \includegraphics[width=0.96\linewidth]{jet_stream_x.pdf}%TODO change to \overline u
     \caption{Jet stream specified in \cref{u_boundary}. A contour interval of \qty{5}{\meter\per\second} is used.}
     \label{fig:jet_stream}
 \end{figure}
@@ -658,6 +659,7 @@ If the solver's numerical solution matches $\psi_a$ to some high degree of preci
 Some simplifications to the coefficients of \cref{qgpv,qgpv_bcs_hor,qgpv_bcs_vert} are made to make this process more concise and readable:
 
 \begin{itemize}
+    \item A square horizontal domain: $L_x = L_y = L$
     \item Constant reference stability profile: $\overline{N}(z)=N$
     \item An exponential density profile $\overline{\rho}(z)=c_3 \exp (c_4 z)$, with arbitrary constants $c_3 > 0$ and $c_4 < 0$.
 \end{itemize}
@@ -717,10 +719,10 @@ Substituting \cref{mms_psi} into \cref{mms_source} supplies the source term, and
     \item \textbf{Verify setup is correct using MMS}
     \item Calculate time complexity and order of accuracy
     \item \textbf{Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude}
-    \item Reproduction of a few of Barnes' experiments - min surface pressure and vorticity
-    \item What happens if we change Brunt-Vaisala to be more realistic
-    \item Potentially investigate alternative backgrounds
-    \item Potentially frame as an optimisation problem to maximise the surface cyclogenetic forcing to parameterise worst-case scenarios (requires code refactor to allow changing parameters without rebuilding solver)
+    \item \textbf{Reproduction of a few of Barnes' experiments - min surface pressure and vorticity}
+    \item \textbf{What happens if we change Brunt-Vaisala to be more realistic}
+    \item \textbf{Potentially investigate alternative backgrounds}
+    \item Potentially frame as an optimisation problem to maximise the surface cyclogenetic forcing to parameterise worst-case scenarios \st{(requires code refactor to allow changing parameters without rebuilding solver)}
     \item Feasability of explicit timestepping - stability condition
 \end{enumerate}
 

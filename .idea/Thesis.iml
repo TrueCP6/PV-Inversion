@@ -5,6 +5,7 @@
       <excludeFolder url="file://$MODULE_DIR$/.claude/worktrees" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/out" />
+      <excludeFolder url="file://$MODULE_DIR$/sources" />
     </content>
     <orderEntry type="jdk" jdkName="WSL (Ubuntu): (/home/truec/venv-firedrake/bin/python) (4)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
