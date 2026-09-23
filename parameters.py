@@ -53,7 +53,7 @@ class PhysicalParams:
     p_bottom: float = 1000 * 1e2 # 1000 hpa
     p_ref: float = 1000 * 1e2
     delta: float = 2
-    max_rossby: float = 0.5
+    max_rossby: float = 1.0
 
     # Horizontal shape as an equivalent radius sqrt(x_size * y_size) and ln of the aspect ratio
     # A = y_size / x_size, so bounding them never produces very large or very small corners

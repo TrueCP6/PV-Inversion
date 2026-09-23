@@ -6,7 +6,7 @@ from parameters import SolverParams, PhysicalParams
 from firedrake import *
 
 # Fraction of the CFL limit a step is taken at, unless the caller asks for another.
-SAFETY = 1
+SAFETY = 0.8
 
 class PrognosticSolver:
     def __init__(self, solver_params : SolverParams, phys_params : PhysicalParams, matfree : bool):
@@ -26,6 +26,17 @@ class PrognosticSolver:
         self._temp_q = Function(self._dg_space) # RHS input
         self._stage_q = Function(self._dg_space) # RHS output
         self._prognostic_solver = self._build_solver()
+
+        self._x_max = { # positions of GLL node closest to x=1, p varying
+            2: 0,
+            3: 0.44721360,
+            4: 0.65465367,
+            5: 0.76505532,
+            6: 0.83022390,
+            7: 0.87174015,
+            8: 0.8997579954,
+            9: 0.9195393082
+        }
 
     # Hooks - override these to drive the transport with something other than the Barnes
     # atmosphere (see prognostic_mms_checker.py)
@@ -99,9 +110,10 @@ class PrognosticSolver:
         max_vel = math_utils.get_global_max(vel)
         p = self._solver_params.polynomial_order
 
-        # safety is the Courant number the step is taken at - 1.0 is the CFL limit itself,
-        # which timestepping.py's scan drives through to check the limit is where this says.
-        return safety * dx / (max_vel*(2*p+1))
+        scale = 0.5 * (1 - self._x_max[p])
+        dx_eff = dx*scale
+
+        return safety * dx_eff / max_vel
 
     def RHS(self, q, t=None) -> Function:
         self._t.assign(self.t if t is None else t)

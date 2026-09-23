@@ -150,9 +150,10 @@ def run(out_path, T=DAY, n=None, p=None, courant=None):
 def cfl_scan(out_path, courants, steps=60, n=12, p=None):
     """Take the same number of steps at each Courant number and record how far max|q| ran away.
 
-    prognostic_solver.dt() claims the limit is dt = dx / (|u|(2p+1)), so a run at Courant
-    number 1 sits exactly on it. If that is right, everything below 1 stays bounded and
-    everything above it diverges.
+    prognostic_solver.dt() claims the limit is dt = dx_eff / |u|, where dx_eff is the gap
+    between a cell edge and the nearest interior Gauss-Lobatto node, (1 - x_max) dx / 2.
+    A run at Courant number 1 sits exactly on it. If that is right, everything below 1
+    stays bounded and everything above it diverges.
 
     Every point takes the same number of steps rather than running to the same final time.
     Instability is a per-step amplification that compounds, so what has to be held equal
@@ -299,7 +300,7 @@ def plot_cfl(json_path, output_path="tex/plots/cfl_verification.pdf"):
     plt.semilogy(courant, growth, color=ACCENT, marker='o', markersize=4, linewidth=1.5,
                  label=r'$\max|q| / \max|q|_{t=0}$')
 
-    plt.xlabel(r'Courant number $\mathrm{C} = \Delta t\, |\mathbf{u}|(2p+1) / \Delta x$')
+    plt.xlabel(r'Courant number $\mathrm{C} = \Delta t\, |\mathbf{u}| / \Delta x_\text{eff}$')
     plt.ylabel(r'Growth of $\max|q|$')
     plot_utils.finish_figure(output_path, legend_kwargs={'loc': 'upper left', 'fontsize': 7})
 
