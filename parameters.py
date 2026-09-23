@@ -98,13 +98,6 @@ class PhysicalParams:
     @property
     def kappa(self):
         return self.R / self.c_p
-
-    @property
-    def rossby_number(self):
-        """Jet Rossby number U/(|f| L). QG assumes this is small (Vallis 2017, p. 177),
-        and it grows sharply toward the equator as f shrinks."""
-        return self.jet_magnitude / (abs(self.f) * self.jet_y_size)
-
     @property
     def f(self):
         return 2 * 7.292e-5 * sin(self.latitude / 180 * pi)

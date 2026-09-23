@@ -1,3 +1,4 @@
+import math_utils
 from hash_seed import use_same_hash
 use_same_hash()
 from functools import lru_cache
@@ -160,3 +161,8 @@ class BarnesAtmosphere(AtmosphereBuilder):
             self.phys_params.Lx / self.solver_params.nx,
             self.phys_params.Ly / self.solver_params.ny
         )
+
+    @lru_cache(maxsize=1)
+    def rossby_number(self):
+        expr = abs(self.geostrophic_vorticity() / self.ufl_params.f)
+        return math_utils.get_global_max(Function(self.cg_space).interpolate(expr))

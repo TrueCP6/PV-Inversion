@@ -63,15 +63,18 @@ class ParamSampler:
     def cost(self, x):
         params = PhysicalParams(**self.normalised_to_dict(x))
 
-        if params.rossby_number > params.max_rossby:
-            return params.rossby_number - params.max_rossby # return a positive (bad) number to push the optimser towards a rossby number where QGPV is valid
-
         try:
             derived = self.variator.get_derived(params)
         except ConvergenceError as exc:
             if self.rank == 0:
                 print(f"solve diverged at {params}: {exc}, scoring it 0", flush=True)
             return 0.0  # all three quantities are negative where they are interesting
+
+        # Punish the optimiser for creating background states with large rossby numbers
+        # todo experimentally using the post-inversion rossby number
+        rossby_gap = derived.rossby_number() - params.max_rossby
+        if rossby_gap > 0:
+            return rossby_gap
 
         if self.optimise_for == "pres":
             cost = derived.min_surf_pressure_ano_hpa()

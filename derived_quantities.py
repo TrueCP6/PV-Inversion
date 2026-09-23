@@ -221,3 +221,8 @@ class ResolvedAtmosphere:
         speed = self._interp(speed, V)
 
         return get_global_max(speed)
+
+    @lru_cache(maxsize=1)
+    def rossby_number(self):
+        expr = abs(self.geostrophic_vorticity() / self.atmos.ufl_params.f)
+        return get_global_max(self._interp(expr))

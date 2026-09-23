@@ -11,7 +11,6 @@ from domain_builder import *
 from diagnostic_solver import *
 from plot_utils import apply_style
 from derived_quantities import *
-import petsctools
 
 # Global parameters for plot styling
 apply_style()
@@ -276,10 +275,13 @@ def main():
     cg_space = domain.cg_space()
 
     atmos = BarnesAtmosphere(domain)
+    PETSc.Sys.Print(f"Background Ro = {atmos.rossby_number()}")
 
     solver = DiagnosticSolver(atmos, True)
     solver.solve_psi()
     derived = ResolvedAtmosphere(solver.psi_soln, atmos)
+
+    PETSc.Sys.Print(f"Ro after inversion = {derived.rossby_number()}")
 
     plot_slice_heatmap(
         derived.horizontal_wind_speed(),
@@ -409,4 +411,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    petsctools.print_citations_at_exit()
