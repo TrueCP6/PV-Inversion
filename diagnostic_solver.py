@@ -1,5 +1,6 @@
 import time
 from firedrake import *
+from firedrake.exceptions import ConvergenceError
 from atmosphere_builder import AtmosphereBuilder
 from barnes_atmosphere import BarnesAtmosphere
 from parameters import SolverParams
@@ -114,7 +115,16 @@ class DiagnosticSolver:
             self.psi_soln.assign(0)
 
         start_time = time.perf_counter()
-        self.solver.solve()
+        try:
+            self.solver.solve()
+        except ConvergenceError:
+            ksp = self.solver.snes.ksp
+            reasons = {v: k for k, v in vars(PETSc.KSP.ConvergedReason).items() if isinstance(v, int)}
+            PETSc.Sys.Print(f"KSP failed: {reasons.get(ksp.getConvergedReason(), ksp.getConvergedReason())} "
+                            f"after {ksp.getIterationNumber()} iterations")
+            # A failed solve can leave NaN in psi_soln, which is the next solve's initial guess, so clear it or every solve after this fails too
+            self.psi_soln.assign(0)
+            raise
         solve_time = time.perf_counter()-start_time
         PETSc.Sys.Print(f"Solve completed in {solve_time:0.2f} sec")
 
