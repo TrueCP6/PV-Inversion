@@ -21,7 +21,7 @@ import sweep
 PARAMETER_GROUPS = [
     ("Stratification and tropopause structure", ["N_strat_variation", "N_trop", "trop_width", "trop_height", "delta"]),
     ("Background state", ["temperature_bottom_variation", "latitude"]),
-    ("PV anomaly", ["anomaly_x_size", "anomaly_y_size", "anomaly_z_size", "anomaly_clip"]),
+    ("PV anomaly", ["anomaly_radius", "anomaly_log_aspect", "anomaly_z_size", "anomaly_clip"]),
     ("Jet parameters", ["jet_y_size", "jet_z_size", "jet_magnitude", "jet_y_pos"]),
 ]
 
@@ -80,14 +80,16 @@ class Variator:
             ("trop_height", (10e3, 15e3), 1e-3, r"$z_\text{trop} \in [min, max]$ [\unit{\kilo\meter}]"), # limited by the numerics, not the physics
             ("temperature_bottom_variation", (-10, 14), 1, r"$\overline{T}'(0) \in [min, max]$ [\unit{\kelvin}]"), #happy
             ("delta", (2, 10), 1, r"$\delta \in [min, max]$"), #happy
-            ("anomaly_x_size", (100e3, 800e3), 1e-3, r"$x_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
-            ("anomaly_y_size", (100e3, 800e3), 1e-3, r"$y_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
-            ("anomaly_z_size", (3500, 7000), 1, r"$z_\text{size} \in [min, max]$ [\unit{\meter}]"),
-            ("anomaly_clip", (-2e-6, -1e-6), 1e6, r"$Q_\text{anoclip} \in [min, max]$ [\unit{PVU}]"),
+            # Barnes's tested radial widths; with A in [1/4, 4] the axes span 50 x 200 km to 200 x 800 km
+            ("anomaly_radius", (100e3, 400e3), 1e-3, r"$\sqrt{x_\text{size} y_\text{size}} \in [min, max]$ [\unit{\kilo\meter}]"), #happy
+            # Coherent anomalies are 2-4 : 1 (Fehlmann); uniform in ln A makes 1:4 and 4:1 equally likely
+            ("anomaly_log_aspect", (-np.log(4), np.log(4)), 1, r"$\ln(y_\text{size} / x_\text{size}) \in [min, max]$"), #happy
+            ("anomaly_z_size", (3500, 7000), 1, r"$z_\text{size} \in [min, max]$ [\unit{\meter}]"), #happy
+            ("anomaly_clip", (-2e-6, -1e-6), 1e6, r"$Q_\text{anoclip} \in [min, max]$ [\unit{PVU}]"), #happy
             ("jet_y_size", (100e3, 1000e3), 1e-3, r"$L_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("jet_z_size", (1e3, 4e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
             ("jet_magnitude", (10, 100), 1, r"$U_\text{jet} \in [min, max]$ [\unit{\meter\per\second}]"),
-            ("jet_y_pos", (mx-1500e3, mx+1500e3), 1e-3, r"$y_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
+            ("jet_y_pos", (mx, mx+1500e3), 1e-3, r"$y_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"), #happy
             ("latitude", (-50, -30), 1, r"$\varphi \in [\qty{min}{\degree}, \qty{max}{\degree}]$") #happy - makes rossby number a bit smaller
         ]
 

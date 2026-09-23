@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from math import sin, pi, sqrt
+from math import sin, pi, sqrt, exp
 import numpy as np
 
 # Latitude-dependent means. Each is (latitudes, values) with latitudes increasing; values
@@ -55,8 +55,10 @@ class PhysicalParams:
     delta: float = 2
     max_rossby: float = 0.5
 
-    anomaly_x_size: float = 200e3
-    anomaly_y_size: float = 200e3
+    # Horizontal shape as an equivalent radius sqrt(x_size * y_size) and ln of the aspect ratio
+    # A = y_size / x_size, so bounding them never produces very large or very small corners
+    anomaly_radius: float = 200e3
+    anomaly_log_aspect: float = 0 # > 0 meridionally elongated, < 0 zonally elongated
     anomaly_z_size: float = 5000
     anomaly_mag: float = -4e-6
     anomaly_clip: float = -1.5e-6
@@ -87,6 +89,14 @@ class PhysicalParams:
     @property
     def f(self):
         return 2 * 7.292e-5 * sin(self.latitude / 180 * pi)
+
+    @property
+    def anomaly_x_size(self): # r / sqrt(A)
+        return self.anomaly_radius * exp(-self.anomaly_log_aspect / 2)
+
+    @property
+    def anomaly_y_size(self): # r * sqrt(A)
+        return self.anomaly_radius * exp(self.anomaly_log_aspect / 2)
 
     @property
     def anomaly_x_pos(self):

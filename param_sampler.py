@@ -78,8 +78,6 @@ class ParamSampler:
 
         if self.optimise_for == "pres":
             cost = derived.min_surf_pressure_ano_hpa()
-        elif self.optimise_for == "vort":
-            cost = derived.min_surf_vort()
         elif self.optimise_for == "wind":
             cost = -derived.max_surf_wind_speed()
         else:
@@ -203,7 +201,7 @@ def main():
     parser.add_argument('-j', '--job_id', type=int, default=0)
     parser.add_argument('-s', '--seed', type=int, default=4623, help='Random seed for the parameter samples - vary it to add new samples rather than repeat old ones')
     parser.add_argument('--plot', metavar='JSON_PATH', help='Plot the given results file instead of generating new data, then exit')
-    parser.add_argument('-o', '--optimise_for', choices=['pres', 'vort', 'wind'],
+    parser.add_argument('-o', '--optimise_for', choices=['pres', 'wind'],
                         help='Search for the parameters that extremise this quantity instead of sampling at random, spending at most --num_samples solves')
     args = parser.parse_args()
 
