@@ -4,7 +4,8 @@ prognostic_solver.dt() says it is.
 from hash_seed import use_same_hash
 use_same_hash()
 import argparse
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import json
 import time
 import numpy as np
 import sweep
@@ -144,6 +145,42 @@ def _format_duration(seconds):
     seconds = max(int(seconds), 0)  # the step that lands past T leaves a negative estimate
     return f"{seconds // 3600}:{seconds // 60 % 60:02d}:{seconds % 60:02d}"
 
+def save_checkpoint(path, solver):
+    """psi and q as they stand, with the mesh they live on and every parameter
+    BarnesAtmosphere is built from, so load_checkpoint can rebuild the whole state.
+    """
+    from firedrake import CheckpointFile
+
+    atmos = solver.atmos
+    with CheckpointFile(path, 'w') as checkpoint:
+        checkpoint.save_mesh(atmos.mesh)
+        checkpoint.save_function(solver.psi, name="psi")
+        checkpoint.save_function(solver.q, name="q")
+        checkpoint.set_attr("/", "mesh_name", atmos.mesh.name)
+        checkpoint.set_attr("/", "t", solver.t)
+        checkpoint.set_attr("/", "phys_params", json.dumps(asdict(atmos.phys_params)))
+        checkpoint.set_attr("/", "solver_params", json.dumps(asdict(atmos.solver_params)))
+
+def load_checkpoint(path):
+    """What save_checkpoint wrote, as (atmosphere, psi, q, t). The atmosphere is built on the
+    checkpoint's own mesh, so psi and q sit on its spaces with no interpolation between meshes.
+    """
+    from firedrake import CheckpointFile
+    from barnes_atmosphere import BarnesAtmosphere
+    from domain_builder import DomainBuilder
+    from parameters import SolverParams
+
+    with CheckpointFile(path, 'r') as checkpoint:
+        mesh = checkpoint.load_mesh(checkpoint.get_attr("/", "mesh_name"))
+        psi = checkpoint.load_function(mesh, "psi")
+        q = checkpoint.load_function(mesh, "q")
+        t = checkpoint.get_attr("/", "t")
+        phys_params = PhysicalParams(**json.loads(checkpoint.get_attr("/", "phys_params")))
+        solver_params = SolverParams(**json.loads(checkpoint.get_attr("/", "solver_params")))
+
+    atmos = BarnesAtmosphere(DomainBuilder(solver_params, phys_params, mesh))
+    return atmos, psi, q, t
+
 def _build_solver(n, p):
     from parameters import SolverParams, PhysicalParams
     from prognostic_solver import PrognosticSolver
@@ -151,11 +188,13 @@ def _build_solver(n, p):
     solver_params = SolverParams(nx=n, ny=n, nz=n, polynomial_order=p, check_flux=False)
     return PrognosticSolver(solver_params, PhysicalParams(), matfree=True)
 
-def run(out_path, T=DAY, n=None, p=None, courant=None):
+def run(out_path, T=DAY, n=None, p=None, courant=None, backup=24):
     """Step to T, recording diagnostics every step, and write them to out_path as we go.
 
     The records are rewritten after every step rather than at the end, so a run that is
     interrupted - or that a laptop sleeps through - still leaves everything it reached.
+    Every backup hours (never, if it is 0) the full state is checkpointed beside out_path,
+    as <out_path stem>_t<hours>h.h5, for background_plots.py --checkpoint.
     """
     from firedrake.petsc import PETSc
     from prognostic_solver import SAFETY
@@ -173,6 +212,7 @@ def run(out_path, T=DAY, n=None, p=None, courant=None):
 
     PETSc.Sys.Print(f"Stepping to {T / 3600:.1f} h at n={n}, p={p}, Courant={courant}")
     started = time.perf_counter()
+    next_backup = backup * 3600
 
     while solver.t < T:
         dt = solver.step(solver.dt(safety=courant))
@@ -181,6 +221,11 @@ def run(out_path, T=DAY, n=None, p=None, courant=None):
 
         if sweep.is_main_rank():
             sweep.save_records(out_path, records)
+
+        if backup and solver.t >= next_backup:
+            # _diagnostics just resolved psi, so it matches q
+            save_checkpoint(f"{out_path.removesuffix('.json')}_t{next_backup / 3600:g}h.h5", solver)
+            next_backup = (np.floor(solver.t / (backup * 3600)) + 1) * backup * 3600
 
         elapsed = time.perf_counter() - started
         remaining = elapsed * (T - solver.t) / solver.t  # the clock tracks simulated time, not steps
@@ -460,6 +505,8 @@ def main():
     parser.add_argument('-p', '--polynomial_order', type=int, default=None)
     parser.add_argument('-c', '--courant', type=float, default=None,
                         help='Fraction of the CFL limit to step at (default: prognostic_solver.SAFETY)')
+    parser.add_argument('--backup', type=float, default=24, metavar='H',
+                        help='Checkpoint psi, q and the parameters every H simulated hours (0: never)')
 
     parser.add_argument('--cfl-scan', action='store_true',
                         help='Scan Courant numbers to check where the scheme goes unstable')
@@ -490,7 +537,7 @@ def main():
         return
 
     run(f"timestepping_{args.job_id}.json", T=args.hours * 3600, n=args.n,
-        p=args.polynomial_order, courant=args.courant)
+        p=args.polynomial_order, courant=args.courant, backup=args.backup)
 
 if __name__ == '__main__':
     main()

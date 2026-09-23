@@ -6,12 +6,19 @@ from parameters import SolverParams, PhysicalParams
 import numpy as np
 
 class DomainBuilder:
-    def __init__(self, solver_params : SolverParams, phys_params : PhysicalParams):
+    def __init__(self, solver_params : SolverParams, phys_params : PhysicalParams, mesh=None):
+        """mesh is one already built from these same parameters - a checkpoint's, so the
+        functions saved on it can be loaded straight onto this domain's spaces.
+        """
         self.solver_params = solver_params
         self.phys_params = phys_params
+        self._mesh = mesh
 
     @lru_cache(maxsize=1)
     def mesh(self):
+        if self._mesh is not None:
+            return self._mesh
+
         temp_mesh = RectangleMesh(
             self.solver_params.nx, self.solver_params.ny,
             self.phys_params.Lx, self.phys_params.Ly,

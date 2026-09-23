@@ -1,6 +1,9 @@
 from hash_seed import use_same_hash
 use_same_hash()
+import argparse
+from pathlib import Path
 import numpy as np
+import sweep
 import matplotlib.pyplot as plt
 from mpi4py import MPI
 from firedrake import PointEvaluator, Function
@@ -14,6 +17,9 @@ from derived_quantities import *
 
 # Global parameters for plot styling
 apply_style()
+
+# Appended to every plot's file name, so a checkpoint's plots don't overwrite the background's
+FILE_SUFFIX = ""
 
 def get_global_mesh_bounds(mesh):
     """
@@ -75,7 +81,7 @@ def plot_function_vs_z(f, plot_title, x_title, x_coord=None, y_coord=None, num_p
         plt.tight_layout()
 
         lwr_case = plot_title.replace(" ", "_").lower()
-        plt.savefig(f"tex/plots/{lwr_case}.pdf", bbox_inches='tight')
+        plt.savefig(f"tex/plots/{lwr_case}{FILE_SUFFIX}.pdf", bbox_inches='tight')
         plt.close()
 
 
@@ -220,7 +226,7 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
 
         # Save as PDF
         lwr_case = plot_title.replace(" ", "_").lower()
-        plt.savefig(f"tex/plots/{lwr_case}.pdf", bbox_inches='tight')
+        plt.savefig(f"tex/plots/{lwr_case}{FILE_SUFFIX}.pdf", bbox_inches='tight')
         plt.close()
 
 def multislice(func : Function, title : str, cbar_title : str, levels, normals ='xyz', cbar_bound_region = None,
@@ -264,23 +270,42 @@ def multislice(func : Function, title : str, cbar_title : str, levels, normals =
         )
 
 def main():
-    N = 40
-    solver_params = SolverParams(
-        nx=N, ny=N, nz=N,
-        check_flux=False
-    )
-    phys_params = PhysicalParams()
+    global FILE_SUFFIX
 
-    domain = DomainBuilder(solver_params, phys_params)
-    cg_space = domain.cg_space()
+    parser = argparse.ArgumentParser(description='Plot the background state, or a checkpointed one')
+    parser.add_argument('--checkpoint', metavar='H5_PATH',
+                        help='Plot the state timestepping.py --backup saved here instead, '
+                             'suffixing every file name with the checkpoint\'s')
+    args = parser.parse_args()
+    sweep.quiet_petsc() # PETSc reads the command line too, and would warn about --checkpoint
 
-    atmos = BarnesAtmosphere(domain)
-    PETSc.Sys.Print(f"Background Ro = {atmos.rossby_number()}")
+    if args.checkpoint:
+        from timestepping import load_checkpoint
 
-    solver = DiagnosticSolver(atmos, True)
-    solver.solve_psi()
-    derived = ResolvedAtmosphere(solver.psi_soln, atmos)
+        atmos, psi, q, t = load_checkpoint(args.checkpoint)
+        FILE_SUFFIX = f"_{Path(args.checkpoint).stem}"
+        PETSc.Sys.Print(f"Plotting the state at t = {t / 3600:g} h")
 
+        derived = ResolvedAtmosphere(psi, atmos, q)
+        epv = atmos.ertel_from_qgpv(q)
+    else:
+        N = 40
+        solver_params = SolverParams(
+            nx=N, ny=N, nz=N,
+            check_flux=False
+        )
+        phys_params = PhysicalParams()
+
+        atmos = BarnesAtmosphere(DomainBuilder(solver_params, phys_params))
+        PETSc.Sys.Print(f"Background Ro = {atmos.rossby_number()}")
+
+        solver = DiagnosticSolver(atmos, True)
+        solver.solve_psi()
+        derived = ResolvedAtmosphere(solver.psi_soln, atmos)
+        q = atmos.q_init()
+        epv = atmos.ertel_pv()
+
+    cg_space = atmos.cg_space
     PETSc.Sys.Print(f"Ro after inversion = {derived.rossby_number()}")
 
     plot_slice_heatmap(
@@ -302,7 +327,7 @@ def main():
     )
 
     multislice(
-        Function(cg_space).interpolate(atmos.ertel_pv() * 1e6),
+        Function(cg_space).interpolate(epv * 1e6),
         "EPV",
         r"$Q$ [\unit{PVU}]",
         levels=np.arange(-5, 0, 0.5),
@@ -311,7 +336,7 @@ def main():
     )
 
     multislice(
-        atmos.q_init(),
+        q,
         "QGPV",
         r"$q$ [\unit{\per \second}]",
         levels=np.linspace(-0.001, 0.001, 11),
@@ -320,45 +345,47 @@ def main():
 
     PETSc.Sys.Print("Saved PV plots")
 
-    plot_function_vs_z(
-        atmos.N_bar(),
-        "Reference Brunt–Väisälä Frequency",
-        r"$\overline{N}$ [\unit{\per\second}]"
-    )
+    # The reference state and the jet never change, so a checkpoint would only repeat them
+    if not args.checkpoint:
+        plot_function_vs_z(
+            atmos.N_bar(),
+            "Reference Brunt–Väisälä Frequency",
+            r"$\overline{N}$ [\unit{\per\second}]"
+        )
 
-    plot_function_vs_z(
-        atmos.rho_bar(),
-        "Reference Density Profile",
-        r"$\overline{\rho}$ [\unit{\kg\per\meter\cubed}]"
-    )
+        plot_function_vs_z(
+            atmos.rho_bar(),
+            "Reference Density Profile",
+            r"$\overline{\rho}$ [\unit{\kg\per\meter\cubed}]"
+        )
 
-    plot_function_vs_z(
-        Function(cg_space).interpolate(atmos.p_bar() / 1e2),
-        "Reference Pressure Profile",
-        r"$\overline{p}$ [\unit{\hecto\pascal}]"
-    )
+        plot_function_vs_z(
+            Function(cg_space).interpolate(atmos.p_bar() / 1e2),
+            "Reference Pressure Profile",
+            r"$\overline{p}$ [\unit{\hecto\pascal}]"
+        )
 
-    plot_function_vs_z(
-        atmos.theta_bar(),
-        "Reference Potential Temperature Profile",
-        r"$\overline{\theta}$ [\unit{\kelvin}]"
-    )
+        plot_function_vs_z(
+            atmos.theta_bar(),
+            "Reference Potential Temperature Profile",
+            r"$\overline{\theta}$ [\unit{\kelvin}]"
+        )
 
-    multislice(
-        Function(cg_space).interpolate(atmos.u()),
-        "Jet Stream",
-        r"$\overline{u}$ [\unit{\meter\per\second}]",
-        levels=np.arange(0, 35, 5),
-        normals='x'
-    )
+        multislice(
+            Function(cg_space).interpolate(atmos.u()),
+            "Jet Stream",
+            r"$\overline{u}$ [\unit{\meter\per\second}]",
+            levels=np.arange(0, 35, 5),
+            normals='x'
+        )
 
-    multislice(
-        Function(cg_space).interpolate(atmos.geostrophic_vorticity()),
-        "Background Geostrophic Vorticity",
-        r"$\overline{\zeta_g}$ [\unit{\per\second}]",
-        levels=np.linspace(-5e-5, 5e-5, 11),
-        normals='xy'
-    )
+        multislice(
+            Function(cg_space).interpolate(atmos.geostrophic_vorticity()),
+            "Background Geostrophic Vorticity",
+            r"$\overline{\zeta_g}$ [\unit{\per\second}]",
+            levels=np.linspace(-5e-5, 5e-5, 11),
+            normals='xy'
+        )
 
     multislice(
         derived.geostrophic_vorticity(),
