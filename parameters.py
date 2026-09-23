@@ -11,10 +11,8 @@ import numpy as np
 _TROP_HEIGHT_MEAN = ((-50, -45, -40, -35, -30, -25, -20),
                      (10.0e3, 10.5e3, 11.3e3, 12.8e3, 14.5e3, 16.0e3, 16.5e3))
 
-# ponytail: PLACEHOLDER, not from any source yet - replace before citing anything.
-# Annual-mean, zonal-mean surface air temperature [K].
 _TEMPERATURE_BOTTOM_MEAN = ((-50, -45, -40, -35, -30, -25, -20),
-                            (281.15, 284.15, 288.15, 291.15, 294.15, 296.15, 297.15))
+                            (279.20, 282.38, 285.80, 288.85, 291.83, 294.44, 296.47))
 
 # Squared stratospheric buoyancy frequency [1/s^2]: Birner (2006) P28 gives about 4.5e-4
 # "in the extratropics" and about 7.0e-4 "at the tropical edge". Interpolated in N^2, not

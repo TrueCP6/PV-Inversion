@@ -77,7 +77,7 @@ class Variator:
             ("N_trop", (0.008, 0.014), 1, r"$\overline{N}_\text{trop} \in [min, max]$ [\unit{\per\second}]"), #happy
             ("trop_width", (500, 2000), 1, r"$w_\text{trop} \in [min, max]$ [\unit{\meter}]"), #happy
             ("trop_height_variation", (-2e3, 2e3), 1e-3, r"$z'_\text{trop} \in [min, max]$ [\unit{\kilo\meter}]"), #happy
-            ("temperature_bottom_variation", (-10, 10), 1, r"$\overline{T}'(0) \in [min, max]$ [\unit{\kelvin}]"),
+            ("temperature_bottom_variation", (-10, 14), 1, r"$\overline{T}'(0) \in [min, max]$ [\unit{\kelvin}]"),
             ("p_bottom", (795 * 1e2, 1013.25 * 1e2), 1e-2, r"$\overline{p}(0) \in [min, max]$ [\unit{\hecto\pascal}]"),
             ("delta", (2, 10), 1, r"$\delta \in [min, max]$"), #happy
             ("anomaly_z_trop_offset", (-2500, 2500), 1e-3, r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\kilo\meter}]"),
