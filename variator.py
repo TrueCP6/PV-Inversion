@@ -19,9 +19,9 @@ import sweep
 
 # Related parameters grouped into one panel per figure, so each panel carries few enough lines/colours to stay readable
 PARAMETER_GROUPS = [
-    ("Stratification and tropopause structure", ["N_strat_variation", "N_trop", "trop_width", "trop_height_variation", "delta"]),
+    ("Stratification and tropopause structure", ["N_strat_variation", "N_trop", "trop_width", "trop_height", "delta"]),
     ("Background state", ["temperature_bottom_variation", "latitude"]),
-    ("PV anomaly", ["anomaly_z_trop_offset", "anomaly_x_size", "anomaly_y_size", "anomaly_z_size", "anomaly_mag", "anomaly_clip"]),
+    ("PV anomaly", ["anomaly_x_size", "anomaly_y_size", "anomaly_z_size", "anomaly_clip"]),
     ("Jet parameters", ["jet_y_size", "jet_z_size", "jet_magnitude", "jet_y_pos"]),
 ]
 
@@ -77,14 +77,12 @@ class Variator:
             ("N_strat_variation", (-0.005, 0.003), 1, r"$\overline{N}'_\text{strat} \in [min, max]$ [\unit{\per\second}]"), #happy
             ("N_trop", (0.008, 0.014), 1, r"$\overline{N}_\text{trop} \in [min, max]$ [\unit{\per\second}]"), #happy
             ("trop_width", (500, 2000), 1, r"$w_\text{trop} \in [min, max]$ [\unit{\meter}]"), #happy
-            ("trop_height_variation", (-2e3, 2e3), 1e-3, r"$z'_\text{trop} \in [min, max]$ [\unit{\kilo\meter}]"), #happy
+            ("trop_height", (10e3, 15e3), 1e-3, r"$z_\text{trop} \in [min, max]$ [\unit{\kilo\meter}]"), # limited by the numerics, not the physics
             ("temperature_bottom_variation", (-10, 14), 1, r"$\overline{T}'(0) \in [min, max]$ [\unit{\kelvin}]"), #happy
             ("delta", (2, 10), 1, r"$\delta \in [min, max]$"), #happy
-            ("anomaly_z_trop_offset", (-2500, 2500), 1e-3, r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\kilo\meter}]"),
             ("anomaly_x_size", (100e3, 800e3), 1e-3, r"$x_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("anomaly_y_size", (100e3, 800e3), 1e-3, r"$y_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("anomaly_z_size", (3500, 7000), 1, r"$z_\text{size} \in [min, max]$ [\unit{\meter}]"),
-            ("anomaly_mag", (-4e-6, -1e-6), 1e6, r"$Q_\text{anomag} \in [min, max]$ [\unit{PVU}]"),
             ("anomaly_clip", (-2e-6, -1e-6), 1e6, r"$Q_\text{anoclip} \in [min, max]$ [\unit{PVU}]"),
             ("jet_y_size", (100e3, 1000e3), 1e-3, r"$L_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("jet_z_size", (1e3, 4e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),

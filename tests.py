@@ -125,33 +125,30 @@ class UtilTests(unittest.TestCase):
         error = math_utils.relative_error(x, numerical)
         self.assertAlmostEqual(error, 1.0, places=6)
 
-    def test_trop_height_and_temperature_track_latitude(self):
-        """Both are read-only properties: a latitudinal mean plus the varied departure."""
-        from parameters import trop_height_mean, temperature_bottom_mean
+    def test_temperature_tracks_latitude_but_trop_height_does_not(self):
+        """temperature_bottom is a read-only latitudinal mean plus the varied departure;
+        trop_height is a plain field, since its range is limited by the numerics."""
+        from parameters import temperature_bottom_mean
 
         # Tabulated latitudes come back exactly, and the variation is a pure offset.
-        self.assertAlmostEqual(PhysicalParams(latitude=-50).trop_height, 10.0e3)
-        self.assertAlmostEqual(PhysicalParams(latitude=-20).trop_height, 16.5e3)
-        self.assertAlmostEqual(
-            PhysicalParams(latitude=-40, trop_height_variation=-1.3e3).trop_height, 10.0e3)
+        self.assertAlmostEqual(PhysicalParams(latitude=-50).temperature_bottom, 279.20)
         self.assertAlmostEqual(
             PhysicalParams(latitude=-30, temperature_bottom_variation=5).temperature_bottom,
             temperature_bottom_mean(-30) + 5)
 
         # Interpolated between table points, and clamped outside them.
-        self.assertAlmostEqual(trop_height_mean(-42.5), 0.5 * (10.5e3 + 11.3e3))
-        self.assertAlmostEqual(trop_height_mean(-80), 10.0e3)
-        self.assertAlmostEqual(trop_height_mean(0), 16.5e3)
+        self.assertAlmostEqual(temperature_bottom_mean(-42.5), 0.5 * (282.38 + 285.80))
+        self.assertAlmostEqual(temperature_bottom_mean(-80), 279.20)
+        self.assertAlmostEqual(temperature_bottom_mean(0), 296.47)
 
         # Read-only: the derived value cannot be set directly.
         with self.assertRaises(AttributeError):
-            PhysicalParams().trop_height = 12500
-        with self.assertRaises(AttributeError):
             PhysicalParams().temperature_bottom = 290
 
-        # anomaly_z_pos rides on the property, so it moves with latitude too.
+        # The tropopause, and the anomaly riding on it, stay put as latitude changes.
+        self.assertEqual(PhysicalParams(latitude=-50).trop_height, PhysicalParams(latitude=-30).trop_height)
         self.assertAlmostEqual(
-            PhysicalParams(latitude=-25, anomaly_z_trop_offset=500).anomaly_z_pos, 16.5e3)
+            PhysicalParams(latitude=-25, trop_height=11e3).anomaly_z_pos, 11e3)
 
     def test_N_strat_tracks_latitude(self):
         """Birner's stratospheric N steepens toward the tropics; trop_width does not vary."""

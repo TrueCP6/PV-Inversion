@@ -193,7 +193,7 @@ class ResolvedAtmosphere:
         return get_global_min(vort)
 
     @lru_cache(maxsize=1)
-    def min_surf_pressure_ano_hpa(self):
+    def min_surf_pressure_ano_hpa(self): # todo add to writeup that QG generally underestimates how strong this is
         """Minimum pressure anomaly (hPa) at z=0. p_bar and psi_0 are horizontally
         uniform, and the vertical integrals defining p_bar and theta_bar are 0 at the
         bottom boundary by construction, so p_bar(0) and theta_bar(0) are just p_bottom

@@ -6,11 +6,6 @@ import numpy as np
 # are held flat outside the tabulated range. Anchor points are stored as the source states
 # them, so nothing here is a hand-computed intermediate.
 
-# Annual-mean, zonal-mean thermal tropopause height [m], read off Grise et al. (2010)
-# Fig. 1, p. 2278 at 5-degree intervals. See sources/bounds/trop_height.md.
-_TROP_HEIGHT_MEAN = ((-50, -45, -40, -35, -30, -25, -20),
-                     (10.0e3, 10.5e3, 11.3e3, 12.8e3, 14.5e3, 16.0e3, 16.5e3))
-
 _TEMPERATURE_BOTTOM_MEAN = ((-50, -45, -40, -35, -30, -25, -20),
                             (279.20, 282.38, 285.80, 288.85, 291.83, 294.44, 296.47))
 
@@ -23,9 +18,6 @@ def _lat_mean(latitude, table):
     """Linear interpolation of a latitude-tabulated mean, clamped outside the table."""
     latitudes, values = table
     return float(np.interp(latitude, latitudes, values))
-
-def trop_height_mean(latitude):
-    return _lat_mean(latitude, _TROP_HEIGHT_MEAN)
 
 def temperature_bottom_mean(latitude):
     return _lat_mean(latitude, _TEMPERATURE_BOTTOM_MEAN)
@@ -53,7 +45,7 @@ class PhysicalParams:
     N_strat_variation: float = 0
     N_trop: float = 0.01
     trop_width: float = 1000
-    trop_height_variation: float = 0
+    trop_height: float = 12500 # not latitude-dependent: its range is limited by the numerics, not the physics
     temperature_bottom_variation: float = 0
     # Constants for dry air
     R: float = 287.05
@@ -63,7 +55,6 @@ class PhysicalParams:
     delta: float = 2
     max_rossby: float = 0.5
 
-    anomaly_z_trop_offset: float = 0
     anomaly_x_size: float = 200e3
     anomaly_y_size: float = 200e3
     anomaly_z_size: float = 5000
@@ -74,11 +65,6 @@ class PhysicalParams:
     jet_z_size: float = 2e3
     jet_magnitude: float = 35
     jet_y_pos: float = Ly / 2
-
-    @property
-    def trop_height(self):
-        """Tropopause height: the latitudinal mean, offset by the varied departure from it."""
-        return trop_height_mean(self.latitude) + self.trop_height_variation
 
     @property
     def N_strat(self):
@@ -111,8 +97,8 @@ class PhysicalParams:
         return self.Ly / 2
 
     @property
-    def anomaly_z_pos(self):
-        return self.trop_height + self.anomaly_z_trop_offset
+    def anomaly_z_pos(self): # always centred on the tropopause
+        return self.trop_height
 
     @property
     def domain_volume(self):
