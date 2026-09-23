@@ -46,6 +46,10 @@ class StepRecord:
     # and the surface pressure anomaly [hPa]. None in results files written before they were added.
     q_line : list = None
     pressure_line : list = None
+    # The minimum of the vorticity anomaly over each z level, lowest first, and those levels'
+    # heights - which never change, so only the first record carries them.
+    vort_profile : list = None
+    level_heights : list = None
 
 @dataclass
 class CflRecord:
@@ -62,12 +66,14 @@ def _hovmoller_x(Lx, count):
     """Cell-centred points along x - clear of the lateral walls, where a point can fall outside."""
     return (np.arange(count) + 0.5) * Lx / count
 
-class _JetAxisLines:
-    """Point meshes along the jet axis, y = anomaly_y_pos, built once per run: one at the
-    anomaly's height through the 3D mesh, one on the surface mesh.
+class _HovmollerSampling:
+    """What the Hovmoller diagrams sample, built once per run: point meshes along the jet
+    axis, y = anomaly_y_pos - one at the anomaly's height through the 3D mesh, one on the
+    surface mesh - and the backgrounds the anomalies are taken against.
     """
     def __init__(self, solver):
         from firedrake import Function, VertexOnlyMesh
+        from derived_quantities import ResolvedAtmosphere
 
         p = solver.atmos.phys_params
         s = solver.atmos.solver_params
@@ -78,6 +84,11 @@ class _JetAxisLines:
         self.surface = VertexOnlyMesh(mesh._base_mesh, [[xi, p.anomaly_y_pos] for xi in x])
         # The background q the anomaly sits on, so the upper line shows the anomaly alone
         self.q_bar = Function(solver.q.function_space()).interpolate(solver.atmos.q_bar())
+        # The jet's own shear vorticity is larger than the anomaly's, so the profile is taken
+        # against it. solver.psi is only there for its function space here.
+        self.zeta_bar = Function(solver.psi.function_space()).interpolate(
+            solver.atmos.geostrophic_vorticity())
+        self.heights = ResolvedAtmosphere(solver.psi, solver.atmos).level_heights().tolist()
 
     @staticmethod
     def sample(f, vom):
@@ -111,6 +122,8 @@ def _diagnostics(solver, lines):
         min_pressure=derived.min_surf_pressure_ano_hpa(),
         q_line=lines.sample(solver.q - lines.q_bar, lines.upper),
         pressure_line=lines.sample(derived.surf_pressure_ano_hpa(), lines.surface),
+        vort_profile=derived.min_per_level(
+            derived.geostrophic_vorticity() - lines.zeta_bar).tolist(),
     )
 
 def _max_abs(diagnostics):
@@ -154,9 +167,9 @@ def run(out_path, T=DAY, n=None, p=None, courant=None):
     courant = courant if courant is not None else SAFETY
 
     solver = _build_solver(n, p)
-    lines = _JetAxisLines(solver)
+    lines = _HovmollerSampling(solver)
     initial = _diagnostics(solver, lines)
-    records = [StepRecord(t=0.0, dt=float('nan'), **initial)]
+    records = [StepRecord(t=0.0, dt=float('nan'), level_heights=lines.heights, **initial)]
 
     PETSc.Sys.Print(f"Stepping to {T / 3600:.1f} h at n={n}, p={p}, Courant={courant}")
     started = time.perf_counter()
@@ -370,6 +383,51 @@ def plot_hovmoller(json_path, output_path="tex/plots/timestepping_hovmoller.pdf"
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
 
+def plot_height_time(json_path, output_path="tex/plots/timestepping_height_time.pdf"):
+    """The strongest cyclonic vorticity anomaly at each height against time, with the lowest
+    point of the dynamical tropopause over it.
+
+    A minimum over each level rather than a column through a fixed point, so nothing has to
+    track the anomaly as it moves: what the figure shows is how far down the circulation it
+    induces reaches, and how that changes as the tropopause is pulled down over it.
+    """
+    import matplotlib.pyplot as plt
+    import plot_utils
+
+    if not sweep.is_main_rank():
+        return
+
+    records = sweep.load_records(json_path, StepRecord)
+    if records[0].vort_profile is None:
+        print(f"{json_path} predates the vorticity profile - no height-time diagram")
+        return
+    plot_utils.apply_style()
+
+    hours = np.array([r.t for r in records]) / 3600
+    z_km = np.array(records[0].level_heights) / 1e3
+    values = np.array([r.vort_profile for r in records]).T
+    # A minimum is never positive, so a sequential map down from zero. As in plot_hovmoller,
+    # a percentile sets the far end, so one spike can't wash the rest out.
+    strongest = -np.nanpercentile(np.abs(values), 99.5)
+
+    fig, ax = plt.subplots(figsize=(plot_utils.FIGURE_SIZE[0], 3.5))
+    mesh = ax.pcolormesh(hours, z_km, values, cmap='Blues_r', vmin=strongest, vmax=0,
+                         shading='nearest', rasterized=True)
+    levels = np.linspace(strongest, 0, 5)[:-1]
+    ax.contour(hours, z_km, values, levels=levels, colors='k', linewidths=0.4)
+    ax.plot(hours, np.array([r.trop_height for r in records]) / 1e3, color='k',
+            linestyle='--', linewidth=1.2, label=r"$\min\, z_\text{trop}$")
+
+    colorbar = fig.colorbar(mesh, ax=ax, extend='min')
+    colorbar.set_label(r"$\min_{x,y}\, (\zeta_g - \bar{\zeta}_g)$ [\unit{\per\second}]")
+    colorbar.formatter.set_powerlimits((0, 0))
+    ax.set_xlabel(r"$t$ [\unit{\hour}]")
+    ax.set_ylabel(r"$z$ [\unit{\kilo\meter}]")
+    ax.legend(loc='upper right', fontsize=8)
+    plt.tight_layout()
+    plt.savefig(output_path, bbox_inches='tight', dpi=300)
+    plt.close()
+
 def plot_cfl(json_path, output_path="tex/plots/cfl_verification.pdf"):
     """Growth of max|q| against Courant number, either side of the predicted limit."""
     import matplotlib.pyplot as plt
@@ -418,6 +476,7 @@ def main():
         plot_conservation(args.plot)
         plot_diagnostics(args.plot)
         plot_hovmoller(args.plot)
+        plot_height_time(args.plot)
         return
 
     if args.plot_cfl:

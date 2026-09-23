@@ -56,7 +56,7 @@ class ResolvedAtmosphere:
 
     @lru_cache(maxsize=1)
     def _z_levels(self):
-        """The z level each DoF of func_space sits on, as (number of levels, level index).
+        """The z level each DoF of func_space sits on, as (level heights, level index).
         The index covers the local DoFs including the halo; data_ro is its owned prefix.
         """
         z = self._interp(SpatialCoordinate(self.mesh)[2]).dat.data_ro_with_halos
@@ -72,7 +72,7 @@ class ResolvedAtmosphere:
         above = np.clip(np.searchsorted(levels, z), 1, levels.size - 1)
         index = np.where(z - levels[above - 1] <= levels[above] - z, above - 1, above)
 
-        return levels.size, index
+        return levels, index
 
     @lru_cache(maxsize=1)
     def _surface_func_space(self):
@@ -107,7 +107,8 @@ class ResolvedAtmosphere:
         level index. Split out of _psi_0 so callers that only need psi_0 at one or two
         heights (the min_surf_* diagnostics) aren't forced through its O(dofs) scatter.
         """
-        n_levels, level = self._z_levels()
+        levels, level = self._z_levels()
+        n_levels = levels.size
 
         boundary_mass = assemble(
             TestFunction(self.func_space) * ds_v,
@@ -128,6 +129,23 @@ class ResolvedAtmosphere:
         self.mesh.comm.Allreduce(local, totals, op=MPI.SUM)
 
         return totals[:n_levels] / totals[n_levels:]
+
+    def level_heights(self):
+        """The heights of func_space's z levels, lowest first."""
+        return self._z_levels()[0]
+
+    def min_per_level(self, expr):
+        """Minimum of expr over each z level, lowest first, on every rank. Every rank holds
+        whole columns, so each sees every level and the reduction is a plain MIN.
+        """
+        levels, level = self._z_levels()
+        values = self._interp(expr).dat.data_ro
+
+        local = np.full(levels.size, np.inf)
+        np.minimum.at(local, level[:values.size], values)
+        totals = np.empty_like(local)
+        self.mesh.comm.Allreduce(local, totals, op=MPI.MIN)
+        return totals
 
     def _psi_0(self):
         """psi_0(z) (see _psi_0_profile) as a Function on func_space that varies with z
