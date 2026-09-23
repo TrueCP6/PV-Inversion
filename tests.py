@@ -1,5 +1,6 @@
 from hash_seed import use_same_hash
 use_same_hash()
+import gc
 import unittest
 import numpy as np
 from domain_builder import *
@@ -379,8 +380,10 @@ class SolverTests(unittest.TestCase):
 
     def test_update_atmosphere(self):
         for matfree in [True, False]:
-            self._test_upd_atmos(matfree)
-            self._test_step_atmos(matfree)
+            for case in (self._test_upd_atmos, self._test_step_atmos):
+                case(matfree)
+                gc.collect() # Firedrake defers PETSc destroys in parallel, so free this N=30 solver before the next
+                PETSc.garbage_cleanup(COMM_WORLD)
 
 class PrognosticTests(unittest.TestCase):
     def test_rhs_is_advection(self):

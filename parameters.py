@@ -168,7 +168,7 @@ class SolverParams:
 
     @property
     def assembled_mat_params(self): # similar to above but use a fully assembled matrix instead - much faster but uses much more memory
-        return {
+        return { # todo check these are faster than matfree on laptop
             "mat_type": "aij",
             "ksp_type": "cg",
             "pc_type": "python",
