@@ -192,9 +192,12 @@ class ResolvedAtmosphere:
 
         return get_global_min(vort)
 
-    @lru_cache(maxsize=1)
     def min_surf_pressure_ano_hpa(self): # todo add to writeup that QG generally underestimates how strong this is
-        """Minimum pressure anomaly (hPa) at z=0. p_bar and psi_0 are horizontally
+        return get_global_min(self.surf_pressure_ano_hpa())
+
+    @lru_cache(maxsize=1)
+    def surf_pressure_ano_hpa(self):
+        """Pressure anomaly (hPa) at z=0, on _surface_func_space(). p_bar and psi_0 are horizontally
         uniform, and the vertical integrals defining p_bar and theta_bar are 0 at the
         bottom boundary by construction, so p_bar(0) and theta_bar(0) are just p_bottom
         and theta_bar_bottom - no field evaluation needed for either. Only psi itself
@@ -205,12 +208,10 @@ class ResolvedAtmosphere:
         psi_0_0 = Constant(self._psi_0_profile()[0])  # changes with every solve, so not a literal
         psi_surf = self._psi_surf()
 
-        pressure = self._interp(
+        return self._interp(
             1e-2 * (rho_bar_0 * p.f * (psi_surf - psi_0_0)),
             self._surface_func_space()
         )
-
-        return get_global_min(pressure)
 
     @lru_cache(maxsize=1)
     def max_surf_wind_speed(self):

@@ -42,6 +42,10 @@ class StepRecord:
     max_wind : float
     min_vort : float
     min_pressure : float
+    # Along the jet axis at the points _hovmoller_x gives: q - q_bar at the anomaly's height,
+    # and the surface pressure anomaly [hPa]. None in results files written before they were added.
+    q_line : list = None
+    pressure_line : list = None
 
 @dataclass
 class CflRecord:
@@ -54,8 +58,40 @@ class CflRecord:
     growth : float
     stable : bool
 
-def _diagnostics(solver):
-    """Every scalar the two figures need, from the state the solver is currently on."""
+def _hovmoller_x(Lx, count):
+    """Cell-centred points along x - clear of the lateral walls, where a point can fall outside."""
+    return (np.arange(count) + 0.5) * Lx / count
+
+class _JetAxisLines:
+    """Point meshes along the jet axis, y = anomaly_y_pos, built once per run: one at the
+    anomaly's height through the 3D mesh, one on the surface mesh.
+    """
+    def __init__(self, solver):
+        from firedrake import Function, VertexOnlyMesh
+
+        p = solver.atmos.phys_params
+        s = solver.atmos.solver_params
+        x = _hovmoller_x(p.Lx, s.nx * s.polynomial_order) # one point per node spacing
+        mesh = solver.q.function_space().mesh()
+
+        self.upper = VertexOnlyMesh(mesh, [[xi, p.anomaly_y_pos, p.anomaly_z_pos] for xi in x])
+        self.surface = VertexOnlyMesh(mesh._base_mesh, [[xi, p.anomaly_y_pos] for xi in x])
+        # The background q the anomaly sits on, so the upper line shows the anomaly alone
+        self.q_bar = Function(solver.q.function_space()).interpolate(solver.atmos.q_bar())
+
+    @staticmethod
+    def sample(f, vom):
+        """f at vom's points, in the order they were given, as a list on the main rank
+        (empty elsewhere, which is fine: only the main rank writes the records).
+        """
+        from firedrake import Function, FunctionSpace
+
+        at_points = Function(FunctionSpace(vom, "DG", 0)).interpolate(f)
+        ordered = Function(FunctionSpace(vom.input_ordering, "DG", 0)).interpolate(at_points)
+        return ordered.dat.data_ro.tolist()
+
+def _diagnostics(solver, lines):
+    """Every value the figures need, from the state the solver is currently on."""
     from firedrake import assemble, dx
     from derived_quantities import ResolvedAtmosphere
     from math_utils import get_global_extrema
@@ -73,6 +109,8 @@ def _diagnostics(solver):
         max_wind=derived.max_surf_wind_speed(),
         min_vort=derived.min_surf_vort(),
         min_pressure=derived.min_surf_pressure_ano_hpa(),
+        q_line=lines.sample(solver.q - lines.q_bar, lines.upper),
+        pressure_line=lines.sample(derived.surf_pressure_ano_hpa(), lines.surface),
     )
 
 def _max_abs(diagnostics):
@@ -116,7 +154,8 @@ def run(out_path, T=DAY, n=None, p=None, courant=None):
     courant = courant if courant is not None else SAFETY
 
     solver = _build_solver(n, p)
-    initial = _diagnostics(solver)
+    lines = _JetAxisLines(solver)
+    initial = _diagnostics(solver, lines)
     records = [StepRecord(t=0.0, dt=float('nan'), **initial)]
 
     PETSc.Sys.Print(f"Stepping to {T / 3600:.1f} h at n={n}, p={p}, Courant={courant}")
@@ -124,7 +163,7 @@ def run(out_path, T=DAY, n=None, p=None, courant=None):
 
     while solver.t < T:
         dt = solver.step(solver.dt(safety=courant))
-        diagnostics = _diagnostics(solver)
+        diagnostics = _diagnostics(solver, lines)
         records.append(StepRecord(t=solver.t, dt=dt, **diagnostics))
 
         if sweep.is_main_rank():
@@ -279,6 +318,58 @@ def plot_diagnostics(json_path, output_path="tex/plots/timestepping_diagnostics.
         for field, y_label, scientific in DIAGNOSTIC_PANELS
     ], output_path)
 
+def plot_hovmoller(json_path, output_path="tex/plots/timestepping_hovmoller.pdf"):
+    """Hovmoller diagrams along the jet axis: the upper PV anomaly beside the surface low.
+
+    The two share their axes, so a system's track reads as a diagonal whose slope is its
+    phase speed, and any horizontal offset between the tracks is the tilt between the
+    upper anomaly and the surface low it induces.
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import CenteredNorm
+    import plot_utils
+
+    if not sweep.is_main_rank():
+        return
+
+    records = sweep.load_records(json_path, StepRecord)
+    if records[0].q_line is None:
+        print(f"{json_path} predates the jet axis lines - no Hovmoller diagram")
+        return
+    plot_utils.apply_style()
+
+    hours = np.array([r.t for r in records]) / 3600
+    panels = [
+        (np.array([r.q_line for r in records]), r"$q - \bar{q}$ [\unit{\per\second}]",
+         r"$z = z_\text{trop}$", True),
+        (np.array([r.pressure_line for r in records]), r"$p^*$ [\unit{\hecto\pascal}]",
+         r"$z = 0$", False),
+    ]
+    x_km = _hovmoller_x(PhysicalParams().Lx, panels[0][0].shape[1]) / 1e3
+
+    fig, axes = plt.subplots(1, 2, sharey=True, figsize=(plot_utils.FIGURE_SIZE[0], 4.5))
+    for ax, (values, label, title, scientific) in zip(axes, panels):
+        # A percentile, not the max, sets the scale: one grid-scale spike would otherwise
+        # wash every coherent feature out to white
+        half_range = np.nanpercentile(np.abs(values), 99.5)
+        mesh = ax.pcolormesh(x_km, hours, values, cmap='RdBu_r',
+                             norm=CenteredNorm(halfrange=half_range),
+                             shading='nearest', rasterized=True)
+        # No zero contour - it would trace every sign flip of grid-scale noise
+        levels = np.delete(np.linspace(-half_range, half_range, 9), 4)
+        ax.contour(x_km, hours, values, levels=levels, colors='k', linewidths=0.4)
+        colorbar = fig.colorbar(mesh, ax=ax, orientation='horizontal', pad=0.12, extend='both')
+        colorbar.set_label(label)
+        if scientific:
+            colorbar.formatter.set_powerlimits((0, 0))
+        ax.set_title(title)
+        ax.set_xlabel(r"$x$ [\unit{\kilo\meter}]")
+
+    axes[0].set_ylabel(r"$t$ [\unit{\hour}]")
+    plt.tight_layout()
+    plt.savefig(output_path, bbox_inches='tight', dpi=300)
+    plt.close()
+
 def plot_cfl(json_path, output_path="tex/plots/cfl_verification.pdf"):
     """Growth of max|q| against Courant number, either side of the predicted limit."""
     import matplotlib.pyplot as plt
@@ -326,6 +417,7 @@ def main():
     if args.plot:
         plot_conservation(args.plot)
         plot_diagnostics(args.plot)
+        plot_hovmoller(args.plot)
         return
 
     if args.plot_cfl:
