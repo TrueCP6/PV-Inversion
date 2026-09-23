@@ -61,6 +61,7 @@ class PhysicalParams:
     p_bottom: float = 1000 * 1e2 # 1000 hpa
     p_ref: float = 1000 * 1e2
     delta: float = 2
+    max_rossby: float = 0.5
 
     anomaly_z_trop_offset: float = 0
     anomaly_x_size: float = 200e3

@@ -21,9 +21,12 @@ class ParamSampler:
         self.comm = COMM_WORLD
         self.rank = self.comm.Get_rank()
         self.rng = np.random.default_rng(seed) # not shared between all ranks but all ranks will have the same seed
-        self.normalised_control = self.record_to_normalised(PhysicalParams()) # A representation of the control in normalised space
         self.optimise_for = optimise_for
         self.job_id = job_id
+
+        control = PhysicalParams()
+        self.normalised_control = self.record_to_normalised(control)  # A representation of the control in normalised space
+        self._rossby_max = control.max_rossby
 
     def _get_effectual_params(self): # Reduce dimensionality by removing parameters that don't make a difference
         ineffectual_params = ["delta", "N_strat_variation", "trop_width"]
@@ -58,7 +61,11 @@ class ParamSampler:
         return normalised
 
     def cost(self, x):
-        params = self.normalised_to_dict(x)
+        params = PhysicalParams(**self.normalised_to_dict(x))
+
+        if params.rossby_number > params.max_rossby:
+            return params.rossby_number - params.max_rossby # return a positive (bad) number to push the optimser towards a rossby number where QGPV is valid
+
         try:
             derived = self.variator.get_derived(params)
         except ConvergenceError as exc:

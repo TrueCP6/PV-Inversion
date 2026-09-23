@@ -20,7 +20,7 @@ import sweep
 # Related parameters grouped into one panel per figure, so each panel carries few enough lines/colours to stay readable
 PARAMETER_GROUPS = [
     ("Stratification and tropopause structure", ["N_strat_variation", "N_trop", "trop_width", "trop_height_variation", "delta"]),
-    ("Background state", ["temperature_bottom_variation", "p_bottom", "latitude"]),
+    ("Background state", ["temperature_bottom_variation", "latitude"]),
     ("PV anomaly", ["anomaly_z_trop_offset", "anomaly_x_size", "anomaly_y_size", "anomaly_z_size", "anomaly_mag", "anomaly_clip"]),
     ("Jet parameters", ["jet_y_size", "jet_z_size", "jet_magnitude", "jet_y_pos"]),
 ]
@@ -58,8 +58,9 @@ class Variator:
         atmos = BarnesAtmosphere(self.domain)
         self.solver = DiagnosticSolver(atmos, True)
 
-    def get_derived(self, params) -> ResolvedAtmosphere:
-        phys_params = PhysicalParams(**params)
+    def get_derived(self, phys_params) -> ResolvedAtmosphere:
+        if not isinstance(phys_params, PhysicalParams):
+            phys_params = PhysicalParams(**phys_params)
 
         atmos = BarnesAtmosphere(self.domain, phys_params)
         self.solver.update_atmosphere(atmos)
@@ -77,8 +78,7 @@ class Variator:
             ("N_trop", (0.008, 0.014), 1, r"$\overline{N}_\text{trop} \in [min, max]$ [\unit{\per\second}]"), #happy
             ("trop_width", (500, 2000), 1, r"$w_\text{trop} \in [min, max]$ [\unit{\meter}]"), #happy
             ("trop_height_variation", (-2e3, 2e3), 1e-3, r"$z'_\text{trop} \in [min, max]$ [\unit{\kilo\meter}]"), #happy
-            ("temperature_bottom_variation", (-10, 14), 1, r"$\overline{T}'(0) \in [min, max]$ [\unit{\kelvin}]"),
-            ("p_bottom", (795 * 1e2, 1013.25 * 1e2), 1e-2, r"$\overline{p}(0) \in [min, max]$ [\unit{\hecto\pascal}]"),
+            ("temperature_bottom_variation", (-10, 14), 1, r"$\overline{T}'(0) \in [min, max]$ [\unit{\kelvin}]"), #happy
             ("delta", (2, 10), 1, r"$\delta \in [min, max]$"), #happy
             ("anomaly_z_trop_offset", (-2500, 2500), 1e-3, r"$(z_\text{ano} - z_\text{trop}) \in [min, max]$ [\unit{\kilo\meter}]"),
             ("anomaly_x_size", (100e3, 800e3), 1e-3, r"$x_\text{size} \in [min, max]$ [\unit{\kilo\meter}]"),
