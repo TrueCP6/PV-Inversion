@@ -11,8 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
-    # plot_trop_correlation("variator_1296058.json")
-    # plot_variator_results("variator_1296058.json")
+    plot_trop_correlation("variator_1365465.json")
+    plot_variator_results("variator_1365465.json")
 
     # todo add support for updated params in derived_quantities
 
@@ -20,9 +20,9 @@ def main():
     # runner = unittest.TextTestRunner()
     # runner.run(suite)
 
-    sampler = ParamSampler()
-    optimal = sampler.optimise(30)
-    PETSc.Sys.Print(optimal)
+    # sampler = ParamSampler()
+    # optimal = sampler.optimise(30)
+    # PETSc.Sys.Print(optimal)
 
 if __name__ == "__main__":
     main()

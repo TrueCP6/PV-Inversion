@@ -1,20 +1,28 @@
 #!/bin/sh
-# One array task per (configuration, Courant number): 2 configurations x 13 Courant numbers.
+# One job per (configuration, Courant number): 2 configurations x 13 Courant numbers.
+# Run with `sh cfl_scan.sh` (not sbatch): it submits itself once per task,
+# since array jobs never get scheduled on this cluster.
 #SBATCH --account maths
-#SBATCH --array=0-25
-#SBATCH --time=16:00:00
+#SBATCH --time=24:00:00
 #SBATCH --nodes=1 --ntasks=40
 #SBATCH --mem=300G
 #SBATCH --job-name="firedrake"
 #SBATCH --mail-user=eltrob002@myuct.ac.za
 #SBATCH --mail-type=ALL
-#SBATCH --output=firedrake_%A_%a.out
-#SBATCH --error=firedrake_%A_%a.err
-#SBATCH --constraint=large
+#SBATCH --output=firedrake_%j.out
+#SBATCH --error=firedrake_%j.err
 
 POINTS=13 # Courant 0.3, 0.4, ..., 1.5
-CONFIG=$((SLURM_ARRAY_TASK_ID / POINTS))
-COURANT=$(awk "BEGIN { print 0.3 + 0.1 * ($SLURM_ARRAY_TASK_ID % $POINTS) }")
+
+if [ -z "$SLURM_JOB_ID" ]; then
+    for TASK in $(seq 0 $((2 * POINTS - 1))); do
+        sbatch --export=ALL,TASK=$TASK "$0"
+    done
+    exit
+fi
+
+CONFIG=$((TASK / POINTS))
+COURANT=$(awk "BEGIN { print 0.3 + 0.1 * ($TASK % $POINTS) }")
 
 if [ "$CONFIG" -eq 0 ]; then N=80; P=2; else N=40; P=4; fi
 

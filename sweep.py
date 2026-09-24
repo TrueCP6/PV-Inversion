@@ -38,9 +38,16 @@ def build_solver(N : int, p : int, matfree : bool, ksp_rtol : float = SolverPara
                  quadrature_degree : int = SolverParams.quadrature_degree, atmos_cls = None):
     """Set up the psi solver on an N x N x N mesh of Q_p elements, over the Barnes atmosphere
     unless atmos_cls asks for another one (MMSChecker, for the error convergence sweep)."""
+    import gc
+    from firedrake.petsc import PETSc
     from domain_builder import DomainBuilder
     from barnes_atmosphere import BarnesAtmosphere
     from diagnostic_solver import DiagnosticSolver
+
+    # Firedrake objects sit in reference cycles, so a finished solver lingers until the cyclic
+    # collector happens to run - collect it before building the next, or both are held at once
+    gc.collect()
+    PETSc.garbage_cleanup(PETSc.COMM_WORLD)
 
     phys_params = PhysicalParams()
     solver_params = SolverParams(nx=N, ny=N, nz=N, check_flux=False, polynomial_order=p,

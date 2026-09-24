@@ -48,8 +48,6 @@ def run_sweep(args):
 
                 PETSc.Sys.Print(f"N = {N}, matfree = {matfree}: "
                                 f"{records[-1].time:.3f} s per subsequent solve")
-                PETSc.garbage_cleanup(PETSc.COMM_WORLD)
-
                 # Rewritten every point, so a run that is killed part way through still
                 # leaves the timings taken before it.
                 sweep.save_records(out_path, records, indent=2)

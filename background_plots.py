@@ -1,6 +1,7 @@
 from hash_seed import use_same_hash
 use_same_hash()
 import argparse
+import json
 from pathlib import Path
 import numpy as np
 import sweep
@@ -276,6 +277,9 @@ def main():
     parser.add_argument('--checkpoint', metavar='H5_PATH',
                         help='Plot the state timestepping.py --backup saved here instead, '
                              'suffixing every file name with the checkpoint\'s')
+    parser.add_argument('--params', metavar='JSON_PATH',
+                        help='PhysicalParams overrides, e.g. param_sampler.py\'s optimised_*.json, '
+                             'suffixing every file name with the JSON\'s')
     args = parser.parse_args()
     sweep.quiet_petsc() # PETSc reads the command line too, and would warn about --checkpoint
 
@@ -295,6 +299,10 @@ def main():
             check_flux=False
         )
         phys_params = PhysicalParams()
+        if args.params:
+            with open(args.params) as f:
+                phys_params = PhysicalParams(**json.load(f))
+            FILE_SUFFIX = f"_{Path(args.params).stem}"
 
         atmos = BarnesAtmosphere(DomainBuilder(solver_params, phys_params))
         PETSc.Sys.Print(f"Background Ro = {atmos.rossby_number()}")
@@ -312,7 +320,7 @@ def main():
         derived.horizontal_wind_speed(),
         "Surface Wind",
         r"$\left|\mathbf{u}\right|$ [\unit{\meter \per \second}]",
-        levels=np.arange(0, 3, 0.2),
+        levels=np.arange(0, 10, 1),
         normal_dir="z",
         slice_coord=0,
         vector_field=(derived.u(), derived.v())
@@ -415,7 +423,7 @@ def main():
         derived.pressure_anomaly_hpa(),
         "Pressure Anomaly",
         r"$p^*$ [\unit{\hecto\pascal}]",
-        levels=np.arange(-10, 10, 1),
+        levels=np.arange(-30, 30, 1),
         normals='xyz'
     )
 

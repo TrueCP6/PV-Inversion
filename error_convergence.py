@@ -56,8 +56,6 @@ def run_sweep(args):
             records.append(ErrorRecord(p=int(p), N=int(N),
                                        dx=PhysicalParams().Lx / int(N), error=error))
 
-            PETSc.garbage_cleanup(PETSc.COMM_WORLD)
-
             # Rewritten every point, so a run that is killed part way through still
             # leaves the errors measured before it.
             sweep.save_records(out_path, records, indent=2)
