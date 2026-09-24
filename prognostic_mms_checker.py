@@ -8,7 +8,7 @@ from prognostic_solver import PrognosticSolver
 
 class PrognosticMMSChecker(PrognosticSolver):
     """Prescribes the velocity instead of inverting q for it, and adds the source that makes
-    q_exact solve dq/dt + u.grad(q) = S. This checks the transport and RK4 alone - the
+    q_exact solve dq/dt + u.grad(q) = S. This checks the transport and SSPRK3 alone - the
     inversion has its own MMS in mms_checker.py.
 
     u is non-divergent, and it crosses every lateral boundary, exercising both inflow and outflow."""
@@ -19,7 +19,8 @@ class PrognosticMMSChecker(PrognosticSolver):
         self.H = phys_params.H
         self.U0, self.U1 = 20.0, 10.0
         self.V0, self.V1 = 10.0, 5.0
-        super().__init__(solver_params, phys_params, matfree=True)
+        # No limiter: the source lets q leave its initial bounds, and limiting would clip the exact solution
+        super().__init__(solver_params, phys_params, matfree=True, limit=False)
 
     def u_exact(self):
         x, y, z = SpatialCoordinate(self._dg_space.mesh())
@@ -60,9 +61,20 @@ class PrognosticMMSChecker(PrognosticSolver):
         exact = self.q_exact(self.t)
         return errornorm(exact, self.q) / norm(Function(self._dg_space).interpolate(exact))
 
-    def run(self, T):
+    def default_steps(self, T):
+        """Steps to T at dt(), shrunk from h to h^((p+1)/3). dt() alone shrinks as h, which
+        would leave SSPRK3's O(dt^3) swamping the O(h^(p+1)) spatial error; this keeps it under."""
         self._update_velocity(self.q)
-        n_steps = int(np.ceil(T / self.dt()))
+        p = self._solver_params.polynomial_order
+        dt = self.dt() * self._solver_params.nx ** (1 - (p + 1) / 3)
+        return int(np.ceil(T / dt))
+
+    def run(self, T, n_steps=None):
+        """Step from q_exact(0) to T, so one checker can be run more than once."""
+        self.t = 0.0
+        self.q.interpolate(self._q_initial())
+        self._update_velocity(self.q)
+        n_steps = n_steps if n_steps is not None else self.default_steps(T)
         for _ in range(n_steps):
             self.step(T / n_steps) # land exactly on T
         return self.calc_error()

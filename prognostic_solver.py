@@ -6,10 +6,70 @@ from parameters import SolverParams, PhysicalParams
 from firedrake import *
 
 # Fraction of the CFL limit a step is taken at, unless the caller asks for another.
-SAFETY = 0.8
+SAFETY = 0.4
+
+class ZhangShuLimiter:
+    """Zhang & Shu's (2010) bound-preserving limiter: scales q about each cell's mean, just
+    far enough to bring the cell back inside [lower, upper].
+
+    The mean is left alone, so mass is conserved, and so is the order of accuracy wherever q
+    is smooth and already in bounds (theta = 1 there). The bounds are the extremes of the
+    initial q: with no source and q_in frozen at the initial q, the exact q never leaves them.
+
+    The bounds are checked at Gauss-Lobatto nodes rather than at q's own nodes. DQ's default
+    nodes are Gauss-Legendre points, all interior, so they miss the cell edges the upwind flux
+    reads. Zhang & Shu's guarantee (under SSP stepping and their CFL condition) is for a
+    specific point set on the edges - Gauss-Legendre along a face, Gauss-Lobatto across it -
+    which the GLL grid only approximates, so here it is close to bound-preserving, not exactly.
+    """
+    def __init__(self, q, p):
+        mesh = q.function_space().mesh()
+        self._nodes = Function(FunctionSpace(mesh, "DQ", p, variant="gll"))
+        self._limited = Function(q.function_space())
+
+        W0 = FunctionSpace(mesh, "DQ", 0)
+        self._test = TestFunction(W0)
+        self._volume = assemble(self._test * dx)
+        self._cell_sum = Cofunction(W0.dual())
+        self._mean, self._min, self._max, self._theta = (Function(W0) for _ in range(4))
+
+        self._nodes.interpolate(q)
+        self.lower, self.upper = math_utils.get_global_extrema(self._nodes)
+        self.limited_fraction = 0.0 # of the domain's volume, in the last apply()
+
+    def apply(self, q):
+        self._nodes.interpolate(q)
+        self._min.assign(float('inf'))
+        self._max.assign(float('-inf'))
+        instructions = """
+        for i
+            lo[0] = fmin(lo[0], f[i])
+            hi[0] = fmax(hi[0], f[i])
+        end
+        """
+        par_loop(("{[i]: 0 <= i < f.dofs}", instructions), dx,
+                 {"lo": (self._min, RW), "hi": (self._max, RW), "f": (self._nodes, READ)})
+
+        assemble(q * self._test * dx, tensor=self._cell_sum)
+        self._mean.dat.data_wo[:] = self._cell_sum.dat.data_ro / self._volume.dat.data_ro
+
+        lo, hi, mean = self._min, self._max, self._mean
+        L, U = self.lower, self.upper
+        # A mean already out of bounds can't be fixed by scaling about it, so that cell goes flat (theta = 0)
+        upper = conditional(hi > U, conditional(mean < U, (U - mean) / (hi - mean), 0.0), 1.0)
+        lower = conditional(lo < L, conditional(mean > L, (L - mean) / (lo - mean), 0.0), 1.0)
+        self._theta.interpolate(max_value(0.0, min_value(1.0, min_value(upper, lower))))
+
+        self._limited.interpolate(mean + self._theta * (q - mean))
+        q.assign(self._limited)
+
+        self.limited_fraction = (assemble(conditional(self._theta < 1.0, 1.0, 0.0) * dx)
+                                 / assemble(Constant(1.0) * dx(domain=q.function_space().mesh())))
+        return q
 
 class PrognosticSolver:
-    def __init__(self, solver_params : SolverParams, phys_params : PhysicalParams, matfree : bool):
+    def __init__(self, solver_params : SolverParams, phys_params : PhysicalParams, matfree : bool,
+                 limit : bool = True):
         self._solver_params = solver_params
         self._phys_params = phys_params
 
@@ -25,6 +85,10 @@ class PrognosticSolver:
         self.q = Function(self._dg_space).interpolate(self._q_initial()) # prognostic state
         self._temp_q = Function(self._dg_space) # RHS input
         self._stage_q = Function(self._dg_space) # RHS output
+        self._q1 = Function(self._dg_space) # SSPRK3 stages
+        self._q2 = Function(self._dg_space)
+        # Off for anything with a source (the MMS): q is then free to leave its initial bounds
+        self.limiter = ZhangShuLimiter(self.q, solver_params.polynomial_order) if limit else None
         self._prognostic_solver = self._build_solver()
 
         self._x_max = { # positions of GLL node closest to x=1, p varying
@@ -124,16 +188,22 @@ class PrognosticSolver:
         self._prognostic_solver.solve()
         return self._stage_q.copy(deepcopy=True)
 
+    def _limit(self, q):
+        return self.limiter.apply(q) if self.limiter is not None else q
+
     def step(self, dt=None):
+        """One SSPRK3 step (Shu & Osher 1988). Each stage is a convex combination of forward
+        Euler steps, so any bound forward Euler keeps, the whole step keeps - which is what
+        the limiter, applied after every stage, relies on. Classical RK4 has no such property.
+        """
         q, t = self.q, self.t
-        k1 = self.RHS(q, t) # also sets u, v for the current state, which dt() needs
+        k = self.RHS(q, t) # also sets u, v for the current state, which dt() needs
         if dt is None:
             dt = self.dt()
         self._dt.assign(dt)
         h = self._dt
-        k2 = self.RHS(q + h/2 * k1, t + dt/2)
-        k3 = self.RHS(q + h/2 * k2, t + dt/2)
-        k4 = self.RHS(q + h * k3, t + dt)
-        q.assign(q + h/6 * (k1 + 2*k2 + 2*k3 + k4))
+        q1 = self._limit(self._q1.assign(q + h * k))
+        q2 = self._limit(self._q2.assign(0.75 * q + 0.25 * (q1 + h * self.RHS(q1, t + dt))))
+        self._limit(q.assign(q / 3 + 2 / 3 * (q2 + h * self.RHS(q2, t + dt / 2))))
         self.t = t + dt
         return dt
