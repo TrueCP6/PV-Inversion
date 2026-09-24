@@ -6,7 +6,7 @@
 \usepackage{amsmath}
 \usepackage{graphicx}
 \graphicspath{{plots/}}
-\usepackage[outputdir=../tex_out]{minted} %TODO improve formatting
+\usepackage{minted} %TODO improve formatting
 \setminted{linenos, frame=single, breaklines}
 \usepackage{siunitx}
 \usepackage{subcaption}
@@ -24,6 +24,20 @@
     filecolor=Mulberry      % Links to local files
 ]{hyperref}
 \usepackage[noabbrev]{cleveref}
+
+% Line spacing
+\usepackage{setspace}
+\setstretch{1.2}
+
+% Bibliography (biblatex + biber)
+\usepackage[
+    backend=biber,
+    style=alphabetic,
+    isbn=true,
+    url=false,
+    doi=true
+]{biblatex}
+\addbibresource{sources.bib}
 
 \title{Idealised simulation of a symmetric cut-off low through quasi-geostrophic potential vorticity inversion and the finite element method}
 \author{Robert Eliott}
@@ -57,7 +71,7 @@ By implementing time-dependent simulations, we seek to explore the time-evolutio
 For readers who are not familiar with atmospheric science, but who are familiar with Applied Mathematics, a brief overview of terminology and atmospheric properties is given.
 
 \subsection{Layers of the Atmosphere}
-The atmosphere is divided into a number of distinct layers, a characteristic referred to as \textit{stratification}. We will focus on the two layers closest to the Earth's surface: the troposphere and the stratosphere. The boundary between these two layers is known as the \textit{tropopause} \cite{Vallis2017}.
+The atmosphere is divided into a number of distinct layers, a characteristic referred to as \textbf{stratification}. We will focus on the two layers closest to the Earth's surface: the troposphere and the stratosphere. The boundary between these two layers is known as the \textit{tropopause} \footnote{Italicised text is used to show terms that will be defined in more detail later on in the text.} \cite{Vallis2017}.
 
 \begin{itemize}
     \item The \textbf{troposphere} extends from the Earth's surface ($z=0$) up to the tropopause. This layer is mostly transparent to incoming solar (shortwave) radiation, meaning it is primarily heated from below by terrestrial (longwave) radiation emitted by the Earth's surface. This bottom-up heating results in a negative vertical temperature gradient ($\frac{\partial T}{\partial z} < 0$) \cite{Vallis2017}. As a practical example, as you climb higher up a mountain, the temperature tends to decrease with increasing altitude. The warmer air close to the surface is less dense than the colder air at higher altitudes, which leads to convective instability \cite{danielson2003meteorology}. Consequently, this layer experiences high turbulence \cite{sprenger2007userguide} and substantial dissipation of energy; almost all typical weather phenomena occur here.
@@ -103,13 +117,36 @@ The meaning of certain relevant terms that will be used later on is given. We as
 
     \item The \textbf{Coriolis parameter} ($f$) is a local measure of the effect that the Earth's rotation has on the movement of fluids (such as the atmosphere) on the Earth's surface \cite{Vallis2017}. It is calculated as $f = 2 |\Omega| \sin (\varphi)$, where $\varphi$ is latitude, and $\bm\Omega$ is the angular momentum of the Earth \cite{sprenger2007userguide}. By convention $f$ is negative in the Southern Hemisphere \cite{Barnes2022main}.
 
-    \item The \textbf{zonal} and \textbf{meridional} directions refer to the west-to-east and south-to-north directions respectively. This text will use the convention that the $x$-axis points south and the $y$-axis points east \cite{fehlmann1997pvelements}.
+    \item The \textbf{zonal} and \textbf{meridional} directions refer to the west-to-east and south-to-north directions respectively. This text will use the convention that the $x$-axis points east and the $y$-axis points north.
 
     \item \textbf{Hydrostatic equilibrium} is an assumption often made to simplify large-scale atmospheric models. It presumes that the downward gravitational force on a fluid parcel is precisely balanced by the upward force due to the pressure gradient. It can be written as \cite{Vallis2017}:
 
     \begin{equation}\label{hydrostatic_equilibrium}
         \frac{\partial p}{\partial z} = - \rho g
     \end{equation}
+
+    \item
+    \textbf{Geostrophic} describes a flow in which the force induced by horizontal pressure gradients is exactly balanced by the Coriolis force \cite{WMO1992}.
+    This causes the resulting geostrophic wind to blow parallel to contours of constant pressure.
+    This balance holds approximately for large-scale weather system in the mid latitudes, as long as the the \textit{Rossby number} is assumed to be small \cite{Vallis2017}.
+
+    \item 
+    \textbf{Geostrophic vorticity} ($\zeta_g$) is the vertical component of the vorticity of geostrophic wind, measuring the rotation about the vertical axis \cite{HOLTON_chapter6,WMO1992}.
+    It is quantitatively defined as follows, where $\psi_g$ is the geostrophic stream function \cite{Vallis2017}.
+
+    \begin{equation}\label{geostrophic_vorticity}
+        \zeta_g = \bm{\hat k} \cdot \bm{\omega_g} = \frac{\partial v_g}{\partial x} - \frac{\partial u_g}{\partial y} = \frac{\partial ^2 \psi_g}{\partial x^2} + \frac{\partial ^2 \psi_g}{\partial y^2} 
+    \end{equation}
+
+    \item The \textbf{Rossby number} ($\mathrm{Ro}$) is the ratio of the typical flow speed $U$ to $f$ times the typical length scale $L$.
+    A typical value in the mid-latitude atmosphere is $\mathrm{Ro} \sim 0.1$.
+    The natural scale for $\zeta_g$ is $U/L$, so the Rossby number can be approximated as \cite{HOLTON_chapter6,Vallis2017}:
+
+    \begin{equation}\label{rossby_number}
+        \mathrm{Ro} = \frac{U}{fL} \approx \left| \frac{\zeta_g}{f}\right|
+    \end{equation}
+
+    \textit{Quasigeostrophic theory} is only formally valid when $\mathrm{Ro} \ll 1$, but remains qualitatively useful despite this restrictive condition \cite{HOLTON_chapter6}.
     
 \end{itemize}
 
@@ -122,36 +159,57 @@ We will call this quantity Ertel's potential vorticity (EPV) and denote it as $Q
 \end{equation}
 where the material derivative $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$ is used and $Q$ has dimensions of $M^{-1} L^2 T^{-1} \Theta$ \cite{Barnes2022main}.
 
-% If stable air is pulled into troposphere
-% Stability 'stripped' away and traded for cyclonic rotation
-% Requires a lot of energy so where does this come from
-% Creates a cut off low
-% Quick overview of rossby waves
-% 99.3 % of cutoff lows caused by rossby wave breaking
-% Rossby wave breaking is irreversible and highly nonlinear (like nonlinear transport equation?)
-% High PV filaments detach from the main stratospheric resevoir - tropopause fold
-% Stratospheric intrusion causes wind all the way down to the surface
-% Disturbs latituduninal temperature gradient
-% The invertibility principle - if bcs and pv is known, all other fields can be recovered
-% Warm surface anomaly, cold stratospheric intrusion (I think) increases temperature gradient and baroclinic instability
-% Both induce cyclonic rotation if overlapping horizontally and they strengthen each other
-% Combination of the two
-% Deep COLs (57% reach to surface) vs Shallow COLs (fade out at 500hPa)
-% Most shallow in the subtropics and most deep south of 30 degrees (extra tropics)
-% Depth of stratospheric intrusion is important in determining depth of COL
-% But the phase of the surface theta anomaly lowkey needs to align
-% If they don't align you usually get a shallow COL because they destructively interfere
-% COLs responsible for 16% of total rainfall on cape south coast - 20% of all flash flooding events in the whole country
-% Only 49% of COLs in SA reach the surface
-% Usually shallow cols in summer
-% Deep cols peak in autumn
-% Because tropopause goes higher
-% dCOL pulls up cold air from the poles on its western flank - increases density - higher pressure - anticyclone (ridging high)
-% Brings a lot of moisture air into steep topography causing uplift
-% Plus cyclonic forcing of COL causes fucked up rain
-% 57% are d1acols - stratospheric intrusion cause storm to form out of undisturbed air - hard to predict because they spontaneously generate
-% Also stratospheric intrusions put a lot of dry air into the troposphere
-% COLs move slowly so if lamming over warm oceans shit can hit the fan in the form of a surface theta anomaly
+\subsection{Rossby Waves}
+
+\textbf{Rossby waves} are the large scale meanders (wave lengths $\sim \qty{3000}{\kilo\meter}$) of the mid-latitude prevailing westerly winds, manifesting in the upper troposphere as a series of alternating troughs and ridges \cite{Stull2015} along the jet stream and the tropopause \cite{Hoskins1985}.
+They owe their existence to a background gradient of PV, most simply that provided by the variation of $f$ with latitude;
+The potential vorticity of an air parcel displaced towards the pole or equator is conserved, so according to \cref{epv}, its relative vorticity ($\bm{\omega}$) may change to compensate for the change in planetary vorticity ($2 \bm{\Omega}$) \cite{Vallis2017}.
+The induced circulation pushes parcels back towards their original latitude, but a quarter wavelength out of phase with the displacement, so the pattern propagates westward relative to the mean flow.
+In terms of potential vorticity, a Rossby wave is a wavy displacement of PV contours on a surface of constant $\theta$ (isentropic surface).
+The sharp PV gradient at the tropopause tends to act as a waveguide along which these waves travel \cite{Hoskins1985, Stull2015}.
+
+At small amplitude these undulations are reversible: the PV contours are displaced, but return to their original positions once the wave has passed.
+As the amplitude grows, however, the contours no longer simply undulate but overturn, and the wave breaks.
+\textbf{Rossby wave breaking} is therefore a strongly nonlinear and irreversible deformation of the PV contours, analogous to the breaking of ocean waves on a beach \cite{Hoskins1985,Vallis2017,NdaranaWaugh2010}.
+During equatorward breaking, tongues of high-PV stratospheric air are drawn equatorward and downward, appearing as a tropopause fold in the tropopause in a vertical cross-section \cite{Sprenger2007ste,Hoskins1985,Stull2015}.
+These filaments can detach entirely from the main stratospheric reservoir of high-PV air, forming pools of high-PV air surrounded by low-PV air in the troposphere \cite{Sprenger2007ste}.
+
+\subsection{Cut-off Lows}
+
+When such a filament detaches, the isolated high-PV anomaly induces a closed cyclonic\footnote{Clockwise in the Southern Hemisphere and anticlockwise in the Northern Hemisphere; the sense in which geostrophic wind flow circulates around a low pressure zone \cite{WMO1992}.} circulation beneath it that is cut off equatorward from the prevailing westerlies: a cold-cored \textbf{cut-off low} (COL) \cite{WMO1992}.
+Rossby wave breaking is the dominant formation mechanism: 89\% of Southern Hemisphere COLs are linked to RWB events, with most of the remainder linked to PV intrusions in which high-PV air is advected equatorward without the contours overturning \cite{NdaranaWaugh2010}.
+With a more generous spatial and temporal search window, 99.3\% of COLs are found to be co-located with at least one RWB event \cite{Barnes2021col}.
+
+COLs differ widely in vertical extent, and fall largely into two groups.
+Shallow COLs are confined to the upper troposphere and fade out around the \qty{500}{\hecto \pascal} level\footnote{Corresponds to an altitude of $\approx \qty{5.5}{\kilo\meter}$ \cite{Stull2015}} or higher, whereas deep COLs extend all the way to the surface, and make up 58\% of all COLs.
+Very few COLs reach 700 to \qty{925}{\hecto \pascal} without reaching the surface, warranting the pseudo-binary distinction between deep and shallow COLs.
+Shallow COLs are most common in the subtropics, while deep COLs dominate poleward of \ang{30}S in the extratropics.
+Over the southern African sector only 49\% of COLs reach the surface.
+Shallow COLs are most frequent in summer \cite{Barnes2021col}, when the tropopause is higher \cite{SeidelRandel2006}, whereas deep COLs peak in autumn \cite{Barnes2021col}.
+
+The distinction matters because only deep COLs are accompanied by a surface cyclonic circulation, adding strong winds, large waves and storm surge to the heavy rainfall that COLs of all depths can produce \cite{Barnes2021col,NdaranaWaugh2010}.
+In South Africa, COLs contribute 16\% of the total annual rainfall on the Cape south coast, and deep moist convection within them produces short bursts of extreme rainfall responsible for 20\% of all flash-flooding events \cite{Barnes2021col}.
+
+On its western flank, a deep COL draws cold polar air equatorward \cite{Barnes2021col, NdaranaWaugh2010, SingletonReason2007}.
+This dense air raises the surface pressure and contributes to a ridging high pressure zone behind the low \cite{Barnes2021col}.
+The tight pressure gradient between the two drives moist air onshore, nearly perpendicular to the coast \cite{Ndarana2018, Barnes2021capestorm}, against the steep coastal topography of South Africa, where it is forced to rise \cite{SingletonReason2007}.
+Combined with the COL's own cyclonic forcing, this uplift can produce extreme rainfall  \cite{Barnes2021capestorm,SingletonReason2007}.
+Some COLs are quasi-stationary \cite{NdaranaWaugh2010}, and the topography itself can hold the associated surface low in place \cite{SingletonReason2007}, so that these conditions persist over the same region for several days \cite{Barnes2021col}.
+
+The high-PV air at the heart of a COL is a \textbf{stratospheric intrusion}: highly stable stratospheric air drawn down sloping isentropic surfaces into the troposphere \cite{Hoskins1985, Stull2015, Barnes2022main}.
+Stratospheric air has high PV mainly because of its strong static stability \cite{Hoskins1985, Grise2010}, and in the absence of diabatic and frictional effects it conserves this PV as it descends \cite{Stull2015}.
+Within the intrusion the PV anomaly is realised partly as increased static stability and partly as increased cyclonic vorticity, the balance depending on its shape \cite{Hoskins1985}.
+Its influence, however, extends beyond the anomaly itself: the circulation it induces penetrates vertically, and beneath it the isentropes bow apart, so that the weakly stratified air below trades static stability for cyclonic rotation \cite{Hoskins1985}.
+The circulation induced by an intrusion that reaches low enough can extend all the way to the surface \cite{Barnes2022main}, where it advects the latitudinal temperature gradient, creating a warm anomaly ahead of the intrusion that induces a cyclonic circulation of its own \cite{Hoskins1985}.
+
+Potential vorticity ties these processes together through the \textbf{invertibility principle}: given a suitable balance condition, the distribution of PV on isentropic surfaces together with $\theta$ on the lower boundary determines all other dynamical fields (wind, pressure, temperature, static stability) \cite{Hoskins1985}.
+From this point of view, a COL can be understood as the interaction of two anomalies \cite{Barnes2021col}.
+The stratospheric intrusion is a cyclonic (in the Southern Hemisphere, negative) upper-level PV anomaly \cite{Barnes2022main}, and a warm surface potential-temperature ($\theta$) anomaly is equivalent to a cyclonic PV anomaly concentrated at the ground \cite{Hoskins1985}.
+Each induces cyclonic circulation of its own, and when the warm surface anomaly lies just downstream (east) of the upper anomaly, their circulations reinforce one another and the two anomalies amplify together \cite{Hoskins1985, Barnes2021col}.
+The depth of the stratospheric intrusion is therefore important in determining the depth of the COL, but it is not the whole story: the surface $\theta$ anomaly must also be in phase with the upper anomaly.
+An out-of-phase surface anomaly can inhibit the COL from extending to the surface: only 12\% of shallow COLs have an in-phase surface anomaly when they form, compared with 66\% of deep COLs \cite{Barnes2021col}.
+In 53\% of deep COLs with a closed surface low (57\% over southern Africa), the surface cyclone develops at or after the formation of the COL rather than pre-existing, and the two generally develop almost simultaneously \cite{Barnes2021col}.
+Once formed, a COL over a warm ocean can generate a surface $\theta$ anomaly of its own through surface heat fluxes, coupling the surface to the upper-level anomaly and allowing the system to intensify \cite{SingletonReason2007, Barnes2021col}.
 
 \section{The Quasigeostrophic Potential Vorticity Equation}
 
@@ -444,21 +502,21 @@ The maximum spacing between GLL nodes for some $p$ is given by \cref{tab:gll_max
 
 \begin{table}[hbtp]
     \centering
-    \caption{Position of smallest non-zero positive GLL node for various polynomial degrees \cite[Table 25.6]{abramowitz1965handbook}. For even $p$ this corresponds exactly to the maximum spacing between points on the interval $[-1,1]$. For odd $p$ it corresponds to half the spacing.}
+    \caption{Position of GLL nodes in the range $x_i \in [-1,1)$ for various polynomial degrees \cite[Table 25.6]{abramowitz1965handbook}. For even $p$, $\left|x\right|_\text{min}$ corresponds exactly to the maximum spacing between GLL nodes on the interval $[-1,1]$. For odd $p$ it corresponds to half the spacing. The minimum spacing between nodes is given by $\Delta x_\text{min} (p) = 1-x_\text{max}(p)$.}
     \label{tab:gll_max_spacing}
-    \begin{tabular}{ccc}
+    \begin{tabular}{cccc}
         \toprule
-        $p$ & $x_\text{min}(p)$ & $\Delta x _\text{max} (p)$ \\
+        $p$ & $\left|x\right|_\text{min}(p)$ & $\Delta x _\text{max} (p)$ & $x _\text{max}(p)$\\
         \midrule
-        1 & 1.0000 & 2.0000 \\
-        2 & 1.0000 & 1.0000 \\
-        3 & 0.44721 & 0.89443 \\
-        4 & 0.65465 & 0.65465 \\
-        5 & 0.28523 & 0.57046 \\
-        6 & 0.46885 & 0.46885 \\
-        7 & 0.20930 & 0.41860 \\
-        8 & 0.36312 & 0.36312 \\
-        9 & 0.16528 & 0.33056 \\
+        1 & 1.0000 & 2.0000 & -1.0000 \\
+        2 & 1.0000 & 1.0000 & 0.0000 \\
+        3 & 0.44721 & 0.89443 & 0.44721\\
+        4 & 0.65465 & 0.65465 & 0.65465\\
+        5 & 0.28523 & 0.57046 & 0.76506\\
+        6 & 0.46885 & 0.46885 & 0.83022\\
+        7 & 0.20930 & 0.41860 & 0.87174\\
+        8 & 0.36312 & 0.36312 & 0.89976\\
+        9 & 0.16528 & 0.33056 & 0.91954\\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -691,39 +749,40 @@ Substituting \cref{mms_psi} into \cref{mms_source} supplies the source term, and
 
 
 
-\bibliographystyle{alphaurl}
-\bibliography{sources}
+\printbibliography
 
 \section{TEMP}
 \subsection{Plan}
 \begin{enumerate}
     \item Introduction
     \item \st{Basic structure of the atmosphere}
-    \item What is potential vorticity?
-    \item Introduce Ertel PV
-    \item What is a stratospheric intrusion and how does it relate to cut off lows
-    \item Cut off lows in south africa
+    \item \st{What is potential vorticity?}
+    \item \st{Introduce Ertel PV}
+    \item \st{What is a stratospheric intrusion and how does it relate to cut off lows}
+    \item \st{Cut off lows in south africa}
     \item Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping
-    \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting
+    \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting, why QGPV?
     \item Brief overview of QGPV equation and the assumptions that arise from it.
-    \item \st{Specify background states and plot them. Explain where necessary}
-    \item \st{Specify q and plot it}
-    \item \st{Why we will use finite element and firedrake}
-    \item \st{Building the mesh and function space in Firedrake}
-    \item \st{Putting into weak form - why do we multiply by rho? Get symmetric semipositive definite so we can use conjugate gradient}
-    \item \st{Solvability condition}
-    \item \st{Utility functions}
-    \item \st{Specifying the equation in Firedrake}
-    \item \st{Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol - why matrix free is slower (check notebooklm) - why are the coefficients not analytically expressible}
-    \item \st{Running with MPI}
-    \item \textbf{Verify setup is correct using MMS}
-    \item Calculate time complexity and order of accuracy
-    \item \textbf{Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude}
-    \item \textbf{Reproduction of a few of Barnes' experiments - min surface pressure and vorticity}
-    \item \textbf{What happens if we change Brunt-Vaisala to be more realistic}
-    \item \textbf{Potentially investigate alternative backgrounds}
-    \item Potentially frame as an optimisation problem to maximise the surface cyclogenetic forcing to parameterise worst-case scenarios \st{(requires code refactor to allow changing parameters without rebuilding solver)}
+    \item Background states
+    \item Boundary conditions
+    \item Specify q and plot it
+    \item Why we will use finite element and firedrake
+    \item Building the mesh and function space in Firedrake
+    \item Putting into weak form - why do we multiply by rho? Get symmetric semipositive definite so we can use conjugate gradient
+    \item Solvability condition
+    \item Utility functions
+    \item Specifying the equation in Firedrake
+    \item Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol - why matrix free is slower (check notebooklm) - why are the coefficients not analytically expressible
+    \item Running with MPI
+    \item Verify setup is correct using MMS - order of accuracy
+    \item Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude
+    \item Quantities to vary
+    \item Varying one by one
+    \item Random sampler - relationship between tropopause altitude and surface ting - colour by rossby number
+    \item Optimiser
     \item Feasability of explicit timestepping - stability condition
+    \item Timestepping methodology
+    \item Conclusions
 \end{enumerate}
 
 \newpage
