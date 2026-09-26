@@ -245,3 +245,23 @@ class ResolvedAtmosphere:
     def rossby_number(self):
         expr = abs(self.geostrophic_vorticity() / self.atmos.ufl_params.f)
         return get_global_max(self._interp(expr))
+
+    @lru_cache(maxsize=1)
+    def froude_number(self):
+        theta = self.potential_temperature()
+        g = self.ufl_params.g
+        N = sqrt(g * theta.dx(2) / theta)
+        u = self.u()
+        fr = abs(u.dx(2) / N)
+        return get_global_max(self._interp(fr))
+
+    @lru_cache(maxsize=1)
+    def invalid_epv(self):
+        Q = self.atmos.ertel_pv()
+        f = self.ufl_params.f
+
+        totalQ = assemble(Q * dx)
+        invalid_zone = Q*f <= 0
+        integrand = conditional(invalid_zone, Q, Constant(0))
+        totalInvalidQ = assemble(integrand * dx())
+        return totalInvalidQ / totalQ

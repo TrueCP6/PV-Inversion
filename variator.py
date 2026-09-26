@@ -87,8 +87,8 @@ class Variator:
             ("anomaly_z_size", (3500, 7000), 1, r"$z_\text{size} \in [min, max]$ [\unit{\meter}]"),
             ("anomaly_clip", (-2e-6, -1e-6), 1e6, r"$Q_\text{anoclip} \in [min, max]$ [\unit{PVU}]"),
             ("jet_y_size", (200e3, 1000e3), 1e-3, r"$L_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
-            ("jet_z_size", (1450, 6e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
-            ("jet_magnitude", (0, 80), 1, r"$U_\text{jet} \in [min, max]$ [\unit{\meter\per\second}]"),
+            ("jet_z_size", (1450, 9e3), 1, r"$z_\text{jet} \in [min, max]$ [\unit{\meter}]"),
+            ("jet_magnitude", (20, 80), 1, r"$U_\text{jet} \in [min, max]$ [\unit{\meter\per\second}]"),
             ("jet_y_pos", (mx-1500e3, mx+500e3), 1e-3, r"$y_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
             ("latitude", (-50, -30), 1, r"$\varphi \in [\qty{min}{\degree}, \qty{max}{\degree}]$") # makes rossby number a bit smaller
         ]

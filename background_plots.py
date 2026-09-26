@@ -315,6 +315,8 @@ def main():
 
     cg_space = atmos.cg_space
     PETSc.Sys.Print(f"Ro after inversion = {derived.rossby_number()}")
+    PETSc.Sys.Print(f"Fr after inversion = {derived.froude_number()}")
+    PETSc.Sys.Print(f"Invalid EPV frac after inversion = {derived.invalid_epv()}")
 
     plot_slice_heatmap(
         derived.horizontal_wind_speed(),
