@@ -211,57 +211,303 @@ An out-of-phase surface anomaly can inhibit the COL from extending to the surfac
 In 53\% of deep COLs with a closed surface low (57\% over southern Africa), the surface cyclone develops at or after the formation of the COL rather than pre-existing, and the two generally develop almost simultaneously \cite{Barnes2021col}.
 Once formed, a COL over a warm ocean can generate a surface $\theta$ anomaly of its own through surface heat fluxes, coupling the surface to the upper-level anomaly and allowing the system to intensify \cite{SingletonReason2007, Barnes2021col}.
 
+\section{Objectives}
+
+As discussed above, COLs and Rossby wave breaking are responsible for a substantial share of the extreme weather experienced over and around South Africa.
+Both are associated with stratospheric intrusions: tongues of high-PV air that extend deep into the troposphere and induce a circulation that can reach the surface.
+
+The primary aim of this project is to quantify how the structure of a stratospheric intrusion, and the background atmosphere in which it is embedded, determine its surface response, and hence its capacity to produce severe weather.
+
+The approach rests on the PV invertibility principle.
+Inverting the full Ertel PV (\cref{epv}) is a difficult numerical problem because of its strong nonlinearity.
+We therefore use the
+\textit{quasigeostrophic} approximation, in which the inversion reduces to a linear elliptic problem for the geostrophic streamfunction (\cref{qgpv}).
+This is considerably more tractable, though still non-trivial, while retaining the essential dynamics of an intrusion.
+
+The specific objectives of this project are to:
+\begin{enumerate}
+  \item recreate the idealised background atmospheric conditions of the control state used by Barnes et Al. \cite{Barnes2022main}
+
+  \item develop and validate a numerical solver for the QGPV inversion problem (\cref{qgpv}) for idealised intrusions embedded in a prescribed background state;
+  
+  \item optimise this solver, both for use on consumer-grade hardware and a high-performance computing (HPC) cluster, so that large parameter sweeps become computationally feasible;
+
+  \item assess the limitations of the quasigeostrophic PV framework to determine which results are physically meaningful
+  
+  \item use systematic parameter sweeps to isolate the effect of individual intrusion and background-state parameters on the surface fields, and to characterise the relationship between derived quantities, such as the minimum height of the dynamical tropopause, and the strength of the surface response;
+  
+  \item implement an optimisation scheme that automatically searches parameter space for the intrusions and background states that produce the most severe surface response; and
+  
+  \item integrate these configurations forward in time using the prognostic equation \cref{qgpv_time} to assess their longevity and evolution.
+\end{enumerate}
+
+This text therefore focuses on solutions to \cref{qgpv,qgpv_time} and their physical implications.
+It builds on the PV inversion framework of Fehlmann~\cite{fehlmann1997pvelements} and Sprenger~\cite{sprenger2007userguide},
+and on the South African COL work of Barnes et~al.~\cite{Barnes2022main}.
+
+% \section{Objectives}
+
+% The primary aim of this project is to quantitatively investigate stratospheric intrusions to better understand how atmospheric variables affect surface conditions, and therefore extreme weather caused by COLs and Rossby Wave Breaking within and near to South Africa.
+% If we assume an idealised background state and potential vorticity profile, we can use the invertibility principle to deduce all other atmospheric variables.
+% Performing inversion on the full EPV (\cref{epv}) is a complex numerical challenge due to its highly nonlinear nature.
+% Instead, we will employ an approximation of EPV, \textit{quasigeostrophic} potential vorticity, which reduces $Q$ to a linear advection-diffusion equation with a source term (\cref{qgpv}), which is a significantly more straightforward (although non-trivial) numerical challenge.
+
+% Varying the parameters of this idealised background state will allow us to determine the effect of individual atmospheric and intrusion parameters on the surface, as well as characterise the relationship between certain derived quantities (such as the minimum dynamical tropopause height) and surface effects.
+
+% Tuning and greatly optimising the diagnostic solver for use on a High Performance Computing Cluster (HPC) allows wide and comprehensive parameter sweeps, further enabling this endeavour.
+
+% Additionally, this makes the implementation of an optimisation scheme tractable, which automates the search for anomalies and atmospheric states that produce the most severe effects on the surface.
+
+% We can then evolve these atmospheric states with time using the prognostic \cref{qgpv_time}, so as to determine their longevity and overall time evolution.
+
+% The primary focus of this text is solutions to \cref{qgpv,qgpv_time} and their physical implications by building off the work of Fehlmann \cite{fehlmann1997pvelements}, Sprenger \cite{sprenger2007userguide} and Barnes et Al. \cite{Barnes2022main}.
+
 \section{The Quasigeostrophic Potential Vorticity Equation}
 
 \subsection{Derivation}
-%TODO beta plane approximation
-By assuming hydrostatic equilibrium (\cref{hydrostatic_equilibrium}) and that the vertical velocity is negligible ($\bm{\hat k} \cdot \bm {u} =w \approx 0$), a change of variables can be made to rewrite \cref{epv} with pressure as the vertical coordinate.
-Since we have $p(x,y,z)$, $x$ and $p$ may be deformed by the change of variables.
-New coordinates in the horizontal directions $x_p$ and $y_p$ must be introduced.
-The notation $\nabla_p = \left(\frac{\partial}{\partial x_p}, \frac{\partial}{\partial y_p}, \frac{\partial}{\partial p}\right)$ will be used for the pressure gradient operator \cite{Hoskins1985}.
+
+A summarised derivation from \cref{epv} to \cref{qgpv} is given, noting assumptions and terms dropped along the way.
+Throughout, synoptic scaling is assumed, with Burger number $\mathrm{Bu} \equiv \left(\overline N H / f_0 L\right)^2 = \mathcal{O}(1)$ \cite{Vallis2017}, and orders of magnitude are stated relative to the leading-order (background) contribution to $Q$.
+
+The full absolute vorticity in \cref{epv} is given by \cite{HOLTON_chapter2}:
+
+\begin{equation}
+    \bm{\omega} + 2 \bm{\Omega} = \left(\frac{\partial w}{\partial y}-\frac{\partial v}{\partial z}, \quad 2 |\Omega|\cos\varphi+\frac{\partial u}{\partial z}-\frac{\partial w}{\partial x}, \quad f + \frac{\partial v}{\partial x}-\frac{\partial u}{\partial y} \right)
+\end{equation}
+
+At synoptic scales ($U \sim 10\,\mathrm{m\,s^{-1}}$, $W \sim 10^{-2}\,\mathrm{m\,s^{-1}}$, $L \sim 10^{6}\,\mathrm{m}$, $H \sim 10^{4}\,\mathrm{m}$) \cite{HOLTON_chapter2}, $|\partial_y w / \partial_z v | \sim |\partial_x w / \partial_z u | \sim (W/U)(H/L) \sim 10^{-5}$, so the horizontal gradients of $w$ may be neglected in the vorticity.
+Furthermore, $\frac{2 |\Omega|\cos(\varphi)\, \partial_y \theta}{f\, \partial_z \theta} \sim \cot\varphi \, \frac{H}{L} \, \frac{\mathrm{Ro}}{\mathrm{Bu}} \sim 10^{-2} \mathrm{Ro}$, allowing the $\cos$ term to be discarded as well, consistent with the traditional approximation \cite{HOLTON_chapter2,Vallis2017}.
+The resulting approximation is:
+
+\begin{equation}
+    \bm{\omega} + 2 \bm{\Omega} \approx \left(-\frac{\partial v}{\partial z}, \quad \frac{\partial u}{\partial z}, \quad f + \frac{\partial v}{\partial x}-\frac{\partial u}{\partial y} \right)
+\end{equation}
+
+Making a change of variables using the hydrostatic assumption $\partial p /\partial z = - \rho g$ (\cref{hydrostatic_equilibrium}) and substituting into \cref{epv} yields EPV in pressure coordinates \cite{Hoskins1985}, where $\nabla _p = (\partial_x, \partial_y, \partial_p)$ and $\bm{u} = (u, v, 0)$ is the horizontal velocity.
+Once hydrostatic balance is assumed this change of variables is exact: the extra terms arising from $(\partial_x)_z \to (\partial_x)_p$ \cite{Vallis2017} cancel identically.
 
 \begin{equation}\label{epv_pressure}
 \begin{aligned}
-    Q &= -g \left[ \left(f + \frac{\partial v}{\partial x_p } - \frac{\partial u}{\partial y_p}\right)\frac{\partial \theta}{\partial p} - \frac{\partial v}{\partial p} \frac{\partial \theta}{\partial x_p} + \frac{\partial u}{\partial p} \frac{\partial \theta}{\partial y_p}\right] \\
+    Q &= -g \left[ \left(f + \zeta_p\right)\frac{\partial \theta}{\partial p} - \frac{\partial v}{\partial p} \left(\frac{\partial \theta}{\partial x}\right)_p + \frac{\partial u}{\partial p} \left(\frac{\partial \theta}{\partial y}\right)_p\right] \\
     &= -g (f \bm{\hat k} + \nabla_p \times \bm{u} ) \cdot \nabla_p \theta
 \end{aligned}
 \end{equation}
 
-It is assumed that $\theta$ can be split into two components, one horizontally uniform and called the 'reference potential temperature profile' $\overline \theta$ and the potential temperature anomaly $\theta$.
-It is assumed that the perturbation $\theta^* \ll \theta$.
+\begin{equation}\label{zeta_p}
+    \zeta_p \equiv\left(\frac{\partial v}{\partial x}\right)_p - \left(\frac{\partial u}{\partial y}\right)_p
+\end{equation}
+
+It is assumed that $\theta$ can be split into two components: a horizontally uniform `reference potential temperature profile' $\overline \theta(p)$, and the potential temperature anomaly $\theta^*$ \cite{Hoskins1985,HOLTON_chapter6}.
 
 \begin{equation}
-    \theta(x_p,y_p,p,t) = \overline \theta (z) + \theta^* (x_p,y_p,p,t)
+    \theta(x,y,p) = \overline \theta (p) + \theta^* (x,y,p)
 \end{equation}
 
-The same simplification is performed in the same way with other quantities such as $\rho$, $p$ and $N$.
-The corresponding reference profiles $\overline \rho$, $\overline p$ and $\overline N$ are also taken to vary solely with $z$.
-We also denote the background velocity fields as $\overline u$ and $\overline v$. % TODO put this line somewhere doper
+The anomaly is assumed to be weak in the sense that its vertical gradient is small compared with the reference stratification, $\partial_p \theta^* / (d\overline\theta/dp) = \mathcal{O}(\mathrm{Ro})$, which holds for geostrophically balanced anomalies when $\mathrm{Bu} = \mathcal{O}(1)$ \cite{Vallis2017}.
+The density and geopotential are split in the same way, $\rho = \overline\rho + \rho^*$ and $\Phi = \overline\Phi + \Phi^*$, and the reference buoyancy frequency $\overline N$ is defined from $\overline\theta$ by \cref{brunt_vaisala}.
+Substituting into \cref{epv_pressure} yields the following without further approximation (cf.\ the analogous height-coordinate expansion of \cite{Vallis2017}):
 
-%TODO more detailed derivation with explanation of q, and streamfunction velocity components, geostrophic vorticity
+\begin{equation}
+\begin{aligned}
+    Q &= -g\Bigg[\underbrace{f\,\frac{d \overline{\theta}}{d p}}_{\mathcal{O}(1)}
++\underbrace{\zeta_p\frac{d \overline{\theta}}{d p}+f\frac{\partial\theta^*}{\partial p}}_{\mathcal{O}(\mathrm{Ro})}
++\underbrace{\zeta_p\frac{\partial\theta^*}{\partial p}
+-\frac{\partial v}{\partial p}\frac{\partial\theta^*}{\partial x}
++\frac{\partial u}{\partial p}\frac{\partial\theta^*}{\partial y}}_{\mathcal{O}(\mathrm{Ro}^2)}\Bigg] \\
+&= -g \frac{d\overline{\theta}}{d p} \left[f + \zeta_p + \frac{f}{\partial_p \overline{\theta}} \frac{\partial \theta^*}{\partial p} \right] + \mathcal{O}\left(\mathrm{Ro}^2\right)
+\end{aligned}
+\end{equation}
 
-It can be shown that \cref{epv_pressure} may be manipulated by various change of variables and linearisations into the quasigeostrophic potential vorticity equation \cite{Hoskins1985}:
+The term $\zeta_p \partial_p \theta^*$ is the product of two $\mathcal{O}(\mathrm{Ro})$ quantities.
+The last two terms can be shown to be $\mathcal{O}\left(\mathrm{Ro}^2\right)$ using thermal wind balance \cite{Vallis2017}.
+To do so we introduce the function $\mathcal{R}(p)$, where $\Pi(p) = c_p \left(p/p_0\right)^{R/c_p}$ is the Exner function \cite{Hoskins1985}:
+
+\begin{equation}\label{R_p_def}
+    \mathcal{R}(p) = \frac{d\Pi}{dp} = \frac{R \Pi(p)}{c_pp} = \frac{RT}{p \theta} = \frac{1}{\rho \theta}
+\end{equation}
+
+In pressure coordinates the full geopotential is defined as $\Phi (x,y,p) = g \cdot z(x,y,p)$.
+Combining $d \Phi = g \,dz$, \cref{hydrostatic_equilibrium} and \cref{R_p_def} gives hydrostatic equilibrium in terms of the geopotential \cite{HOLTON_chapter6,Hoskins1985}:
+
+\begin{equation}\label{hydrostatic_geopotential}
+    \frac{\partial \Phi}{\partial p} = - \frac{1}{\rho} = - \mathcal{R}\theta
+\end{equation}
+
+Since $\mathcal{R}$ depends only on $p$, this holds separately for the reference state and for the anomalies, $\partial_p \Phi^* = -\mathcal{R}\theta^*$ \cite{Hoskins1985}.
+Combining with geostrophic balance, $(u_g, v_g) = f_0^{-1}\left(-\partial_y \Phi^*, \partial_x \Phi^*\right)$ \cite{HOLTON_chapter6}, gives the thermal wind relations $f_0 \partial_p v_g = -\mathcal{R}\, \partial_x \theta^*$ and $f_0 \partial_p u_g = \mathcal{R}\, \partial_y \theta^*$ \cite{HOLTON_chapter6}, so that
+
+\begin{equation}
+    -\frac{\partial v}{\partial p}\frac{\partial\theta^*}{\partial x}+\frac{\partial u}{\partial p}\frac{\partial\theta^*}{\partial y} \approx \frac{f_0}{\mathcal{R}} \left|\frac{\partial \bm{u}_g}{\partial p}\right|^2
+\end{equation}
+
+Relative to the leading term $f_0\, d\overline\theta/dp$, and using \cref{minus_R_dtheta} below, this has magnitude \cite{Vallis2017}
+
+\begin{equation}
+    \frac{\left|\partial_p \bm{u}_g\right|^2}{\left|\mathcal{R}\, d\overline\theta/dp\right|} = \frac{\left|\partial_z \bm{u}_g\right|^2}{\overline N^2} = \mathrm{Ri}^{-1} \sim \frac{\mathrm{Ro}^2}{\mathrm{Bu}}
+\end{equation}
+
+Invoking the $\beta$-plane approximation for the Coriolis parameter $f \approx f_0 + \beta y$ \cite{HOLTON_chapter6} allows a further $\mathcal{O}\left(\mathrm{Ro}^2\right)$ term to be separated out using the assumption that $\beta L / f_0 \in \mathcal{O}\left(\mathrm{Ro}\right)$ \cite{Vallis2017}.
+
+\begin{equation}
+    Q = -g \frac{d\overline{\theta}}{d p} \left[f + \zeta_p + \frac{f_0}{\partial_p \overline{\theta}} \frac{\partial \theta^*}{\partial p} \right] - \underbrace{g \beta y \frac{\partial \theta^*}{\partial p}}_{\mathcal{O}\left(\mathrm{Ro}^2\right)}  + \mathcal{O}\left(\mathrm{Ro}^2\right)
+\end{equation}
+
+giving the further approximation
+
+\begin{equation}\label{let_A_B}
+    Q \approx A(p)B, \qquad A(p) \equiv -g \frac{d \overline{\theta}}{dp} > 0, \qquad B \equiv f + \zeta_p + f_0 \frac{\partial \theta^*}{\partial p} \left( \frac{d \overline{\theta}}{dp}\right)^{-1}
+\end{equation}
+
+where $A > 0$ for a statically stable reference state \cite{HOLTON_chapter2}.
+
+The invertibility principle concerns the distribution of PV on surfaces of constant $\theta$ (isentropic surfaces) \cite{Hoskins1985}, so we make the change of variables of the height coordinate from $p$ to $\theta$, without approximation, using the exact formula \cite{Vallis2017}
+
+\begin{equation}\label{change_coords}
+    \left(\frac{\partial Q}{\partial x}\right)_\theta = \left(\frac{\partial Q }{\partial x}\right)_p + \frac{\partial Q }{\partial p}\left(\frac{\partial p}{\partial x}\right)_\theta
+\end{equation}
+
+First we calculate $(\partial_x p)_\theta$ on the isentrope $(\partial_x \theta)_\theta = 0$.
+
+\begin{equation}
+    0 = \left( \frac{\partial \theta ^*}{\partial x}\right)_p + \left(\frac{d\overline{\theta}}{d p} + \frac{\partial \theta^*}{\partial p}\right) \left(\frac{\partial p}{\partial x}\right)_\theta
+\end{equation}
+
+Let $\Delta p_H$ be the depth (in pressure) of the anomaly and $\Delta p_R$ the depth over which the reference stratification changes.
+Since $\partial_p \theta^* / \partial_p \overline\theta = \mathcal{O}(\mathrm{Ro})$, we have $\theta^* / \partial_p \overline\theta \sim \mathrm{Ro}\, \Delta p_H$, so the slope of the isentropes is $\mathcal{O}(\mathrm{Ro}\, \Delta p_H / L)$ \cite{Vallis2017}:
+
+\begin{equation}\label{temp_pxtheta}
+    \left(\frac{\partial p}{\partial x}\right)_\theta
+    = - \frac{(\partial_x \theta^*)_p}{\partial_p \overline{\theta} + \partial_p \theta^*}
+    = - \underbrace{\frac{1}{\partial_p \overline{\theta}} \left( \frac{\partial \theta^*}{\partial x}\right)_p}_{\mathcal{O}(\mathrm{Ro}\, \Delta p_H / L)} \left[1 + \mathcal{O}(\mathrm{Ro})\right]
+\end{equation}
+
+The $\mathcal{O}(\mathrm{Ro})$ relative correction in square brackets may be dropped.
+We write
+
+\begin{equation}\label{b_is_O_ro}
+    b \equiv \frac{B-f_0}{f_0} = \frac{\beta y}{f_0} + \frac{\zeta_p}{f_0} + \frac{\partial _p \theta^*}{\partial _p \overline\theta} = \mathcal{O}(\mathrm{Ro})
+\end{equation}
+
+And hence $B \equiv f_0(1+b)= f_0(1+\mathcal{O}(\mathrm{Ro}))$.
+Apply the product rule:
+
+\begin{equation}
+    \frac{\partial Q}{\partial p} = A'(p) B + A(p)\frac{\partial B}{\partial p} =  \underbrace{f_0 A'}_{\boxed{1}} + \underbrace{f_0 A' b}_{\boxed{2}} + \underbrace{A \frac{\partial B}{\partial p}}_{\boxed{3}}
+\end{equation}
+
+We have $\partial_p B \sim \mathrm{Ro}\, f_0 / \Delta p_H$ and $A' \sim A / \Delta p_R$.
+Each term enters \cref{change_coords} multiplied by $(\partial_x p)_\theta \sim \mathrm{Ro}\, \Delta p_H / L$, and must be compared with the leading term $(\partial_x Q)_p = A\, \partial_x B = A f_0\, \partial_x b \sim A f_0 \mathrm{Ro} / L$:
+
+\begin{equation}
+\begin{aligned}
+    \frac{\boxed{1} \, (\partial_x p)_\theta}{A\, \partial_x B} &\sim \frac{f_0 A}{\Delta p_R} \, \frac{\mathrm{Ro}\, \Delta p_H}{L} \, \frac{L}{A f_0 \mathrm{Ro}} = \frac{\Delta p_H}{\Delta p_R} \\
+    \frac{\boxed{2} \, (\partial_x p)_\theta}{A\, \partial_x B} &\sim \mathrm{Ro}\, \frac{\Delta p_H}{\Delta p_R} \\
+    \frac{\boxed{3} \, (\partial_x p)_\theta}{A\, \partial_x B} &\sim A \frac{\mathrm{Ro}\, f_0}{\Delta p_H} \, \frac{\mathrm{Ro}\, \Delta p_H}{L} \, \frac{L}{A f_0 \mathrm{Ro}} = \mathrm{Ro}
+\end{aligned}
+\end{equation}
+
+Terms $\boxed{2}$ and $\boxed{3}$ are therefore $\mathcal{O}(\mathrm{Ro})$ relative to the leading term, i.e.\ $\mathcal{O}\left(\mathrm{Ro}^2\right)$ overall, for anomalies of any depth, and are dropped.
+Term $\boxed{1}$ is retained: it is comparable with the leading term when the anomaly depth is comparable with the scale of the reference stratification, and becomes negligible only for shallow anomalies ($\Delta p_H \ll \Delta p_R$), in which case the result below reduces to its Boussinesq form \cite{Hoskins1985,HOLTON_chapter6}.
+To the order required,
+
+\begin{equation}\label{dQ_dp}
+    \frac{\partial Q}{\partial p} \approx f_0 A' = -g f_0 \frac{d^2 \overline \theta}{dp^2}
+\end{equation}
+
+Combining with \cref{temp_pxtheta} yields:
+
+\begin{equation}
+\begin{aligned}
+    \frac{\partial Q}{\partial p} \left(\frac{\partial p}{\partial x}\right)_\theta &\approx \left( -g f_0 \frac{d^2 \overline \theta}{dp^2}\right)\left[- \frac{1}{\partial_p \overline{\theta}} \left( \frac{\partial \theta^*}{\partial x}\right)_p \right] \\
+    &= \frac{g f_0 \partial_p^2 \overline\theta}{\partial_p \overline\theta} \frac{\partial \theta ^*}{\partial x} = A(p) \left [-\frac{ f_0 \partial_p^2 \overline\theta}{\left(\partial_p \overline\theta\right)^2} \frac{\partial \theta ^*}{\partial x}\right]
+\end{aligned}
+\end{equation}
+
+Because $A$ only depends on $p$,
+
+\begin{equation}
+    \left(\frac{\partial Q}{\partial x} \right)_p = A(p) \left(\frac{\partial B}{\partial x}\right)_p
+\end{equation}
+
+Substituting into \cref{change_coords} gives:
+
+\begin{equation}\label{dQ_dz_theta}
+    \left(\frac{\partial Q}{\partial x}\right)_\theta \approx A(p) \left( \frac{\partial}{\partial x}\right)_p \Bigg[ f + \zeta_p + \underbrace{f_0 \frac{\partial _p \theta^*}{\partial _p \overline\theta} -\frac{ f_0 \theta ^*\partial_p^2 \overline\theta}{\left(\partial_p \overline\theta\right)^2}}_{ \displaystyle f_0 \frac{\partial}{\partial p}\left(\frac{\theta^*}{\partial_p \overline\theta}\right)}\Bigg]
+\end{equation}
+
+Applying the same process in the $y$ direction (where $\partial_y f = \beta$ is retained), we define the absolute quasigeostrophic potential vorticity $\tilde q$ in pressure coordinates as follows, relating to $Q$ by \cref{epv_to_q_pressure} \cite{Hoskins1985}.
+
+\begin{equation}\label{qgpv_pressure}
+    \tilde q \equiv f + \zeta_p + f_0 \frac{\partial }{\partial p} \left[ \theta^* \left(\frac{d \overline \theta}{d p}\right)^{-1}\right]
+\end{equation}
+
+\begin{equation}\label{epv_to_q_pressure}
+    \nabla_\theta Q \approx -g \frac{d \overline \theta}{d p} \nabla _h \tilde q
+\end{equation}
+
+Here $\nabla_\theta \equiv \left((\partial_x)_\theta, (\partial_y)_\theta\right)$ and $\nabla_h \equiv \left((\partial_x)_p, (\partial_y)_p\right)$ are the horizontal gradients along isentropic and isobaric surfaces respectively \cite{Hoskins1985}.
+The relation holds only for these horizontal components: the vertical derivative $\partial Q / \partial p$ is dominated by the background PV gradient $f_0 A'(p)$, which has no counterpart in $\partial \tilde q / \partial p$.
+
+We define the stream function as $\psi=\Phi^* / f_0$, a scaling of the geopotential anomaly $\Phi^*$, so that the geostrophic wind is $(u_g, v_g) = (-\partial_y \psi, \partial_x \psi)$ \cite{Hoskins1985,Vallis2017}.
+Applying \cref{hydrostatic_geopotential} to the anomaly fields and rearranging we get \cite{Hoskins1985}
+
+\begin{equation}\label{theta_star_pressure}
+    \theta^* = - \frac{f_0}{\mathcal{R}} \frac{\partial \psi}{\partial p}
+\end{equation}
+
+Approximating the relative vorticity by its geostrophic value, $\zeta_p \approx \zeta_g = \nabla_h^2 \psi$ (\cref{geostrophic_vorticity}), which introduces a relative error of $\mathcal{O}(\mathrm{Ro})$ \cite[p.~181]{HOLTON_chapter6}, and substituting \cref{theta_star_pressure} into \cref{qgpv_pressure} gives us QGPV in terms of the stream function \cite{Hoskins1985,HOLTON_chapter6}:
+
+\begin{equation}\label{qgpv_pressure_psi}
+    \tilde q = f + \nabla_h^2 \psi + f_0^2 \frac{\partial}{\partial p} \left( \frac{-1}{\mathcal{R} \partial_p \overline\theta} \frac{\partial \psi}{\partial p}\right)
+\end{equation}
+
+We apply hydrostatic equilibrium (\cref{hydrostatic_equilibrium}) once more using the reference density $\overline{\rho}(z)$\footnote{This is a simplification that makes the derivation more compact, but not as correct as that of Hoskins et al. In the full derivation a new density $\rho_s$ and potential temperature $\theta_0$ are introduced, where $\rho_s / \overline\rho = \overline\theta/\theta_0$. In addition $z$ becomes a pseudo-height coordinate defined by $z = g^{-1} \theta_0 \left[\Pi(p_0) - \Pi(p) \right]$, as opposed to the true geometric height \cite{Hoskins1985}.}:
+
+\begin{equation}
+    \frac{d \overline \theta}{dp} = \frac{d \overline{\theta}}{dz} \frac{d z}{d p} = - \frac{1}{\overline\rho g} \frac{d \overline{\theta}}{dz}
+\end{equation}
+
+Combine with \cref{brunt_vaisala} and \cref{R_p_def} \cite{Hoskins1985}:
+
+\begin{equation}\label{minus_R_dtheta}
+    - \mathcal{R}  \frac{d \overline \theta}{dp} = \frac{1}{g^2 \overline\rho^2} \frac{g}{\overline\theta} \frac{d \overline\theta}{dz} = \frac{\overline{N}^2}{g^2 \overline\rho^2}
+\end{equation}
+
+And finally substitute into the last term of \cref{qgpv_pressure_psi}:
+
+\begin{equation}\label{qgpv_last_term}
+\begin{aligned}
+     f_0^2 \frac{\partial}{\partial p} \left( \frac{-1}{\mathcal{R} \partial_p \overline\theta} \frac{\partial \psi}{\partial p}\right) &= f_0^2 \frac{\partial}{\partial p} \left( \frac{g^2 \overline\rho^2 }{\overline{N}^2} \frac{\partial \psi}{\partial p}\right) \\
+     &= f_0^2 \left(\frac{- 1}{g \overline\rho} \frac{\partial }{\partial z}\right) \left [ \frac{g^2 \overline\rho^2 }{\overline{N}^2} \left(\frac{- 1}{g \overline\rho} \frac{\partial \psi}{\partial z}\right)\right] \\
+     &= \frac{f_0^2}{\overline{\rho}} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}}{\overline{N}^2}  \frac{\partial \psi}{\partial z} \right)
+\end{aligned}
+\end{equation}
+
+Now we can at last put \cref{qgpv_pressure_psi} and \cref{qgpv_last_term} together and define the relative quasigeostrophic potential vorticity $q \equiv \tilde q - f$ \cite[p.~6]{sprenger2007userguide} to yield the main equation of study by Barnes et al.\ \cite{Barnes2022main} (cf.\ \cite{Vallis2017}):
 
 \begin{equation}\label{qgpv}
-    \boxed{ q(x,y,z,t) = \frac{\partial^2 \psi}{\partial x^2} + \frac{\partial^2 \psi}{\partial y^2} + \frac{f^2}{\overline{\rho}(z)} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}(z)}{\overline{N}(z)^2}  \frac{\partial \psi}{\partial z} \right) }
+    \boxed{ q(x,y,z,t) = \frac{\partial^2 \psi}{\partial x^2} + \frac{\partial^2 \psi}{\partial y^2} + \frac{f_0^2}{\overline{\rho}(z)} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}(z)}{\overline{N}(z)^2}  \frac{\partial \psi}{\partial z} \right) } 
 \end{equation}
 
-Where the quasigeostrophic potential vorticity $q$ follows the conservation property \cite{Hoskins1985}:
-
-\begin{equation}\label{qgpv_time}
-    \boxed{\frac{\partial q}{\partial t} - \frac{\partial \psi}{\partial y} \frac{\partial q}{\partial x} + \frac{\partial \psi}{\partial x} \frac{\partial q}{\partial y} = 0}
-\end{equation}
-
-It is shown that the boundary conditions become % TODO show
+We impose Neumann horizontal boundary conditions \cite{Barnes2022main,sprenger2007userguide}, which follow from the geostrophic relations $u = -\psi_y$ and $v = \psi_x$ \cite{Barnes2022main}, and which prescribe the boundary-parallel (tangential) wind on each lateral wall:
 
 \begin{equation}\label{qgpv_bcs_hor}
 \boxed{
 \begin{aligned}
     \psi_x(0,y, z) &= \psi_x(L_x,y, z) = \overline v(y,z) \\
-    \psi_y(x,0, z) &= \psi_y(x,L_y, z) =-\overline u(x,z)
+    \psi_y(x,0, z) &= \psi_y(x,L_y, z) =- \overline u(x,z)
 \end{aligned}
 }
 \end{equation}
+
+Changing \cref{theta_star_pressure} to height coordinates, and using the background state of \cref{R_p_def} ($\mathcal{R} = 1/\left(\overline{\rho} \overline\theta\right)$) yields
+
+\begin{equation}
+    \frac{f_0}{g \overline\rho} \frac{\partial \psi}{\partial z} = \mathcal{R} \theta^* \quad \implies \quad 
+\frac{\partial\psi}{\partial z} = \frac{g\theta^*}{f_0\overline\theta}
+\end{equation}
+
+Which we use for our vertical boundary conditions \cite{Barnes2022main}:
 
 \begin{equation}\label{qgpv_bcs_vert}
 \boxed{
@@ -272,9 +518,42 @@ It is shown that the boundary conditions become % TODO show
 }
 \end{equation}
 
-The primary focus of this text is solutions of \cref{qgpv,qgpv_time,qgpv_bcs_hor,qgpv_bcs_vert} and their physical implications by building off the work of Fehlmann \cite{fehlmann1997pvelements}, Sprenger \cite{sprenger2007userguide} and Barnes et Al. \cite{Barnes2022main}.
+To derive the prognostic equation for $q$, we change \cref{epv} into isentropic coordinates using the same approach as \cref{change_coords}:
+
+\begin{equation}
+    \frac{DQ}{Dt} = \left(\frac{\partial Q}{\partial t}\right)_\theta + \frac{Dx}{Dt} \left(\frac{\partial Q}{\partial x}\right)_\theta + \frac{Dy}{Dt}\left(\frac{\partial Q}{\partial y}\right)_\theta + \frac{D \theta}{Dt} \frac{\partial Q}{\partial t} = 0
+\end{equation}
+
+It follows from the definition of $D/Dt$ that $Dx/Dt = u$, and $Dy/Dt=v$.
+Reapplying our assumption of adiabatic flow (\cref{pot_temp_conserved}) yields $D\theta/Dt = 0$, simplifying the equation to
+
+\begin{equation}\label{Q_conserved_theta}
+    \left(\frac{\partial Q}{\partial t}\right)_\theta + \bm{u} \cdot \nabla_\theta Q =0
+\end{equation}
+
+Reusing the logic from \cref{change_coords} through to \cref{dQ_dz_theta} with $x \to t$ gives
+
+\begin{equation}
+    \left(\frac{\partial Q}{\partial t}\right)_\theta \approx A(p) \left( \frac{\partial \tilde q}{\partial t}\right)_p
+\end{equation}
+
+Substituting into \cref{Q_conserved_theta} along with \cref{epv_to_q_pressure}, and dividing by $A(p)$ yields
+
+\begin{equation}
+    \frac{\partial \tilde q}{\partial t} + \bm{u} \cdot \nabla_h \tilde q = \frac{D \tilde q}{Dt} \approx 0
+\end{equation}
+
+For $\beta=0$ this reduces to the final nonlinear transport form of the prognostic equation for $q$:
+
+\begin{equation}\label{qgpv_time}
+    \boxed{\frac{\partial q}{\partial t} - \frac{\partial \psi}{\partial y} \frac{\partial q}{\partial x} + \frac{\partial \psi}{\partial x} \frac{\partial q}{\partial y} = 0}
+\end{equation}
 
 \subsection{Background States and Coefficients}
+We aim to recreate the control state of the atmosphere used by Barnes et al. to use as the benchmark for the diagnostic solver (\cref{sec:numerical_soln}).
+In order to capture larger jet streams in section TODO, we use an increased vertical domain of $H=\qty{25}{\kilo \meter}$, as opposed to the $H=\qty{20}{\kilo \meter}$ used by Barnes et al. \cite{Barnes2022main}.
+A horizontal domain size of $L_x = L_y = \qty{7500}{\kilo \meter}$ is used.
+
 We will specify $\overline{N}(z)$ using the same values as Barnes et al. \cite{Barnes2022main}, from which we can calculate $\overline{\rho}(z)$ using the same methodology as Fehlmann \cite{fehlmann1997pvelements}.
 
 Barnes et al. specify a stability profile such that $\overline N_\text{strat} = \qty{0.03}{\per\second}$ in the stratosphere and $\overline N_\text{trop} = \qty{0.01}{\per\second}$ in the troposphere \cite{Barnes2022main}.
@@ -351,7 +630,7 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
 
 The approximation $\overline{p}(0) = p_\text{surf} = \qty{1000}{\hecto\pascal}$ will be made for simplicity.
 
-\subsection{Boundary Conditions}
+\subsection{Boundary Conditions [OUTDATED]}
 To specify the horizontal boundary conditions, we need to choose values of $u$ and $v$. We will define a jet stream aiming to recreate the one shown in \cite{Barnes2022main}.
 The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the middle of the tropopause vertically, is centred about the middle of the domain in the $x$-direction, is uniform in the $y$-direction, has a Gaussian shape, and has a similar overall size to the one shown in \cite{Barnes2022main} ($x_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{2000}{\meter}$).
 We will let
@@ -373,7 +652,7 @@ We will let
 
 The potential temperature anomaly $\theta^*$ will be calculated in \cref{sec:solv_cond} to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
 
-\subsection{Source term}
+\subsection{Source term [OUTDATED]}
 To calculate the source term $q$ we must first specify the background state $\overline{Q}$. We will derive this from the full formulation of EPV (\cref{epv}) and the Brunt–Väisälä frequency (\cref{brunt_vaisala}). %TODO reference \zeta_g
 
 \begin{equation}\label{Q_bar}
@@ -421,7 +700,7 @@ To convert $Q=\overline{Q}+Q^*$ into quasigeostrophic PV, we employ the followin
     q \approx \frac{\overline{\rho} g}{\overline{N}^2 \overline{\theta}} Q - f
 \end{equation}
 
-\section{Numerical Solution}
+\section{Numerical Solution}\label{sec:numerical_soln}
 By adopting a smoothing value of $\delta = 2$ for \cref{kappa_delta}, the integral in \cref{theta_bar} is of the following general form \cite{Mathematica}:
 
 \begin{equation}\label{nonelementary_integral}
@@ -747,6 +1026,8 @@ A least-squares fit against the numerical solution at the control parameters giv
 The solver is therefore verified against a problem carrying the same length scales, gradients and magnitudes as the one it is built to solve.
 Substituting \cref{mms_psi} into \cref{mms_source} supplies the source term, and its first derivatives supply the boundary data of \cref{qgpv_bcs_hor,qgpv_bcs_vert}.
 
+\section{Derived}
+
 
 
 \printbibliography
@@ -760,9 +1041,9 @@ Substituting \cref{mms_psi} into \cref{mms_source} supplies the source term, and
     \item \st{Introduce Ertel PV}
     \item \st{What is a stratospheric intrusion and how does it relate to cut off lows}
     \item \st{Cut off lows in south africa}
-    \item Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping
-    \item I.e. investigate the effects of PV anomalies on the weather in an idealised setting, why QGPV?
-    \item Brief overview of QGPV equation and the assumptions that arise from it.
+    \item \st{Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping}
+    \item \st{I.e. investigate the effects of PV anomalies on the weather in an idealised setting, why QGPV?}
+    \item \st{Brief overview of QGPV equation and the assumptions that arise from it.}
     \item Background states
     \item Boundary conditions
     \item Specify q and plot it
@@ -776,9 +1057,10 @@ Substituting \cref{mms_psi} into \cref{mms_source} supplies the source term, and
     \item Running with MPI
     \item Verify setup is correct using MMS - order of accuracy
     \item Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude
+    \item Limitations of QGPV
     \item Quantities to vary
     \item Varying one by one
-    \item Random sampler - relationship between tropopause altitude and surface ting - colour by rossby number
+    \item Random sampler - relationship between tropopause altitude and surface ting - colour by rossby number and frac
     \item Optimiser
     \item Feasability of explicit timestepping - stability condition
     \item Timestepping methodology
@@ -788,15 +1070,23 @@ Substituting \cref{mms_psi} into \cref{mms_source} supplies the source term, and
 \newpage
 \begin{appendices}
 
-\section{Table of Assumptions}\label{app:assumptions} % TODO flesh out
+% If I have enough time
+% \section{Table of Assumptions}\label{app:assumptions} % TODO flesh out
 
-\begin{itemize}
-    \item Frictionless/nondivergent wind
-    \item Purely adiabatic
-    \item Dry air
-    \item Hydrostatic assumption
-    \item Reference states
-\end{itemize}
+% \begin{table}[hbtp]
+%     \centering
+%     \caption{Assumptions made}
+%     \label{tab:assumptions}
+%     \begin{tabular}{ccc}
+%         \toprule
+%         Assumption & Entry point & Consequences\\
+%         \midrule
+%         Adiabatic flow: $D\theta/Dt =0$ from \cref{pot_temp_conserved} & Required for \cref{epv} to hold \cite{ertel_english, Hoskins1985} & \\
+        
+%          &  & \\
+%         \bottomrule
+%     \end{tabular}
+% \end{table}
 
 \section{Firedrake}
 
