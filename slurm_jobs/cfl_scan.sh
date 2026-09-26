@@ -1,6 +1,6 @@
 #!/bin/sh
-# One job per (configuration, limiter, Courant number): 2 configurations x limiter on/off
-# x 5 Courant numbers, each run to the same simulated time.
+# One job per (configuration, Courant number): 2 configurations x 5 Courant numbers,
+# each run to the same simulated time.
 # Run with `sh cfl_scan.sh` (not sbatch): it submits itself once per task,
 # since array jobs never get scheduled on this cluster.
 #SBATCH --account maths
@@ -19,18 +19,16 @@ POINTS=5 # Courant 0.3, 0.4, ..., 0.7
 HOURS=96
 
 if [ -z "$SLURM_JOB_ID" ]; then
-    for TASK in $(seq 0 $((4 * POINTS - 1))); do
+    for TASK in $(seq 0 $((2 * POINTS - 1))); do
         sbatch --export=ALL,TASK=$TASK "$0"
     done
     exit
 fi
 
-CONFIG=$((TASK / (2 * POINTS)))
-LIMITED=$(((TASK / POINTS) % 2))
+CONFIG=$((TASK / POINTS))
 COURANT=$(awk "BEGIN { print 0.3 + 0.1 * ($TASK % $POINTS) }")
 
 if [ "$CONFIG" -eq 0 ]; then N=80; P=2; else N=40; P=4; fi
-if [ "$LIMITED" -eq 1 ]; then LIMITER=--scan-limiter; TAG=lim; else LIMITER=; TAG=nolim; fi
 
 HOST_CACHE_DIR=/tmp/firedrake_cache_${SLURM_JOB_ID}
 mkdir -p $HOST_CACHE_DIR
@@ -50,8 +48,7 @@ apptainer exec \
     -p $P \
     --scan-range $COURANT $COURANT \
     --scan-points 1 \
-    --scan-hours $HOURS \
-    $LIMITER
+    --scan-hours $HOURS
 
-# The JSON records neither n nor p, so put them in the name, with the limiter to tell the pairs apart at a glance
-mv cfl_scan_${SLURM_JOB_ID}.json cfl_scan_n${N}_p${P}_${TAG}_c${COURANT}.json
+# The JSON records neither n nor p, so put them in the name
+mv cfl_scan_${SLURM_JOB_ID}.json cfl_scan_n${N}_p${P}_c${COURANT}.json

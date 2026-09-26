@@ -6,7 +6,7 @@ from parameters import SolverParams, PhysicalParams
 from firedrake import *
 
 # Fraction of the CFL limit a step is taken at, unless the caller asks for another.
-SAFETY = 0.4
+SAFETY = 0.6
 
 class ZhangShuLimiter:
     """Zhang & Shu's (2010) bound-preserving limiter: scales q about each cell's mean, just
@@ -30,6 +30,7 @@ class ZhangShuLimiter:
         W0 = FunctionSpace(mesh, "DQ", 0)
         self._test = TestFunction(W0)
         self._volume = assemble(self._test * dx)
+        self._domain_volume = assemble(Constant(1.0) * dx(domain=mesh))
         self._cell_sum = Cofunction(W0.dual())
         self._mean, self._min, self._max, self._theta = (Function(W0) for _ in range(4))
 
@@ -63,8 +64,7 @@ class ZhangShuLimiter:
         self._limited.interpolate(mean + self._theta * (q - mean))
         q.assign(self._limited)
 
-        self.limited_fraction = (assemble(conditional(self._theta < 1.0, 1.0, 0.0) * dx)
-                                 / assemble(Constant(1.0) * dx(domain=q.function_space().mesh())))
+        self.limited_fraction = assemble(conditional(self._theta < 1.0, 1.0, 0.0) * dx) / self._domain_volume
         return q
 
 class PrognosticSolver:

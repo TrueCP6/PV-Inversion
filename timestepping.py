@@ -65,7 +65,7 @@ class CflRecord:
     stable : bool
     # Per step, or None in files written before they were added: the time the step ended at,
     # max|q| and ||q||_L2 there as multiples of their initial values, and the fraction of the
-    # domain the limiter touched (None throughout when the scan ran without it).
+    # domain the limiter touched (None in files from scans that could run without it).
     t : list = None
     max_growth : list = None
     l2_growth : list = None
@@ -189,12 +189,12 @@ def load_checkpoint(path):
     atmos = BarnesAtmosphere(DomainBuilder(solver_params, phys_params, mesh))
     return atmos, psi, q, t
 
-def _build_solver(n, p, limit=True):
+def _build_solver(n, p):
     from parameters import SolverParams, PhysicalParams
     from prognostic_solver import PrognosticSolver
 
     solver_params = SolverParams(nx=n, ny=n, nz=n, polynomial_order=p, check_flux=False)
-    return PrognosticSolver(solver_params, PhysicalParams(), matfree=True, limit=limit)
+    return PrognosticSolver(solver_params, PhysicalParams(), matfree=True)
 
 def run(out_path, T=DAY, n=None, p=None, courant=None, backup=24):
     """Step to T, recording diagnostics every step, and write them to out_path as we go.
@@ -252,7 +252,7 @@ def run(out_path, T=DAY, n=None, p=None, courant=None, backup=24):
                     f"{len(records) - 1} steps, wrote {out_path}")
     return records
 
-def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None, limit=False):
+def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
     """Step at each Courant number and record how far max|q| and ||q||_L2 ran away.
 
     prognostic_solver.dt() claims the limit is dt = dx_eff / |u|, where dx_eff is the gap
@@ -274,10 +274,10 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None, limit=False):
     while max|q| grows, the growth is DG's ordinary overshoot at unresolved gradients; if it
     grows too, something is actually wrong.
 
-    Without the limiter by default: it holds max|q| inside its initial bounds by design, so
-    with it on no run can ever cross BLOWUP_FACTOR and every point reads as stable. With it on
-    (limit=True), the limited fraction is the measure instead - near zero while it only trims
-    overshoots, and the whole domain once it is fighting an instability.
+    The Zhang-Shu limiter is always on, and it holds max|q| inside its initial bounds by
+    design, so a run can hardly cross BLOWUP_FACTOR and nearly every point reads as stable.
+    The limited fraction is the measure instead - near zero while the limiter only trims
+    overshoots, and climbing, with ||q||_L2 falling faster, once it is fighting an instability.
 
     Coarser than a production run by default: this is a check on a dimensionless number,
     and the scan has to step through it many times over.
@@ -296,7 +296,7 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None, limit=False):
 
     records = []
     for courant in courants:
-        solver = _build_solver(n, p, limit=limit)
+        solver = _build_solver(n, p)
         solver.resolve()
         initial, initial_l2 = max_abs_q(solver), norm(solver.q)
 
@@ -314,8 +314,7 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None, limit=False):
             t.append(solver.t)
             max_growth.append(float(growth))
             l2_growth.append(norm(solver.q) / initial_l2)
-            if solver.limiter is not None:
-                limited.append(solver.limiter.limited_fraction)
+            limited.append(solver.limiter.limited_fraction)
 
             if not np.isfinite(growth) or growth > BLOWUP_FACTOR:
                 break
@@ -324,7 +323,7 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None, limit=False):
         records.append(CflRecord(courant=float(courant), steps=taken,
                                  growth=float(growth) if np.isfinite(growth) else BLOWUP_FACTOR,
                                  stable=stable, t=t, max_growth=max_growth, l2_growth=l2_growth,
-                                 limited=limited if limit else None))
+                                 limited=limited))
         PETSc.Sys.Print(f"Courant {courant:.2f}: {taken:4d} steps to t = {solver.t / 3600:.2f} h, "
                         f"max|q| grew {growth:.4g}x, ||q||_L2 {l2_growth[-1]:.4g}x, "
                         f"{'stable' if stable else 'UNSTABLE'}")
@@ -552,8 +551,6 @@ def main():
                         help='Steps taken at every Courant number in the scan')
     parser.add_argument('--scan-hours', type=float, default=None, metavar='H',
                         help='Run every Courant number to H simulated hours instead of --scan-steps')
-    parser.add_argument('--scan-limiter', action='store_true',
-                        help='Keep the Zhang-Shu limiter on in the scan (it hides blow up from max|q|)')
     parser.add_argument('--plot-cfl', metavar='JSON_PATH', help='Plot a cfl scan results file, then exit')
     sweep.add_common_arguments(parser)
     args = parser.parse_args()
@@ -573,7 +570,7 @@ def main():
         courants = np.linspace(*args.scan_range, args.scan_points)
         T = args.scan_hours * 3600 if args.scan_hours is not None else None
         cfl_scan(f"cfl_scan_{args.job_id}.json", courants, steps=args.scan_steps,
-                 n=args.scan_n, p=args.polynomial_order, T=T, limit=args.scan_limiter)
+                 n=args.scan_n, p=args.polynomial_order, T=T)
         return
 
     run(f"timestepping_{args.job_id}.json", T=args.hours * 3600, n=args.n,

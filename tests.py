@@ -436,7 +436,8 @@ class PrognosticMMSTests(unittest.TestCase):
         phys_params = PhysicalParams(Lx=1e6, Ly=1e6, H=20e3)
         checker = PrognosticMMSChecker(SolverParams(nx=8, ny=8, nz=1, polynomial_order=2), phys_params)
         T = 2e4
-        base = int(np.ceil(T / checker.dt())) # stable at SAFETY, and coarse enough for time error to show
+        # Pinned rather than SAFETY: the MMS runs unlimited, and unlimited p=2 blows up by C = 0.5
+        base = int(np.ceil(T / checker.dt(safety=0.4))) # stable, and coarse enough for time error to show
 
         solutions = []
         for n_steps in (base, 2 * base, 4 * base, 8 * base):
