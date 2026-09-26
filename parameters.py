@@ -37,12 +37,12 @@ ESTIMATE_QUADRATURE_DEGREE = -1
 
 @dataclass
 class PhysicalParams:
-    Lx: float = 5000e3
-    Ly: float = 5000e3
+    Lx: float = 7500e3
+    Ly: float = 7500e3
     H: float = 25e3
     latitude: float = -42   # Barnes et al. (2022) p. 1293; see sources/bounds/latitude.md
     g: float = 9.80665
-    N_strat_variation: float = 0
+    N_strat_variation: float = 0.03 - N_strat_mean(latitude) # Default barnes value of 0.03
     N_trop: float = 0.01
     trop_width: float = 1000
     trop_height: float = 12500 # not latitude-dependent: its range is limited by the numerics, not the physics
@@ -59,13 +59,13 @@ class PhysicalParams:
     # A = y_size / x_size, so bounding them never produces very large or very small corners
     anomaly_radius: float = 200e3
     anomaly_log_aspect: float = 0 # > 0 meridionally elongated, < 0 zonally elongated
-    anomaly_z_size: float = 5000
+    anomaly_z_size: float = 3500
     anomaly_mag: float = -4e-6
     anomaly_clip: float = -1.5e-6
     anomaly_clip_smoothing: float = 0.075 # a fraction of anomaly_mag
-    jet_y_size: float = 1000e3
-    jet_z_size: float = 8e3
-    jet_magnitude: float = 30
+    jet_y_size: float = 500e3
+    jet_z_size: float = 4e3
+    jet_magnitude: float = 35
     jet_y_pos: float = Ly / 2
 
     @property

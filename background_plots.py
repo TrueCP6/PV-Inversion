@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import sweep
 import matplotlib.pyplot as plt
+import contourpy
 from mpi4py import MPI
 from firedrake import PointEvaluator, Function
 import math_utils
@@ -210,8 +211,12 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
         plt.contour(H_plot, V_plot, F, levels=levels, colors='black', linewidths=0.5, alpha=0.5)
 
         if highlight_level is not None:
-            plt.contour(H_plot, V_plot, F, levels=[highlight_level], colors='black',
-                        linewidths=1.5, linestyles='solid')
+            # Heavy line on the lowest piece of the level spanning the full width (e.g. the tropopause, not a crossing aloft)
+            lines = [l for l in contourpy.contour_generator(H_plot, V_plot, F, line_type='Separate').lines(highlight_level)
+                     if np.isclose(l[:, 0].min(), H_plot.min()) and np.isclose(l[:, 0].max(), H_plot.max())]
+            if lines:
+                h, v = min(lines, key=lambda l: l[:, 1].mean()).T
+                plt.plot(h, v, color='black', linewidth=1.5)
 
         if vector_field is not None:
             plt.quiver(Hq * h_scale, Vq * v_scale, Uh, Uv, color='white', pivot='mid', alpha=0.8)
@@ -340,7 +345,7 @@ def main():
         Function(cg_space).interpolate(epv * 1e6),
         "EPV",
         r"$Q$ [\unit{PVU}]",
-        levels=np.arange(-5, 0, 0.5),
+        levels=np.arange(-3, 0.5, 0.5),
         normals='xy',
         highlight_level=-1.5  # dynamical tropopause
     )
@@ -385,7 +390,7 @@ def main():
             Function(cg_space).interpolate(atmos.u()),
             "Jet Stream",
             r"$\overline{u}$ [\unit{\meter\per\second}]",
-            levels=np.arange(0, 35, 5),
+            levels=np.arange(5, 100, 5),
             normals='x'
         )
 

@@ -259,9 +259,9 @@ class ResolvedAtmosphere:
     def invalid_epv(self):
         Q = self.atmos.ertel_pv()
         f = self.ufl_params.f
+        fcp = self.solver_params.form_compiler_params
 
-        totalQ = assemble(Q * dx)
-        invalid_zone = Q*f <= 0
-        integrand = conditional(invalid_zone, Q, Constant(0))
-        totalInvalidQ = assemble(integrand * dx())
+        totalQ = assemble(abs(Q) * dx, form_compiler_parameters=fcp)
+        integrand = max_value(Q, Constant(0))
+        totalInvalidQ = assemble(integrand * dx, form_compiler_parameters=fcp)
         return totalInvalidQ / totalQ
