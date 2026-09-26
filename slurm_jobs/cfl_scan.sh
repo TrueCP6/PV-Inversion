@@ -1,5 +1,6 @@
 #!/bin/sh
-# One job per (configuration, Courant number): 2 configurations x 13 Courant numbers.
+# One job per (configuration, Courant number): 2 configurations x 5 Courant numbers,
+# each run to the same simulated time.
 # Run with `sh cfl_scan.sh` (not sbatch): it submits itself once per task,
 # since array jobs never get scheduled on this cluster.
 #SBATCH --account maths
@@ -12,7 +13,10 @@
 #SBATCH --output=firedrake_%j.out
 #SBATCH --error=firedrake_%j.err
 
-POINTS=13 # Courant 0.3, 0.4, ..., 1.5
+POINTS=5 # Courant 0.3, 0.4, ..., 0.7
+# Roughly the time the old 2000-step scan covered at C = 0.3 (~2000 steps for n=40 p=4 at
+# ~40 m/s peak wind), so the slowest run still fits in the wall time
+HOURS=96
 
 if [ -z "$SLURM_JOB_ID" ]; then
     for TASK in $(seq 0 $((2 * POINTS - 1))); do
@@ -44,7 +48,7 @@ apptainer exec \
     -p $P \
     --scan-range $COURANT $COURANT \
     --scan-points 1 \
-    --scan-steps 2000
+    --scan-hours $HOURS
 
 # The JSON records neither n nor p, so put them in the name
 mv cfl_scan_${SLURM_JOB_ID}.json cfl_scan_n${N}_p${P}_c${COURANT}.json

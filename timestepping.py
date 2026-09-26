@@ -54,7 +54,8 @@ class StepRecord:
 
 @dataclass
 class CflRecord:
-    """One Courant number's outcome, over the same number of steps as every other.
+    """One Courant number's outcome, over the same number of steps or the same simulated
+    time as every other.
 
     steps is how many it actually took, which is fewer than asked for when it diverged.
     """
@@ -62,6 +63,13 @@ class CflRecord:
     steps : int
     growth : float
     stable : bool
+    # Per step, or None in files written before they were added: the time the step ended at,
+    # max|q| and ||q||_L2 there as multiples of their initial values, and the fraction of the
+    # domain the limiter touched (None in files from scans that could run without it).
+    t : list = None
+    max_growth : list = None
+    l2_growth : list = None
+    limited : list = None
 
 def _hovmoller_x(Lx, count):
     """Cell-centred points along x - clear of the lateral walls, where a point can fall outside."""
@@ -244,22 +252,37 @@ def run(out_path, T=DAY, n=None, p=None, courant=None, backup=24):
                     f"{len(records) - 1} steps, wrote {out_path}")
     return records
 
-def cfl_scan(out_path, courants, steps=60, n=12, p=None):
-    """Take the same number of steps at each Courant number and record how far max|q| ran away.
+def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
+    """Step at each Courant number and record how far max|q| and ||q||_L2 ran away.
 
     prognostic_solver.dt() claims the limit is dt = dx_eff / |u|, where dx_eff is the gap
     between a cell edge and the nearest interior Gauss-Lobatto node, (1 - x_max) dx / 2.
     A run at Courant number 1 sits exactly on it. If that is right, everything below 1
     stays bounded and everything above it diverges.
 
-    Every point takes the same number of steps rather than running to the same final time.
-    Instability is a per-step amplification that compounds, so what has to be held equal
-    across the scan is how many chances it had to compound - running to a fixed time would
-    hand the largest steps the fewest of them, which is backwards.
+    By default every point takes the same number of steps. Instability is a per-step
+    amplification that compounds, so for finding the limit what has to be held equal is how
+    many chances it had to compound - running to a fixed time would hand the largest steps
+    the fewest of them. Given T, every point instead runs to the same simulated time. That is
+    the comparison for the growth below the limit: equal steps hand the largest steps the
+    most simulated time, so growth that comes from the flow steepening q past what the grid
+    resolves would look like it depended on dt. If the max|q| histories against t collapse
+    across Courant numbers, the growth is spatial; if they fan out, it comes from the step.
+
+    ||q||_L2 is the sharper test. Upwind DG with a velocity whose normal component is
+    continuous cannot grow it, apart from what the lateral boundaries carry in. If it decays
+    while max|q| grows, the growth is DG's ordinary overshoot at unresolved gradients; if it
+    grows too, something is actually wrong.
+
+    The Zhang-Shu limiter is always on, and it holds max|q| inside its initial bounds by
+    design, so a run can hardly cross BLOWUP_FACTOR and nearly every point reads as stable.
+    The limited fraction is the measure instead - near zero while the limiter only trims
+    overshoots, and climbing, with ||q||_L2 falling faster, once it is fighting an instability.
 
     Coarser than a production run by default: this is a check on a dimensionless number,
     and the scan has to step through it many times over.
     """
+    from firedrake import norm
     from firedrake.petsc import PETSc
     from math_utils import get_global_extrema
     from parameters import SolverParams
@@ -275,14 +298,23 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None):
     for courant in courants:
         solver = _build_solver(n, p)
         solver.resolve()
-        initial = max_abs_q(solver)
+        initial, initial_l2 = max_abs_q(solver), norm(solver.q)
 
         growth, taken = 1.0, 0
-        for _ in range(steps):
-            solver.step(solver.dt(safety=courant))
+        t, max_growth, l2_growth, limited = [], [], [], []
+        while (solver.t < T) if T is not None else (taken < steps):
+            dt = solver.dt(safety=courant)
+            if T is not None:
+                dt = min(dt, T - solver.t) # land exactly on T
+            solver.step(dt)
             taken += 1
             solver.resolve()
             growth = max_abs_q(solver) / initial
+
+            t.append(solver.t)
+            max_growth.append(float(growth))
+            l2_growth.append(norm(solver.q) / initial_l2)
+            limited.append(solver.limiter.limited_fraction)
 
             if not np.isfinite(growth) or growth > BLOWUP_FACTOR:
                 break
@@ -290,8 +322,10 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None):
         stable = bool(np.isfinite(growth) and growth <= BLOWUP_FACTOR)
         records.append(CflRecord(courant=float(courant), steps=taken,
                                  growth=float(growth) if np.isfinite(growth) else BLOWUP_FACTOR,
-                                 stable=stable))
-        PETSc.Sys.Print(f"Courant {courant:.2f}: {taken:4d} steps, max|q| grew {growth:.4g}x, "
+                                 stable=stable, t=t, max_growth=max_growth, l2_growth=l2_growth,
+                                 limited=limited))
+        PETSc.Sys.Print(f"Courant {courant:.2f}: {taken:4d} steps to t = {solver.t / 3600:.2f} h, "
+                        f"max|q| grew {growth:.4g}x, ||q||_L2 {l2_growth[-1]:.4g}x, "
                         f"{'stable' if stable else 'UNSTABLE'}")
 
         if sweep.is_main_rank():
@@ -515,6 +549,8 @@ def main():
     parser.add_argument('--scan-range', type=float, nargs=2, default=(0.5, 3.0))
     parser.add_argument('--scan-steps', type=int, default=60,
                         help='Steps taken at every Courant number in the scan')
+    parser.add_argument('--scan-hours', type=float, default=None, metavar='H',
+                        help='Run every Courant number to H simulated hours instead of --scan-steps')
     parser.add_argument('--plot-cfl', metavar='JSON_PATH', help='Plot a cfl scan results file, then exit')
     sweep.add_common_arguments(parser)
     args = parser.parse_args()
@@ -532,8 +568,9 @@ def main():
 
     if args.cfl_scan:
         courants = np.linspace(*args.scan_range, args.scan_points)
+        T = args.scan_hours * 3600 if args.scan_hours is not None else None
         cfl_scan(f"cfl_scan_{args.job_id}.json", courants, steps=args.scan_steps,
-                 n=args.scan_n, p=args.polynomial_order)
+                 n=args.scan_n, p=args.polynomial_order, T=T)
         return
 
     run(f"timestepping_{args.job_id}.json", T=args.hours * 3600, n=args.n,

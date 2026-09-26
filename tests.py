@@ -399,7 +399,7 @@ class PrognosticTests(unittest.TestCase):
 
     def test_background_is_steady(self):
         """Without the anomaly, q depends on y and z only and the jet blows along x, so a
-        step must leave q (almost) unchanged. Fails if RK4 updates or the state buffer are wrong."""
+        step must leave q (almost) unchanged. Fails if the SSPRK3 updates or the state buffers are wrong."""
         solver = PrognosticSolver(SolverParams(nx=10, ny=10, nz=10), PhysicalParams(anomaly_mag=0), True)
         q_0 = solver.q.copy(deepcopy=True)
         dt = solver.step()
@@ -424,9 +424,30 @@ class PrognosticMMSTests(unittest.TestCase):
 
         rates = np.log2(np.array(errors[:-1]) / np.array(errors[1:]))
         PETSc.Sys.Print(f"Convergence rates: {rates}")
-        # dt shrinks with h, so RK4's O(dt^4) sits under the O(h^(p+1)) spatial error
+        # The checker shrinks dt fast enough that SSPRK3's O(dt^3) sits under the O(h^(p+1)) spatial error
         self.assertGreater(rates[-1], p + 0.5)
         self.assertLess(errors[-1], 1e-3)
+
+    def test_time_order(self):
+        """Halving dt on a fixed mesh should cut the time error 8x, SSPRK3 being third order.
+        Each run is compared with the next rather than with q_exact, so the spatial error -
+        the same in every run on one mesh - cancels, and so does the need for a reference run."""
+        PETSc.Sys.Print("Testing the prognostic solver's time error falls as dt^3")
+        phys_params = PhysicalParams(Lx=1e6, Ly=1e6, H=20e3)
+        checker = PrognosticMMSChecker(SolverParams(nx=8, ny=8, nz=1, polynomial_order=2), phys_params)
+        T = 2e4
+        # Pinned rather than SAFETY: the MMS runs unlimited, and unlimited p=2 blows up by C = 0.5
+        base = int(np.ceil(T / checker.dt(safety=0.4))) # stable, and coarse enough for time error to show
+
+        solutions = []
+        for n_steps in (base, 2 * base, 4 * base, 8 * base):
+            checker.run(T, n_steps)
+            solutions.append(checker.q.copy(deepcopy=True))
+
+        differences = np.array([errornorm(a, b) / norm(b) for a, b in zip(solutions, solutions[1:])])
+        rates = np.log2(differences[:-1] / differences[1:])
+        PETSc.Sys.Print(f"{base} steps upwards: differences {differences}, rates {rates}")
+        self.assertGreater(rates[-1], 2.5)
 
 if __name__ == '__main__':
     unittest.main()
