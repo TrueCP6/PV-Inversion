@@ -5,7 +5,9 @@ import json
 from pathlib import Path
 import numpy as np
 import sweep
+import matplotlib
 import matplotlib.pyplot as plt
+import scipy.sparse
 import contourpy
 from mpi4py import MPI
 from firedrake import PointEvaluator, Function
@@ -14,7 +16,7 @@ from parameters import *
 from barnes_atmosphere import *
 from domain_builder import *
 from diagnostic_solver import *
-from plot_utils import apply_style
+from plot_utils import apply_style, FIGURE_SIZE
 from derived_quantities import *
 
 # Global parameters for plot styling
@@ -276,6 +278,41 @@ def multislice(func : Function, title : str, cbar_title : str, levels, normals =
             highlight_level=highlight_level
         )
 
+def plot_alpha_sparsity(orders=(1, 2, 4), dofs_per_dir=9):
+    """
+    Spy plots of the matrix assembled from the bilinear form alpha, one panel per
+    polynomial order, to show the non-zeros per row growing with p. Each panel's mesh
+    is N = (dofs_per_dir - 1) / p cells a side, so every matrix has the same size.
+    Kept tiny so individual entries remain visible. Built on rank 0 alone, so
+    the dof numbering (and so the pattern) doesn't depend on the MPI partition.
+    """
+    if COMM_WORLD.rank != 0:
+        return
+
+    phys_params = PhysicalParams()
+    fig, axes = plt.subplots(1, len(orders), figsize=(FIGURE_SIZE[0], FIGURE_SIZE[0] / len(orders)))
+    for ax, p in zip(axes, orders):
+        N = (dofs_per_dir - 1) // p
+        # Same mesh as DomainBuilder.mesh, but on COMM_SELF
+        mesh = ExtrudedMesh(RectangleMesh(N, N, phys_params.Lx, phys_params.Ly, quadrilateral=True, comm=COMM_SELF),
+                            layers=N, layer_height=phys_params.H / N)
+        solver_params = SolverParams(nx=N, ny=N, nz=N, polynomial_order=p)
+        atmos = BarnesAtmosphere(DomainBuilder(solver_params, phys_params, mesh=mesh))
+        a, _ = DiagnosticSolver(atmos, False)._specify_equation()
+        indptr, indices, vals = assemble(a, form_compiler_parameters=solver_params.form_compiler_params).petscmat.getValuesCSR()
+        A = scipy.sparse.csr_matrix((vals, indices, indptr))
+
+        # Dense image rather than markers, so every entry fills its cell whatever the matrix size
+        ax.spy(A.toarray(), cmap=matplotlib.colors.ListedColormap(['white', '#004488']))
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel(rf'$p={p}$, nnz/row $\approx {A.nnz / A.shape[0]:.0f}$')
+
+    plt.tight_layout()
+    plt.savefig("tex/plots/alpha_sparsity.pdf", bbox_inches='tight')
+    plt.close()
+
+
 def main():
     global FILE_SUFFIX
 
@@ -288,6 +325,11 @@ def main():
                              'suffixing every file name with the JSON\'s')
     args = parser.parse_args()
     sweep.quiet_petsc() # PETSc reads the command line too, and would warn about --checkpoint
+
+    # Must run before any other atmosphere is built: its throwaway atmospheres on rank 0 alone would
+    # evict the other's lru_cache(maxsize=1) entries on that rank only, and the rebuild deadlocks MPI
+    if not args.checkpoint:
+        plot_alpha_sparsity()
 
     if args.checkpoint:
         from timestepping import load_checkpoint

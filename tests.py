@@ -180,7 +180,8 @@ class MMSTests(unittest.TestCase):
         N = 20
         solver_params = SolverParams(
             check_flux=False,
-            nx=N, ny=N, nz=N
+            nx=N, ny=N, nz=N,
+            ksp_rtol=1e-8 # 1e-9 sits below the round-off floor here and CG breaks down with DIVERGED_INDEFINITE_PC
         )
         phys_params = PhysicalParams()
 
