@@ -80,7 +80,8 @@ def plot_function_vs_z(f, plot_title, x_title, x_coord=None, y_coord=None, num_p
         plt.xlabel(x_title)
         plt.ylabel(r'$z$ [\unit{\meter}]')
         plt.grid(True, linestyle=':', alpha=0.5)
-        plt.tight_layout()
+        # Fixed margins, not tight_layout: every profile gets the same axes box; the tight bbox only crops whitespace
+        plt.subplots_adjust(left=0.25, right=0.93, bottom=0.12, top=0.97)
 
         lwr_case = plot_title.replace(" ", "_").lower()
         plt.savefig(f"tex/plots/{lwr_case}{FILE_SUFFIX}.pdf", bbox_inches='tight')
@@ -311,6 +312,7 @@ def main():
 
         atmos = BarnesAtmosphere(DomainBuilder(solver_params, phys_params))
         PETSc.Sys.Print(f"Background Ro = {atmos.rossby_number()}")
+        PETSc.Sys.Print(f"Frac of volume that has invalid EPV = {atmos.invalid_epv()}")
 
         solver = DiagnosticSolver(atmos, True)
         solver.solve_psi()
@@ -321,7 +323,6 @@ def main():
     cg_space = atmos.cg_space
     PETSc.Sys.Print(f"Ro after inversion = {derived.rossby_number()}")
     PETSc.Sys.Print(f"Fr after inversion = {derived.froude_number()}")
-    PETSc.Sys.Print(f"Invalid EPV frac after inversion = {derived.invalid_epv()}")
 
     plot_slice_heatmap(
         derived.horizontal_wind_speed(),

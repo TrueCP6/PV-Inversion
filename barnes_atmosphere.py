@@ -165,3 +165,15 @@ class BarnesAtmosphere(AtmosphereBuilder):
     def rossby_number(self):
         expr = abs(self.geostrophic_vorticity() / self.ufl_params.f)
         return get_global_max(Function(self.cg_space).interpolate(expr))
+
+    @lru_cache(maxsize=1)
+    def invalid_epv(self):
+        p = self.phys_params
+        totalV = p.Lx * p.Ly * p.H
+        f = self.ufl_params.f
+        Q = self.ertel_pv()
+        fcp = self.solver_params.form_compiler_params
+
+        integrand = conditional(f * Q <= 0, 1, 0)
+        invalidV = assemble(integrand * dx, form_compiler_parameters=fcp)
+        return invalidV / totalV

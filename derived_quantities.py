@@ -254,14 +254,3 @@ class ResolvedAtmosphere:
         u = self.u()
         fr = abs(u.dx(2) / N)
         return get_global_max(self._interp(fr))
-
-    @lru_cache(maxsize=1)
-    def invalid_epv(self):
-        Q = self.atmos.ertel_pv()
-        f = self.ufl_params.f
-        fcp = self.solver_params.form_compiler_params
-
-        totalQ = assemble(abs(Q) * dx, form_compiler_parameters=fcp)
-        integrand = max_value(Q, Constant(0))
-        totalInvalidQ = assemble(integrand * dx, form_compiler_parameters=fcp)
-        return totalInvalidQ / totalQ

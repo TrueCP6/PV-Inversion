@@ -18,19 +18,15 @@ def main():
 
     # todo add support for updated params in derived_quantities
 
-    domain = DomainBuilder(SolverParams(), PhysicalParams())
-    jet_z_sizes = np.linspace(1000, 8000, 5)
-    jet_magnitudes = np.linspace(5, 35, 5)
+    vary = Variator()
+    base = vary.get_derived(PhysicalParams(p_bottom=1000e2))
+    base = base.psi.copy(deepcopy=True)
 
-    for jet_z_size in jet_z_sizes:
-        for jet_magnitude in jet_magnitudes:
-            phys_params = PhysicalParams(jet_z_size=float(jet_z_size), jet_magnitude=float(jet_magnitude), N_strat_variation=0.008)
-            atmos = BarnesAtmosphere(domain, phys_params)
-            epv = Function(domain.cg_space()).interpolate(atmos.ertel_pv())
+    perturb = vary.get_derived(PhysicalParams(p_bottom=800e2))
+    perturb = perturb.psi
 
-            max_epv = 1e6 * get_global_max(epv)
-
-            PETSc.Sys.Print(f'z_jet = {jet_z_size:.3} | jet_mag = {jet_magnitude:.3} | N_strat = {phys_params.N_strat:.3} | max_epv = {max_epv:.3} PVU')
+    err = relative_error(base, perturb)
+    PETSc.Sys.Print(err)
 
 if __name__ == "__main__":
     main()
