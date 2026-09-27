@@ -14,6 +14,7 @@
 \usepackage{booktabs}
 \usepackage{bm}
 \usepackage{soul}
+\usepackage{amssymb}
 \usepackage[dvipsnames]{xcolor}
 \usepackage[title,titletoc,page]{appendix}
 \usepackage[
@@ -25,9 +26,19 @@
 ]{hyperref}
 \usepackage[noabbrev]{cleveref}
 
+% Float placement tuning (reduce float-only pages)
+%\renewcommand{\topfraction}{0.9}        % max fraction of a text page for top floats
+%\renewcommand{\bottomfraction}{0.8}     % max fraction of a text page for bottom floats
+%\renewcommand{\textfraction}{0.1}       % min fraction of a text page that must be text
+\renewcommand{\floatpagefraction}{0.85} % min fraction of a float-only page that must be floats
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+
 % Line spacing
 \usepackage{setspace}
 \setstretch{1.2}
+\captionsetup{justification=centering}
 
 % Bibliography (biblatex + biber)
 \usepackage[
@@ -49,6 +60,7 @@
 % Your abstract. %TODO
 % \end{abstract}
 
+\setcounter{tocdepth}{2}
 \tableofcontents
 \newpage
 
@@ -244,23 +256,6 @@ The specific objectives of this project are to:
 This text therefore focuses on solutions to \cref{qgpv,qgpv_time} and their physical implications.
 It builds on the PV inversion framework of Fehlmann~\cite{fehlmann1997pvelements} and Sprenger~\cite{sprenger2007userguide},
 and on the South African COL work of Barnes et~al.~\cite{Barnes2022main}.
-
-% \section{Objectives}
-
-% The primary aim of this project is to quantitatively investigate stratospheric intrusions to better understand how atmospheric variables affect surface conditions, and therefore extreme weather caused by COLs and Rossby Wave Breaking within and near to South Africa.
-% If we assume an idealised background state and potential vorticity profile, we can use the invertibility principle to deduce all other atmospheric variables.
-% Performing inversion on the full EPV (\cref{epv}) is a complex numerical challenge due to its highly nonlinear nature.
-% Instead, we will employ an approximation of EPV, \textit{quasigeostrophic} potential vorticity, which reduces $Q$ to a linear advection-diffusion equation with a source term (\cref{qgpv}), which is a significantly more straightforward (although non-trivial) numerical challenge.
-
-% Varying the parameters of this idealised background state will allow us to determine the effect of individual atmospheric and intrusion parameters on the surface, as well as characterise the relationship between certain derived quantities (such as the minimum dynamical tropopause height) and surface effects.
-
-% Tuning and greatly optimising the diagnostic solver for use on a High Performance Computing Cluster (HPC) allows wide and comprehensive parameter sweeps, further enabling this endeavour.
-
-% Additionally, this makes the implementation of an optimisation scheme tractable, which automates the search for anomalies and atmospheric states that produce the most severe effects on the surface.
-
-% We can then evolve these atmospheric states with time using the prognostic \cref{qgpv_time}, so as to determine their longevity and overall time evolution.
-
-% The primary focus of this text is solutions to \cref{qgpv,qgpv_time} and their physical implications by building off the work of Fehlmann \cite{fehlmann1997pvelements}, Sprenger \cite{sprenger2007userguide} and Barnes et Al. \cite{Barnes2022main}.
 
 \section{The Quasigeostrophic Potential Vorticity Equation}
 
@@ -552,7 +547,8 @@ For $\beta=0$ this reduces to the final nonlinear transport form of the prognost
 \subsection{Background States and Coefficients}
 We aim to recreate the control state of the atmosphere used by Barnes et al. to use as the benchmark for the diagnostic solver (\cref{sec:numerical_soln}).
 In order to capture larger jet streams in section TODO, we use an increased vertical domain of $H=\qty{25}{\kilo \meter}$, as opposed to the $H=\qty{20}{\kilo \meter}$ used by Barnes et al. \cite{Barnes2022main}.
-A horizontal domain size of $L_x = L_y = \qty{7500}{\kilo \meter}$ is used.
+The same $f$ as Barnes et al. is used with $\varphi = \ang{-42}$ and $\beta=0$.
+A horizontal domain size of $L_x = L_y = \qty{7500}{\kilo \meter}$ is set.
 
 We will specify $\overline{N}(z)$ using the same values as Barnes et al. \cite{Barnes2022main}, from which we can calculate $\overline{\rho}(z)$ using the same methodology as Fehlmann \cite{fehlmann1997pvelements}.
 
@@ -586,18 +582,22 @@ We can then determine the reference potential temperature profile by solving for
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{reference_brunt–väisälä_frequency.pdf}
+        \includegraphics{reference_brunt–väisälä_frequency.pdf}
         \caption{Reference Brunt–Väisälä frequency -- \cref{N_bar}}
         \label{fig:N_bar}
     \end{minipage}
     \hfill % Adds flexible space between the two minipages
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{reference_potential_temperature_profile.pdf}
+        \includegraphics{reference_potential_temperature_profile.pdf}
         \caption{Reference potential temperature profile -- \cref{theta_bar}}
         \label{fig:theta_bar}
     \end{minipage}
 \end{figure}
+
+The unrealistically large $\overline{N}_\text{strat} = \qty{0.03}{\per \second}$ used by Barnes et al. causes the potential temperature to take on unrealistic values above the tropopause.
+At \ang{42}S a typical value would be $\overline \theta( \qty{20}{\kilo\meter}) \approx \qty{480}{\kelvin}$ \cite{Birner2006}, however \cref{fig:theta_bar} shows a $\overline\theta > \qty{600}{\kelvin}$ at the same altitude.
+This could be fixed by using a more realistic $\overline{N}_\text{strat} = \qty{0.022}{\per \second}$ \cite{Grise2010}, but it will be left as-is to maintain parity with Barnes et al. for the control state.
 
 We combine the ideal gas law $p = \rho R T$ and the the definition of $\theta$ (\cref{pot_temp}) to express the reference density profile, where $\kappa = R/c_p$:
 
@@ -615,92 +615,128 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{reference_density_profile.pdf}
+        \includegraphics{reference_density_profile.pdf}
         \caption{Reference density profile -- \cref{rho_bar}}
         \label{fig:brunt_vaisala}
     \end{minipage}
     \hfill % Adds flexible space between the two minipages
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{reference_pressure_profile.pdf}
+        \includegraphics{reference_pressure_profile.pdf}
         \caption{Reference pressure profile -- \cref{p_bar}}
         \label{fig:p_bar}
     \end{minipage}
 \end{figure}
 
 The approximation $\overline{p}(0) = p_\text{surf} = \qty{1000}{\hecto\pascal}$ will be made for simplicity.
+It can be numerically calculated that the relative error between $\psi$ when $\overline{p}(0)=\qty{1000}{\hecto \pascal}$ and $\overline{p}(0)=\qty{800}{\hecto \pascal}$ is $\sim 0.01$, which justifies this approximation, and the decision to treat $\overline{p}(0)$ as constant across varying parameter sets.
 
-\subsection{Boundary Conditions [OUTDATED]}
+\subsection{Boundary Conditions}
 To specify the horizontal boundary conditions, we need to choose values of $u$ and $v$. We will define a jet stream aiming to recreate the one shown in \cite{Barnes2022main}.
-The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the middle of the tropopause vertically, is centred about the middle of the domain in the $x$-direction, is uniform in the $y$-direction, has a Gaussian shape, and has a similar overall size to the one shown in \cite{Barnes2022main} ($x_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{2000}{\meter}$).
+The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the middle of the tropopause vertically, is centred about the middle of the domain in the $y$-direction ($y_\text{jet} = L_y /2$), is uniform in the $y$-direction, has a Gaussian shape, and has a similar overall size to the one shown in~\cite{Barnes2022main} ($L_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{3500}{\meter}$).
 We will let
 
 \begin{equation}\label{u_boundary}
-    \overline u(x,y,z) = u_\text{jet} \exp\left[ - \left(\frac{x - L_x /2}{x_\text{jet}}\right)^2 - \left(\frac{z - z_\text{trop}}{z_\text{jet}} \right)^2\right]
+    \overline u(y,z) = U_\text{jet} \exp\left[ - \left(\frac{y - y_\text{jet}}{L_\text{jet}}\right)^2 - \left(\frac{z - z_\text{trop}}{z_\text{jet}} \right)^2\right]
 \end{equation}
 
 \begin{equation}\label{v_boundary}
-    \overline v(x,y,z) = 0
+    \overline v = 0
 \end{equation}
 
-\begin{figure}[hbtp]
+\begin{figure}[btp]
     \centering
-    \includegraphics[width=0.96\linewidth]{jet_stream_x.pdf}%TODO change to \overline u
+    \includegraphics{jet_stream.pdf}
     \caption{Jet stream specified in \cref{u_boundary}. A contour interval of \qty{5}{\meter\per\second} is used.}
     \label{fig:jet_stream}
 \end{figure}
 
-The potential temperature anomaly $\theta^*$ will be calculated in \cref{sec:solv_cond} to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
+With regards to the vertical boundary conditions (\cref{qgpv_bcs_vert}), the potential temperature anomaly $\theta^*$ will be calculated in \cref{sec:solv_cond} to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
 
-\subsection{Source term [OUTDATED]}
-To calculate the source term $q$ we must first specify the background state $\overline{Q}$. We will derive this from the full formulation of EPV (\cref{epv}) and the Brunt–Väisälä frequency (\cref{brunt_vaisala}). %TODO reference \zeta_g
+\subsection{Source term}
+To calculate the source term $q$ we must first specify the background state $\overline q$ and the QGPV associated with the anomaly, $q^*$. 
+We integrate \cref{u_boundary,v_boundary} using $\overline u = -\overline \psi_y$ and $\overline v = \overline \psi_x$ to calculate the background stream function $\overline\psi$:
 
-\begin{equation}\label{Q_bar}
-\begin{aligned}
-    \overline{Q} &= \frac{(\bm{\omega} + 2 \bm{\Omega}) \cdot \nabla \overline\theta}{\overline\rho} \\
-    &= \frac{d \overline \theta}{dz} \cdot\frac{\mathbf{\hat {k}} \cdot (\bm{\omega} + 2 \bm{\Omega})}{\overline\rho} \\
-    &= \frac{\overline{N}^2 \overline{\theta}}{g}  \cdot\frac{\zeta_g + f}{\overline\rho}
-\end{aligned}
+\begin{equation}\label{psi_bar}
+    \overline{\psi}(y,z) = -\frac{\sqrt{\pi}}{2} U_\text{jet}\, L_\text{jet} \operatorname{erf}\left(\frac{y - y_\text{jet}}{L_\text{jet}}\right) \exp \left[- \left(\frac{z - z_\text{trop}}{z_\text{jet}}\right)^2\right]
 \end{equation}
 
-We will specify the same PV anomaly as the one used by Barnes et Al. \cite{Barnes2022main} bar the apparent typographical errors. We initially take $Q^*_\text{mag} = \num{-4e-6}$.
+The background QGPV $\overline q$ can then be calculated using \cref{qgpv}, with $\overline{\zeta_g} = \nabla^2_h\overline{\psi}$ (\cref{geostrophic_vorticity}):
+
+\begin{figure}[btp]
+    \centering
+    \includegraphics{background_geostrophic_vorticity.pdf}
+    \caption{Background geostrophic vorticity calculated from \cref{psi_bar} using \cref{geostrophic_vorticity}}
+    \label{fig:zeta_g_bar}
+\end{figure}
+
+\begin{equation}
+    \overline q = \overline{\zeta_g} + \frac{f_0^2}{\overline{\rho}} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}(z)}{\overline{N}^2}  \frac{\partial \overline\psi}{\partial z} \right)
+\end{equation}
+
+Barnes et al. specify the anomaly in EPV, which has different units to QGPV, so the following approximation is used to calculate $\overline{Q}$ \cite{fehlmann1997pvelements}:
+
+\begin{equation}\label{Q_to_q_conversion}
+    q \approx \frac{\overline{\rho} g}{\overline{N}^2 \overline{\theta}} Q - f
+\end{equation}
+\begin{equation}\label{Q_bar}
+    \overline{Q} \approx \frac{\left( \overline q + f\right)\overline{N}^2 \overline{\theta}}{\overline{\rho} g}
+\end{equation}
+
+We specify the same PV anomaly as the one used by Barnes et Al. \cite{Barnes2022main} bar the apparent typographical errors.
+We take $Q^*_\text{mag} = \qty{-4e-6}{\kelvin \meter \squared \per \second \per \kg}$, and $Q^*_\text{clip} = \qty{-1.5e-6}{\kelvin \meter \squared \per \second \per \kg}$.
+The control anomaly will be placed at the centre of the domain ($x_\text{ano} = L_x/2$ and $y_\text{ano} = L_y/2$).
+The anomaly sizes $x_\text{size} = y_\text{size} = \qty{200}{\km}$ and $z_\text{size} = \qty{2000}{\meter}$ will be used \cite{Barnes2022main}.
 
 \begin{equation}\label{Q_star}
-    Q^*(x,y,z) = Q^*_\text{mag} \exp \left[- \left(\frac{x - x_\text{ano}}{x_\text{size}}\right)^2 - \left(\frac{y - y_\text{ano}}{y_\text{size}}\right)^2 - \left(\frac{z - z_\text{ano}}{z_\text{size}}\right)^2\right]
+    Q^*(x,y,z) = \operatorname{softmax}_\tau\left\{Q^*_\text{clip}, \enspace Q^*_\text{mag} \exp \left[- \left(\frac{x - x_\text{ano}}{x_\text{size}}\right)^2 - \left(\frac{y - y_\text{ano}}{y_\text{size}}\right)^2 - \left(\frac{z - z_\text{trop}}{z_\text{size}}\right)^2\right]\right\}
 \end{equation}
 
-\begin{figure}[hbtp]
+A $\operatorname{softmax}_\tau \{\}$ function is used in place of the $\max\{\}$ function, so as to improve numerical conditioning.
+$\operatorname{softmax}_\tau$ is $C^\infty$ -- infinitely smooth for $\tau>0$.
+The smoothing value chosen was $\tau=\displaystyle 0.075 |Q^*_\text{mag}|$.
+
+\begin{equation}
+    \operatorname{softmax}_\tau \{a,b\} \equiv \max \{a,b\} + \tau \ln \left[1+\exp \left(- \frac{|a-b|}{\tau} \right)\right]
+\end{equation}
+
+\begin{figure}[btp]
     \centering
-    \begin{subfigure}{\linewidth}
-        \centering
-        \includegraphics[width=1\linewidth]{epv_x.pdf}
-        \caption{Cross-section in the $x$-direction}
-        \label{fig:epv_x}
-    \end{subfigure}
-    
-    \vspace{1em} % Adds vertical space between the stacked images
-    
-    \begin{subfigure}{\linewidth}
-        \centering
-        \includegraphics[width=1\linewidth]{epv_y.pdf}
-        \caption{Cross-section in the $y$-direction}
-        \label{fig:epv_y}
-    \end{subfigure}
-    
-    \caption{EPV distribution specified in \cref{Q_bar,Q_star}. A contour interval of \qty{0.5}{PVU} (Potential Vorticity Units) is used. $\qty{1}{PVU} = \qty{e-6}{\kelvin \meter \squared \per \second \per \kg}$.}
+    \includegraphics{epv.pdf}
+    \caption{EPV distribution specified in \cref{Q_bar,Q_star}. A contour interval of \qty{0.5}{PVU} (Potential Vorticity Units) is used. $\qty{1}{PVU} = \qty{e-6}{\kelvin \meter \squared \per \second \per \kg}$. The thick solid line represents the dynamical tropopause -- the \qty{-1.5}{PVU} contour. Thin solid lines represent contours where $Q>0$, indicating a non-physical background state.}
     \label{fig:epv_combined}
 \end{figure}
 
-The anomaly will initially be placed at the centre of the domain ($x_\text{ano} = L_x/2$ and $y_\text{ano} = L_y/2$), with an anomaly height that corresponds to the troposphere height ($z_\text{ano}=z_\text{trop}$).
-For the first experiment the anomaly sizes $x_\text{size} = y_\text{size} = \qty{200}{\km}$ and $z_\text{size} = \qty{2000}{\meter}$ will be used.
-Later these will be altered to investigate the effects of various PV anomalies.
-To convert $Q=\overline{Q}+Q^*$ into quasigeostrophic PV, we employ the following approximation \cite{fehlmann1997pvelements}:
+EPV inversion comes with the condition that $fQ > 0$ everywhere in the domain; a necessity to ensure \cref{epv} remains elliptic and not ill-posed \cite{Hoskins1985}.
+\Cref{qgpv} is elliptic and linear, so the inversion will not fail for $q$ that corresponds to $fQ\leq 0$.
+QGPV is however an approximation of EPV \cite{fehlmann1997pvelements}, so the $fQ > 0$ constraint must be checked manually.
+As is seen in \cref{fig:epv_combined}, $Q=\overline{Q} + Q^*$ has regions where $fQ \leq 0$, implying an EPV inversion over this atmospheric state would fail.
+No explanation is offered as to why Barnes et al. chose a background state that has this feature.
+It must however be acknowledged that Barnes et al. did not publish all information necessary to recreate their background state exactly\footnote{Quantities used but not explicitly given by Barnes et al. include but are not limited to $w_\text{trop}$, $\delta$ and $L_\text{jet}$ \cite{Barnes2022main}.}, so whether this holds is unknown \cite{Barnes2022main}.
+
+Nevertheless, we establish a metric of the volume of 'invalid EPV' compared to the total domain volume as a diagnostic:
+
+\begin{equation}
+    \mathcal{V}_-\equiv\frac{1}{L_xL_yH} \int_V \vartheta(-fQ)\,dV, \qquad
+    \vartheta(x) \equiv \begin{cases}
+        1 & x >0 \\
+        0 &x < 0
+    \end{cases}
+\end{equation}
+
+For a truly correct background state, we need $\mathcal{V}_- =0$, however the control state has $\mathcal{V}_- \sim 0.04$.
+To maintain parity with Barnes et al., we will use this background state for now.
+
+Numerical experimentation showed that $\mathcal{V}_-$ is driven largely by $\partial \overline{u} / \partial z$, meaning that the most effective way to send $\mathcal{V}_- \to 0$ is by decreasing $U_\text{jet}$, or increasing $z_\text{jet}$.
+
+Despite these issues, we arrive at the expression for the source term of \cref{qgpv} by using approximation \eqref{Q_to_q_conversion} again:
 
 \begin{equation}\label{full_q}
-    q \approx \frac{\overline{\rho} g}{\overline{N}^2 \overline{\theta}} Q - f
+    q \approx \frac{\overline{\rho} g}{\overline{N}^2 \overline{\theta}} \left(\overline Q + Q^*\right) - f
 \end{equation}
 
 \section{Numerical Solution}\label{sec:numerical_soln}
+
 By adopting a smoothing value of $\delta = 2$ for \cref{kappa_delta}, the integral in \cref{theta_bar} is of the following general form \cite{Mathematica}:
 
 \begin{equation}\label{nonelementary_integral}
@@ -714,36 +750,40 @@ The solver set-up for \cref{qgpv} is given in the following subsections.
 \subsection{Choice of Solver Framework}
 
 While spectral methods offer exponential convergence and efficient memory usage, they trigger non-physical oscillations, known as the Gibbs phenomenon, when applied to localised functions (such as \cref{full_q}) or kink functions (such as \cref{N_bar}) \cite{Trefethen2000}.
-Finite difference schemes are straightforward to implement, but they struggle with the unstructured grids necessary for resolving irregular lower boundaries, such as real-world topography \cite{BLAZEK201529}.
+Finite difference schemes are straightforward to implement, but require discretising the Neumann boundary conditions (\cref{qgpv_bcs_hor,qgpv_bcs_vert}) \cite{fehlmann1997pvelements}.
 Furthermore, although finite volume methods excel at tracking fluxes in hyperbolic conservation laws (such as \cref{qgpv_time}), scaling to higher-order accuracy requires implementing more complex schemes \cite{Durran2010}.
 To overcome these limitations, we employ a finite element method (FEM).
-FEM natively handles unstructured meshes with irregular boundaries, effortlessly scales to higher-order accuracy, and supports formulations (such as Discontinuous Galerkin) that strictly enforce flux conservation \cite{FiredrakeUserManual}.
+FEM handles Neumann boundary conditions in the weak form as a boundary integral \cite{Segal2011femns}, effortlessly scales to higher-order accuracy and supports formulations (such as Discontinuous Galerkin) that strictly enforce flux conservation \cite{FiredrakeUserManual}.
 
 This work will use the Python library \href{https://www.firedrakeproject.org/}{Firedrake} as the computational framework to build up the numerical solver \cite{FiredrakeFirstPaper}.
 It allows a high level specification of PDEs, automatic highly optimised C code generation and automatic Jacobian computation.
 These features significantly reduce development time, ensuring the project remains within the scope of an honours thesis.
-Furthermore, Firedrake provides access to some of the most efficient matrix solvers and precondtioners, such as conjugate gradient and polynomial multigrid, by simply changing a few lines in the solver parameters \cite{FiredrakeUserManual}.
+Furthermore, Firedrake provides access to some of the most efficient matrix solvers and precondtioners, such as conjugate gradient and polynomial multigrid, by simply changing a few lines in the solver parameters \cite{FiredrakeUserManual, PETScUserManual, petsc-efficient, Dalcin2011}.
 
 Unfortunately Firedrake does not offer a simple way to evaluate purely vertical integrals (such as \cref{theta_bar,p_bar}) efficiently, so a non-trivial alternative method is explained in full in \cref{app:vert_int}.
 
 \subsection{Building the Mesh}\label{sec:mesh}
-To optimize mesh generation, a two-dimensional base mesh is extruded into a three-dimensional domain.
-This extrusion methodology was found to significantly reduce the computational cost of mesh creation compared to direct three-dimensional mesh initialization.
+
+To optimize mesh generation, a two-dimensional base mesh is extruded into a three-dimensional domain \cite{McRae2016, Bercea2016}.
+This extrusion methodology was found to significantly reduce the computational cost of mesh creation compared to direct three-dimensional mesh initialisation.
 The corresponding implementation is detailed in \cref{app:mesh}.
 
-By restricting the base mesh to quadrilateral elements, the vertical extrusion produces a mesh composed exclusively of hexahedral cells.
-This hexahedral topology facilitates the construction of tensor-product function spaces across the elements.
-Consequently, during form assembly and the application of matrix-free operators, the framework inherently leverages sum factorisation \cite{FiredrakeUserManual}.
-This technique decomposes multi-dimensional integrals into a sequence of one-dimensional operations, thereby reducing the computational complexity from $\mathcal{O}(p^6)$ to $\mathcal{O}(p^4)$ for matrix-free evaluations, and from $\mathcal{O}(p^9)$ to $\mathcal{O}(p^7)$ for explicit sparse matrix assembly, where $p$ denotes the polynomial degree of the function space.
+By restricting the base mesh to quadrilateral elements \cite{HomolyaHam2016}, the vertical extrusion produces a mesh composed exclusively of hexahedral cells.
+This hexahedral topology facilitates the construction of tensor-product function spaces across the elements \cite{McRae2016}.
+Consequently, during form assembly and the application of matrix-free operators \cite{KirbyMitchell2018}, the framework inherently leverages sum factorisation \cite{FiredrakeUserManual, Homolya2017}.
+This technique decomposes multi-dimensional integrals into a sequence of one-dimensional operations, thereby reducing the per-cell computational complexity from $\mathcal{O}(p^6)$ to $\mathcal{O}(p^4)$ for matrix-free evaluations \cite{Homolya2017, KirbyMitchell2018}, and from $\mathcal{O}(p^9)$ to $\mathcal{O}(p^7)$ for explicit sparse matrix assembly \cite{Homolya2017}, where $p$ denotes the polynomial degree of the function space.
 
 It should be noted that the asymptotic complexity advantages conferred by sum factorisation during matrix-free matrix-vector multiplications do not fully translate to assembled matrix methods.
-For explicitly assembled matrices, these performance improvements are strictly confined to the assembly phase \cite{Homolya2017}.
+For explicitly assembled matrices, these performance improvements are strictly confined to the assembly phase \cite{Homolya2017, KirbyMitchell2018}.
 
-\subsection{Defining the Function Space}\label{sec:func_space}
+\subsection{Defining the Function Space}\label{sec:cg_space}
 
-Firedrake offers a large number of supported finite elements, each with its own advantages and disadvantages.
-The two options which are the simplest and suited to our use case are the continuous and discontinuous Galerkin finite elements.
-The specific Firedrake variants that are used for meshes constructed with tensor products are the \mintinline{python}{'Q'} and \mintinline{python}{'DQ'} function spaces \cite{FiredrakeUserManual}.
+Firedrake offers a large number of supported finite elements, each with its own advantages and disadvantages \cite{FiredrakeUserManual}.
+Since the unknown stream function is a scalar field and the extruded mesh consists of hexahedral cells, the vector- and tensor-valued elements, as well as those defined only on simplices, are not applicable.
+Of the remaining options, the simplest are the continuous and discontinuous Galerkin elements, which on hexahedra are constructed directly as tensor products of one-dimensional interval elements \cite{Homolya2017}; this structure is also what permits sum factorisation.
+The continuous Galerkin space is the natural choice for the second-order elliptic inversion problem.
+The discontinuous Galerkin space offers greater flexibility, including the representation of discontinuous fields, at the cost of additional interface terms and a penalty parameter that must be chosen sufficiently large to ensure stability \cite{larson2013finite}.
+The specific Firedrake variants used for meshes constructed with tensor products are the \mintinline{python}{'Q'} and \mintinline{python}{'DQ'} function spaces \cite{FiredrakeUserManual}.
 
 Equation \eqref{qgpv} is essentially an advection-diffusion equation with a source term.
 If the equation is advection-dominated we need to take care that the selected function space does not result in non-physical oscillations.
@@ -753,7 +793,7 @@ The \mintinline{python}{'DQ'} function space allows for stable upwinding and exp
 Since there is no advection in the $x$ and $y$ directions in \cref{qgpv}, we expand the vertical derivative term to determine which process dominates:
 
 \begin{equation}\label{advection_order}
-    \frac{f^2}{\overline{\rho}}\frac{\partial}{\partial z} \left( \frac{\overline{\rho}}{\overline{N}^2}  \psi_z\right) = \psi_z \underbrace{\frac{f^2}{\overline{\rho}}\frac{\partial}{\partial z}\frac{\overline{\rho}}{\overline{N}^2}}_{C_1(z)} + \psi_{zz} \underbrace{\frac{f^2}{\overline{N}^2}}_{C_2(z)}
+    \frac{f_0^2}{\overline{\rho}}\frac{\partial}{\partial z} \left( \frac{\overline{\rho}}{\overline{N}^2}  \psi_z\right) = \psi_z \underbrace{\frac{f_0^2}{\overline{\rho}}\frac{\partial}{\partial z}\frac{\overline{\rho}}{\overline{N}^2}}_{C_1(z)} + \psi_{zz} \underbrace{\frac{f_0^2}{\overline{N}^2}}_{C_2(z)}
 \end{equation}
 
 We compute the ratio of advection to diffusion:
@@ -762,7 +802,7 @@ We compute the ratio of advection to diffusion:
      \frac{C_1(z)}{C_2(z)} = \frac{\overline{N}^2}{\overline{\rho}}\frac{\partial}{\partial z}\frac{\overline{\rho}}{\overline{N}^2} = \frac{\partial}{\partial z} \ln \left( \frac{\overline{\rho}}{\overline{N}^2}\right)
 \end{equation}
 
-Numerically calculating the maximum value of \cref{adv_diff_ratio} for $z \in [0, H]$ reveals that $|C_1/C_2| < 0.005$, meaning that in the vertical direction \cref{qgpv} is heavily dominated by diffusion. 
+Numerically calculating the absolute maximum of \cref{adv_diff_ratio} for $z \in [0, H]$ reveals that $|C_1/C_2| < 0.005$, meaning that in the vertical direction \cref{qgpv} is heavily dominated by diffusion. 
 
 It is likely that increasing $p$ will stabilise these oscillations on a 3D mesh (as it does on a 1D and 2D mesh \cite{CAI2014}).
 Nevertheless, we calculate a \textbf{heuristic} stability parameter based on the concept of a mesh Péclet number \cite{Donea2003}. Here $h$ is the local mesh spacing.
@@ -771,8 +811,8 @@ Nevertheless, we calculate a \textbf{heuristic} stability parameter based on the
     \mathrm{Pe}= \frac{hC_1}{2C_2}
 \end{equation}
 
-For linear ($p=1$) continuous Galerkin formulations, the constraint $\mathrm{Pe} \le 1$ ensures that spurious oscillations will not occur .
-We will adopt this constraint as 'a best guess' of the stability bound of the \mintinline{python}{'Q'} function space, as no optimal analytical definition of the stabilisation parameter exists for $p>2$ \cite{Donea2003}.
+For linear ($p=1$) 1D continuous Galerkin formulations, the constraint $\mathrm{Pe} \le 1$ prevents spurious oscillations.
+We will adopt this constraint as 'a best guess' of the stability bound of the \mintinline{python}{'Q'} function space, as no oscillation criterion is available for $p>2$ in 3D \cite{Donea2003}.
 
 When calculating $\mathrm{Pe}$ \eqref{peclet_def}, $h$ can not be taken to be constant.
 Even though we take $\Delta z$ as constant, Firedrake by default places nodes at Gauss-Lobatto-Legendre (GLL) points.
@@ -814,67 +854,78 @@ The definition with Firedrake is written as
 
 \begin{minted}{python}
 p = solver_params.polynomial_order # For now p=4
-func_space = FunctionSpace(mesh, 'Q', p) # Sometimes called 'V'
+cg_space = FunctionSpace(mesh, 'Q', p) # Sometimes called 'V'
 \end{minted}
 
-Note that the total number of degrees of freedom can be retrieved programatically with \mintinline{python}{V.dim()} \cite{FiredrakeUserManual} or analytically: %todo cite
+Note that the total number of degrees of freedom can be retrieved programatically with \mintinline{python}{V.dim()} \cite{FiredrakeUserManual} or analytically \cite{Homolya2017}: %todo cite
 
 \begin{equation}\label{degrees_of_freedom}
     \text{DOFs} = (N_x p+1)(N_y p +1 )(N_z p + 1)
 \end{equation}
 
-where if $N_x = N_y=N_z=40$ and $p=4$, the total number of degrees of freedom is $\approx 4 \times 10^6$. Barnes et Al. used a second order finite difference scheme and a total of $12 \times 10^6$ mesh points \cite{Barnes2022main}.
+where if $N_x = N_y=N_z=40$ and $p=4$, the total number of degrees of freedom is $\approx 8 \times 10^6$.
+Barnes et al. used a second order finite difference scheme and a total of \num{12e6} mesh points \cite{Barnes2022main}.
 
 \subsection{Weak Form}
 To set up \cref{qgpv} to be solvable with the finite element method, we multiply by a test function $\phi$ and integrate over the 3D domain $V$.
 Before integrating we also multiply the whole equation by $\overline\rho$, in order to allow for additional optimisations later on.
-We use the horizontal Laplace operator $\nabla^2_h=\frac{\partial^2}{\partial x^2}+\frac{\partial^2}{\partial y^2}$ to make this process more concise.
+We use the horizontal Laplace operator $\nabla^2_h=\partial^2_x+\partial^2_y$ to make this process more concise.
 
 \begin{equation}\label{weak_form_1}
-    \int_V { \overline\rho \phi q  \,dV} = \underbrace{\int_V {\overline\rho \phi \nabla_h^2 \psi  \,dV}}_{I_h} + f^2 \underbrace{\int_V { \phi\frac{\partial}{\partial z} \left( \frac{\overline \rho}{\overline N^2} \psi _z \right) \,dV}}_{I_z}
+    \int_V { \overline\rho \phi q  \,dV} = \underbrace{\int_V {\overline\rho \phi \nabla_h^2 \psi  \,dV}}_{I_h} + f_0^2 \underbrace{\int_V { \phi\frac{\partial}{\partial z} \left( \frac{\overline \rho}{\overline N^2} \psi _z \right) \,dV}}_{I_z}
 \end{equation}
 
 Now we apply Green's first identity \cite{kellogg2026foundations}, which can be written as equation \eqref{greens_1st_identity} for a general number of spatial dimensions.
 Here $A$ is the surface that encloses $V$.
 
 \begin{equation}\label{greens_1st_identity}
-    \int_V {\phi \nabla^2 \psi \,dV} = \oint_A {\phi \nabla \psi \cdot \bm {\hat {n}} \,dA} - \int_V {\nabla \psi \cdot \nabla \phi \,dV}
+    \int_V {\phi \nabla^2 \psi \,dV} = \int_A {\phi \nabla \psi \cdot \bm {\hat {n}} \,dA} - \int_V {\nabla \psi \cdot \nabla \phi \,dV}
 \end{equation}
 
 This yields the following when applied to $I_h$ and $I_z$ \eqref{weak_form_1}.
 The horizontal normal vector is denoted as $\bm {\hat n_{xy}} = (n_x, n_y, 0)$.
 
 \begin{equation}\label{i_h}
-    I_h = \underbrace{\oint_A {\overline\rho \phi \nabla_h \psi \cdot \bm {\hat n_{xy}} \, dA}}_{I_{hb}} - \int_V {\overline\rho\,\nabla_h \psi \cdot \nabla_h  \phi \, dV}
+    I_h = \underbrace{\int_A {\overline\rho \phi \nabla_h \psi \cdot \bm {\hat n_{xy}} \, dA}}_{I_{hb}} - \int_V {\overline\rho\,\nabla_h \psi \cdot \nabla_h  \phi \, dV}
 \end{equation}
 \begin{equation}\label{i_z}
-    I_z = \underbrace{\oint _A {\frac{\overline \rho}{\overline N^2} \phi \psi_z n_z \, dA}}_{I_{zb}} - \int_V {\frac{\overline \rho}{\overline N^2} \phi_z \psi_z \,dV}
+    I_z = \underbrace{\int _A {\frac{\overline \rho}{\overline N^2} \phi \psi_z n_z \, dA}}_{I_{zb}} - \int_V {\frac{\overline \rho}{\overline N^2} \phi_z \psi_z \,dV}
 \end{equation}
 
 We can then expand the boundary integrals $I_{hb}$ and $I_{zb}$ to implement the boundary conditions 
 (\cref{qgpv_bcs_hor,qgpv_bcs_vert}):
+
 \begin{equation}
-    I_{hb} = \oint_A {\overline \rho \phi \left( \psi_x n_x + \psi_y n_y\right)\,dA}
-    = \oint_A {\overline \rho \phi \left( v n_x - u n_y\right)\,dA}
+    I_{hb} = \int_A {\overline \rho \phi \left( \psi_x n_x + \psi_y n_y\right)\,dA}
+    = \int_A {\overline \rho \phi \left( \overline v n_x - \overline u n_y\right)\,dA}
 \end{equation}
 \begin{equation}
-    I_{zb} = \oint _A {\phi\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA}
+    I_{zb} = \int _A {\phi\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f_0\overline{\theta}} n_z \, dA}
 \end{equation}
 
 We then substitute everything into equation \eqref{weak_form_1} and move terms around to get the form $a(\psi,\phi) = L(\phi)$:
 
 \begin{equation}\label{final_weak_form}
-    \underbrace{\oint_A {\overline \rho \phi \left( v n_x - u n_y\right)\,dA} + f^2 \oint _A {\phi\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA} - \int_V { \overline\rho \phi q  \,dV}}_{L(\phi)} = \underbrace{\int_V {\overline\rho\,\nabla_h \psi \cdot \nabla_h \phi \, dV} + \int_V {\frac{ f^2\overline \rho}{\overline N^2} \phi_z \psi_z \,dV}}_{a(\psi, \phi)}
+    \underbrace{\int_A {\overline \rho \phi \left( \overline v n_x - \overline u n_y\right)\,dA} + f_0^2 \int _A {\phi\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA} - \int_V { \overline\rho \phi q  \,dV}}_{L(\phi)} = \underbrace{\int_V {\overline\rho\,\nabla_h \psi \cdot \nabla_h \phi \, dV} + \int_V {\frac{ f_0^2\overline \rho}{\overline N^2} \phi_z \psi_z \,dV}}_{a(\psi, \phi)}
 \end{equation}
 
-Now \cref{qgpv}, with the boundary conditions embedded, is in a weak form that can easily be expressed in Firedrake's syntax \footnote{as shown in \cref{app:weak_form}}.
+Now \cref{qgpv}, with the boundary conditions embedded, is in a weak form that can easily be expressed in Firedrake's syntax\footnote{shown in \cref{app:weak_form}}.
+
+\begin{figure}[hbtp]
+    \centering
+    \includegraphics{plots/alpha_sparsity.pdf}
+    \caption{Sparsity pattern of the matrix assembled from the bilinear form $\alpha$ (\cref{final_weak_form}) for $p = 1, 2, 4$.
+    The mesh is refined as $p$ decreases ($N=8, 4, 2$), so that every matrix has the same $9^3 = 729$ degrees of freedom and thus dimensions.
+    Shaded entries are non-zero; nnz/row is the mean number of stored non-zero entries per row, which grows with $p$ as each basis function overlaps with more of its neighbours.}
+    \label{fig:alpha_sparsity}
+\end{figure}
 
 Establishing certain properties of the matrix arising from $\alpha$ will aid in optimising the numerical solver later on.
 We notice that $\alpha$ is symmetric, as $\alpha(\psi, \phi) = \alpha(\phi, \psi)$.
 It can be shown that $\alpha$ is positive semi-definite by evaluating
 
 \begin{equation}\label{alpha_phi_phi}
-    \alpha(\phi, \phi) = \int_V {\,(\phi_x^2 + \phi_y^2) \overline\rho \, dV} + \int_V {\frac{ f^2\overline \rho}{\overline N^2} \phi_z^2 \,dV}
+    \alpha(\phi, \phi) = \int_V {\,(\phi_x^2 + \phi_y^2) \overline\rho \, dV} + \int_V {\frac{ f_0^2\overline \rho}{\overline N^2} \phi_z^2 \,dV}
 \end{equation}
 
 Since every term in \cref{alpha_phi_phi} is $\geq 0$, it follows that $\alpha (\phi,\phi) \geq 0$ for all real $\phi$.
@@ -883,7 +934,7 @@ These properties are transferred to the matrix arising from \cref{final_weak_for
 \subsection{Solvability Condition}\label{sec:solv_cond}
 
 Equation \eqref{qgpv} and its boundary conditions (\cref{qgpv_bcs_hor,qgpv_bcs_vert}) only contain derivatives of $\psi$. This means that if $\psi$ is a solution, $\psi + C$ will also be a solution.
-To ensure the weak form \eqref{final_weak_form} is solvable, we calculate $\theta^*$ such that the constant solution is valid.
+To ensure the weak form \eqref{final_weak_form} is solvable, we calculate $\theta^* \in \mathbb{R}$ such that the constant solution is valid.
 This is called the Neumann solvability condition, and it requires that the test function $\phi=C$ satisfies \cref{final_weak_form} \cite{larson2013finite}.
 In other words, we solve for $\theta ^*$ in the equation $\alpha(\psi, C) = L(C)$.
 As the bilinear form only contains derivatives of the test function, it follows that $\alpha(\psi, C)=0$.
@@ -891,23 +942,21 @@ Additionally, $C$ can be pulled out of the integrals in $L(C)$ and divided away,
 
 \begin{equation}\label{solve_cond_1}
     \oint_A {\overline \rho \left( \overline v n_x -  \overline u n_y\right)\,dA}
-    + \underbrace{f^2\oint _A {\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA}}_{I_1}
+    + \underbrace{f_0^2\oint _A {\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA}}_{I_1}
     - \int_V { \overline\rho q  \,dV} = 0
 \end{equation}
 
 The integrand of $I_1$ exclusively depends on $z$, meaning the integral can be evaluated directly.
 
 \begin{equation}
-    I_1 = \theta ^*L_x L_y fg \left(\frac{\overline \rho (H)}{\overline N(H)^2 \overline \theta(H) } - \frac{\overline \rho (0)}{\overline N(0)^2 \overline \theta(0) }\right)
+    I_1 = \theta ^*L_x L_y f_0 g \left(\frac{\overline \rho (H)}{\overline N(H)^2 \overline \theta(H) } - \frac{\overline \rho (0)}{\overline N(0)^2 \overline \theta(0) }\right)
 \end{equation}
 
 Rearranging \cref{solve_cond_1} yields the formula for $\theta^*$:
 
 \begin{equation}\label{general_solv_cond}
-    \theta^* = \frac{\displaystyle \int_V { \overline\rho q  \,dV} - \overbrace{\oint_A {\overline \rho \left( \overline v n_x - \overline u n_y\right)\,dA}}^{I_2}}{ \displaystyle L_x L_y fg \left(\frac{\overline \rho (H)}{\overline N(H)^2 \overline \theta(H) } - \frac{\overline \rho (0)}{\overline N(0)^2 \overline \theta(0) }\right)}
+    \theta^* = \frac{\displaystyle \int_V { \overline\rho q  \,dV} - \oint_A {\overline \rho \left( \overline v n_x - \overline u n_y\right)\,dA}}{ \displaystyle L_x L_y f_0 g \left(\frac{\overline \rho (H)}{\overline N(H)^2 \overline \theta(H) } - \frac{\overline \rho (0)}{\overline N(0)^2 \overline \theta(0) }\right)}
 \end{equation}
-
-If $\overline u(x,0,z)=\overline u(x,L_y, z)$ and $\overline v(0,y,z)=\overline v(L_x,y,z)$, the term $I_2$ vanishes. This occurs if the jet stream defined in \cref{u_boundary,v_boundary} is used.
 
 Experimentally it was found that $\theta^* \sim \qty{-0.1}{\kelvin}$, representing a very small anomaly in potential temperature, smaller than the approximate \qty{-2}{\kelvin} from \cite{sprenger2007userguide}.
 
@@ -919,70 +968,94 @@ This is done by making the substitution $\phi = 1$ and evaluating \mintinline{py
 flux = assemble(replace(L, {phi: Constant(1)}))
 \end{minted}
 
-Executing the above expression shows that the net flux across the whole domain is $\sim 10^{-2}$. Given the domain volume of $\sim \qty{e17}{\meter \cubed}$, a net flux of $\sim 10^{-2}$ is on the order of machine precision, confirming that \cref{general_solv_cond} is satisfied up to floating-point truncation error.
+Executing the above expression shows that the net flux across the whole domain is $\sim 10^{-3}$. Given the domain volume of $\sim \qty{e18}{\meter \cubed}$, a net flux of $\sim 10^{-3}$ is on the order of machine precision, confirming that \cref{general_solv_cond} is satisfied up to floating-point truncation error.
 
 \subsection{Solver Settings}\label{sec:solver_settings}
 
 With the equation fully specified in Firedrake's syntax, we can proceed with the solver setup and parameter selection.
 
 Since the coefficients of the bilinear form in \cref{final_weak_form} are time-independent and \cref{qgpv} is linear, the Jacobian remains constant.
-Explicitly instructing Firedrake to retain this constant Jacobian resulted in significant speed improvements during repeated solves.
+Explicitly instructing Firedrake to retain this constant Jacobian\footnote{shown in \cref{app:solver_params}} resulted in significant speed improvements during repeated solves.
 
-As discussed previously, this is a pure Neumann problem, making it necessary to pass a constant nullspace to Firedrake.
+As discussed previously, this is a pure Neumann problem, making it necessary to pass a constant nullspace to Firedrake\footnote{shown in \cref{app:solver_params}}.
 This prevents the solver from attempting to invert a singular matrix with a rank deficiency of one.
 
 To finally solve the quasigeostrophic potential vorticity equation (\cref{qgpv}), an efficient set of solver parameters must be specified.
-A benchmarking search was conducted across over 30 permutations of theoretically reasonable solver parameters.
+A benchmarking search was conducted across over 40 permutations of theoretically reasonable solver parameters on the primary testing hardware (see \cref{app:hardware_consumer}).
 Pre-conditioners such as Fast Diagonalisation (the \mintinline{python}{'firedrake.FDMPC'} pre-conditioner \cite{FiredrakeUserManual}) and polynomial multigrid ($p$-multigrid) were evaluated, alongside a wide variety of smoothers and solvers for the coarse $p=1$ mesh.
 The performance of matrix-free methods was also compared against assembled matrix methods.
 From this reasonably extensive search, the fastest combination of solver parameters was found to be:
 
 \begin{itemize}
-    \item \textbf{Matrix Format:} A fully assembled sparse matrix (AIJ format) \cite{PETScUserManual}.
+    \item \textbf{Matrix Format:} Matrix-free. The sparse matrix (AIJ format) \cite{PETScUserManual} is never built on the refined levels; instead, each time the solver needs the product of the matrix with a vector, that product is calculated directly from the weak form, cell by cell \cite{FiredrakeUserManual, KirbyMitchell2018}.
     \item \textbf{Krylov Subspace Solver:} The Conjugate Gradient (CG) method. This can be used because it was shown that the matrix arising from the bilinear weak form (\cref{final_weak_form}) is symmetric and positive semi-definite \cite{Saad2003}.
     \item \textbf{Pre-conditioner:} A $p$-multigrid scheme using the \mintinline{python}{'firedrake.PMGPC'} pre-conditioner \cite{FiredrakeUserManual}.
-    \item \textbf{Multigrid Smoother:} A Jacobi pre-conditioner is applied across the refined multigrid levels.
-    \item \textbf{Coarse Grid Solver:} LU factorisation is conducted exactly once at the first solve of the $p=1$ coarse mesh. Each subsequent solve using the constant Jacobian is a highly efficient $\mathcal{O}(\text{non-zero entries})$ operation \cite{Davis2006}. 
+    \item \textbf{Multigrid Smoother:} A Chebyshev iteration, pre-conditioned with point-Jacobi, is applied across the refined multigrid levels ($p=2,3,4$). A Chebyshev smoother is designed to quickly remove the rapidly oscillating (high-frequency) components of the error, which is exactly the job of a smoother. To do so, it only needs an estimate of the matrix's largest eigenvalue \cite{PETScUserManual}. The Jacobi diagonal can be obtained cheaply from a matrix-free operator \cite{FiredrakeUserManual}. The same combination serves as the basic smoother of large-scale matrix-free multigrid solvers \cite{Muench2024}.
+    \item \textbf{Coarse Grid Solver:} Only the $p=1$ coarse operator is assembled, using the \mintinline{python}{'firedrake.AssembledPC'} pre-conditioner inside the otherwise matrix-free multigrid hierarchy \cite{FiredrakeUserManual}. A sparse Cholesky factorisation (via MUMPS \cite{PETScUserManual, MUMPS01, MUMPS02}) is conducted exactly once at the first solve, with null-pivot detection enabled to handle the rank deficiency of the matrix. Each subsequent solve using the constant Jacobian is a highly efficient $\mathcal{O}(\text{non-zero entries})$ operation \cite{Davis2006}.
 \end{itemize}
 
 A detailed implementation of the solver set-up is given in \cref{app:solver_params}.
 
-Matrix-free methods are typically faster than assembled matrix methods for $p \geq 4$, because memory bandwidth and capacity generally become bottlenecks at these higher orders.
-Additionally, assembled sparse matrix-vector multiplication requires $\mathcal{O}(n^{2p})$ operations per cell, whereas matrix-free methods using sum-factorisation reduce the operation count to $\mathcal{O}(n^{p+1})$ per cell \cite{Homolya2017}.
+\begin{figure}[tp]
+    \centering
+    \includegraphics{time_complexity.pdf}
+    \caption{Log-log plot of solve time versus degrees of freedom with $p=4$, comparing optimised matrix-free parameters (\cref{sec:solver_settings}) to optimised assembled matrix parameters (\cref{app:assembled_params}). Achieves $\mathcal{O}(\text{DoF})$ time complexity. Computed with the hardware in \cref{app:hardware_hpc}.}
+    \label{fig:time_complexity}
+\end{figure}
 
-Despite these theoretical advantages, practical experiments involving repeated solutions of \cref{final_weak_form} showed that matrix-free methods were consistently half an order of magnitude slower than the assembled solver configuration described above.
+Matrix-free methods are typically faster than assembled matrix methods for $p \geq 2$ \cite{Kronbichler2022}, because memory bandwidth and capacity generally become bottlenecks at these higher orders. %PENISPOINT
+Additionally, on 3D hexahedral cells, assembled sparse matrix-vector multiplication requires $\mathcal{O}(p^6)$ operations per cell, whereas matrix-free methods using sum-factorisation reduce the operation count to $\mathcal{O}(p^4)$ per cell \cite{Homolya2017, KirbyMitchell2018}.
+
+These theoretical advantages were verified in practice: experiments involving repeated solutions of \cref{final_weak_form} showed that the matrix-free configuration described above was consistently faster than every assembled configuration tested, on both the primary testing hardware and the HPC cluster (see \cref{app:hardware}).
 Matrix-free methods were developed largely because solving massive systems of equations demands significant memory \cite{Muench2024}.
+An assembled matrix remains viable only while it is not itself the bottleneck, since every non-zero entry must be loaded from main memory (RAM) at each matrix-vector product \cite{Muench2024}.
 On modern computer architectures, fetching data from main memory causes the processor to stall, wasting valuable CPU cycles.
 The CPU must wait for data to propagate from RAM through the L3, L2, and L1 caches before finally reaching the registers \cite{hennessy2017computer}.
+Sparse matrix-vector multiplication performs roughly $1/6$ floating-point operations per byte loaded, far below the $\approx 10$ at which modern hardware is balanced \cite{KirbyMitchell2018}.
 Matrix-free methods aim to minimize these stalls by performing technically redundant or duplicate operations on the fly.
 Because modern CPUs can compute operations much faster than memory can supply data, this trade-off is often highly performant \cite{Muench2024}.
 
-However, in the specific case of solving the quasigeostrophic potential vorticity equation, \cref{final_weak_form} relies on spatially varying coefficients that lack an analytical expression (as discussed alongside \cref{nonelementary_integral}).
-Consequently, these coefficients must be stored in memory.
+It was initially expected that the spatially varying coefficients of \cref{final_weak_form} would erode this advantage.
+These coefficients lack an analytical expression (as discussed alongside \cref{nonelementary_integral}), and consequently must be stored in memory.
 For a mesh where $N_x=N_y=N_z=35$ and $p=4$, the system has \num{2803221} degrees of freedom (see \cref{degrees_of_freedom}).
 Storing the source term (\cref{full_q}) with double precision floating points requires $\qty{8}{\byte} \times \num{2803221} \approx \qty{22}{\mega\byte}$ of memory.
-This exceeds the L3 cache capacity of the primary testing hardware (see \cref{app:hardware}), meaning the source term must be fetched entirely from RAM every time it is evaluated.
+This exceeds the L3 cache capacity of the primary testing hardware (see \cref{app:hardware_consumer}), meaning the source term must be fetched entirely from RAM every time it is evaluated.
+
+However, an assembled matrix must also be fetched from RAM at every matrix-vector product, and it is far larger.
+On the same mesh, each row of the $p=4$ matrix holds on average about 212 non-zero entries, giving roughly \num{5.9e8} non-zeros in total\footnote{
+Evaluating \mintinline{python}{assemble(a).petscmat.getInfo()["nz_used"] } yields \num{594823321} stored entries, or about 212 per row.
+Here \mintinline{python}{a} is the bilinear form defined in \cref{app:weak_form}.
+The number of stored entries per row is higher than in \cref{fig:alpha_sparsity}, because a mesh with $N=2$ has only boundary cells which neighbour fewer cells than interior ones (comprising most of an $N=35$ mesh).
+}.
+Stored in AIJ format with a double-precision value and a four-byte column index per entry \cite{PETScUserManual}, this requires approximately \qty{7}{\giga\byte} of memory, over 300 times that of the source term.
+The same disparity has been observed in Firedrake, where assembled three-dimensional operators consume well over an order of magnitude more memory per degree of freedom than their matrix-free equivalents \cite{KirbyMitchell2018}.
+Furthermore, even when coefficients are pre-computed and loaded from RAM at every quadrature point, making the matrix-free evaluation memory-bound, its throughput remains more than an order of magnitude higher than that of a sparse matrix-vector product at the same polynomial degree \cite{Kronbichler2022}.
 
 In essence, matrix-free methods typically excel by minimizing slow memory accesses \cite{Muench2024}.
-However, our specific application requires heavy memory access regardless of whether the matrix is assembled.
-As a result, matrix-free methods underperform compared to fully assembled sparse matrices in this context.
+Although our specific application must fetch its coefficient fields from RAM regardless, this traffic is small compared with streaming an assembled high-order sparse matrix.
+As a result, matrix-free methods outperform fully assembled sparse matrices in this context, and assembly is best reserved for the small $p=1$ coarse operator, where it enables an exact direct solve.
 
 Nevertheless, the following caveats should be noted:
 \begin{itemize}
     \item
-    If \cref{final_weak_form} is solved only once, matrix-free methods actually outperform the assembled approach.
-    The assembled matrix method only becomes significantly faster during subsequent solves, once the Jacobian has already been computed.
-    
-    \item
-    The memory footprint of the assembled matrix solver is substantially larger than that of the matrix-free alternative.
-    This severely limits the maximum mesh sizes that can be simulated on consumer-grade hardware (see \cref{app:solver_params}).
+    Assembling the matrix costs approximately ten matrix-free operator applications \cite{KirbyMitchell2018}.
+    This cost was expected to be recovered over repeated solves with the constant Jacobian, but in practice each assembled solve remained slower than its matrix-free equivalent, so the cost was never recovered.
 
     \item
-    A transformation for \cref{qgpv} might exist that absorbs the spatially varying coefficients into $\psi$ itself, or into a rescaled vertical coordinate $z'$.
-    Such a formulation could eliminate the memory bottleneck, potentially reversing the performance conclusions drawn here.
+    The memory footprint of the matrix-free solver is substantially smaller than that of the assembled alternative.
+    Only the $p=1$ coarse matrix is stored (approximately \num{1.2e6} non-zeros, or \qty{14}{\mega\byte} before Cholesky fill-in, for the mesh above), which permits far larger meshes on consumer-grade hardware (see \cref{app:solver_params}).
 
     \item
-    On systems with abundant L1 and L2 cache -- such as High-Performance Computing (HPC) clusters with dozens of cores per node -- the performance gap between matrix-free and assembled methods may narrow or even invert.
+    A transformation for \cref{qgpv} might exist that absorbs the spatially varying coefficients into $\psi$ itself, or into a rescaled coordinates $x',y',z'$.
+    Such a formulation would remove the remaining coefficient memory traffic, potentially widening the performance gap in favour of matrix-free methods further.
+
+    \item
+    On systems with abundant L1 and L2 cache, such as HPC clusters with dozens of cores per node, the performance gap between matrix-free and assembled methods was expected to narrow.
+    Repeating the benchmark on such a cluster (see \cref{app:hardware_hpc}) confirmed that the matrix-free configuration remained the fastest.
+
+    \item
+    This advantage relies on sum-factorisation, which applies only to tensor-product cells \cite{Homolya2017}.
+    On simplicial meshes, where Firedrake did not offer sum-factorisation, assembled sparse matrix-vector products were found to be faster than matrix-free ones \cite{KirbyMitchell2018}, so these conclusions should not be assumed to transfer to tetrahedral meshes.
 \end{itemize}
 
 \subsection{Solver Verification}
@@ -1044,17 +1117,16 @@ Substituting \cref{mms_psi} into \cref{mms_source} supplies the source term, and
     \item \st{Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping}
     \item \st{I.e. investigate the effects of PV anomalies on the weather in an idealised setting, why QGPV?}
     \item \st{Brief overview of QGPV equation and the assumptions that arise from it.}
-    \item Background states
-    \item Boundary conditions
-    \item Specify q and plot it
-    \item Why we will use finite element and firedrake
-    \item Building the mesh and function space in Firedrake
-    \item Putting into weak form - why do we multiply by rho? Get symmetric semipositive definite so we can use conjugate gradient
-    \item Solvability condition
-    \item Utility functions
-    \item Specifying the equation in Firedrake
-    \item Choosing solver parameters (matfree vs assembled) - calculate a reasonable ksp rtol and ksp atol - why matrix free is slower (check notebooklm) - why are the coefficients not analytically expressible
-    \item Running with MPI
+    \item \st{Background states}
+    \item \st{Boundary conditions}
+    \item \st{Specify q and plot it}
+    \item \st{Why we will use finite element and firedrake}
+    \item \st{Building the mesh and function space in Firedrake}
+    \item \st{Putting into weak form}
+    \item \st{Solvability condition}
+    \item \st{Utility functions}
+    \item \st{Specifying the equation in Firedrake}
+    \item \st{Choosing solver parameters (matfree vs assembled)}
     \item Verify setup is correct using MMS - order of accuracy
     \item Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude
     \item Limitations of QGPV
@@ -1128,26 +1200,26 @@ $I(z)$ could be solved with Firedrake by rewriting it as an initial value proble
 \end{equation}
 
 On our 3D mesh defined in \cref{sec:mesh}, we would be wasting an enormous amount of CPU time and memory by repeatedly solving an identical IVP in every vertical column, when the integrand depends exclusively on $z$.
-Additionally, the IVP consists of only advection, which is unsuitable for the \mintinline{python}{'Q'} function space we chose in \cref{sec:func_space}.
+Additionally, the IVP consists of only advection, which is unsuitable for the \mintinline{python}{'Q'} function space we chose in \cref{sec:cg_space}.
 
 To circumvent this the \mintinline{python}{'DQ'} function space could be implemented, but this would require expensive projections back and forth between both function spaces \cite{FiredrakeUserManual}.
 A more efficient approach would be to make use of the pre-existing high-order numerical integration system in the package \mintinline{python}{scipy} \cite{scipy}, and then write the result back into a Firedrake \mintinline{python}{Function}.
 The annotated code that performs the integration up to 4th order accuracy is given:
 
 \begin{minted}{python}
-def compute_vertical_integral(integrand, func_space):
+def compute_vertical_integral(integrand, cg_space):
     """
     Computes the vertical integral I(z) = \int_{z_{bottom}}^z f(\xi) d\xi.
     
     Collapses the mesh into a single 1D vertical profile. The integration is handled by SciPy's CubicSpline, which maintains high-order accuracy compatible with higher-degree Firedrake function spaces, before mapping the result back to a 3D Firedrake Function.
     """
-    mesh = func_space.mesh()
+    mesh = cg_space.mesh()
 
     # Extract Z-coordinates and integrand values at all mesh Degrees of Freedom (DoFs)
     z_expr = SpatialCoordinate(mesh)[2]
 
-    z_fd = Function(func_space).interpolate(z_expr)
-    f_fd = Function(func_space).interpolate(integrand)
+    z_fd = Function(cg_space).interpolate(z_expr)
+    f_fd = Function(cg_space).interpolate(integrand)
 
     z_data = z_fd.dat.data_ro
     f_data = f_fd.dat.data_ro
@@ -1175,7 +1247,7 @@ def compute_vertical_integral(integrand, func_space):
     integral_dofs = integral_spline(z_data) - integral_spline(z_1d[0])
 
     # Write the 1D evaluated data back into a native Firedrake Function
-    result = Function(func_space, name="Vertical_Integral")
+    result = Function(cg_space, name="Vertical_Integral")
     result.dat.data[:] = integral_dofs
 
     return result
@@ -1185,7 +1257,7 @@ When running with MPI, this function does not collate the data between ranks ont
 This means that each rank evaluates the integral only on the data in its subset of the mesh.
 If the mesh were to be subdivided vertically, this would completely break the function and
 incorrect results would be given.
-However, Firedrake only subdivides extruded meshes horizontally \cite{FiredrakeUserManual}, so each MPI rank is operating on its own independent vertical column.
+However, Firedrake only subdivides extruded meshes horizontally \cite{FiredrakeUserManual, LangeMitchellKnepleyGorman2015, PTSCOTCH}, so each MPI rank is operating on its own independent vertical column.
 
 For this reason, the \mintinline{python}{compute_vertical_integral} function will \textbf{only} produce accurate results for \textbf{extruded meshes}.
 This results in a slight increase in efficiency as communication between ranks is not necessary.
@@ -1194,21 +1266,19 @@ This results in a slight increase in efficiency as communication between ranks i
 
 Equation \eqref{final_weak_form} is expressed in Firedrake's syntax, which is based on Unified Form Language (UFL) \cite{UFL}.
 This code is included as certain parts of the syntax can be quite unintuitive, especially with extruded meshes.
-The calculation of the variable \mintinline{python}{rho_N2} is a detail important to note.
 
 \begin{minted}{python}
 # Define the trial and test functions
-psi = TrialFunction(func_space)
-phi = TestFunction(func_space)
+psi = TrialFunction(cg_space)
+phi = TestFunction(cg_space)
 n = FacetNormal(mesh) # The normal vector n=[n_x, n_y, n_z]
 
 # The value of the below expression will be evaluated at both vertical boundaries
-top_boundary = phys_params.g * theta_star / (phys_params.f * theta_bar)
-bottom_boundary = top_boundary
+vertical_boundary = phys_params.g * theta_star / (phys_params.f * theta_bar)
 
 # Calculate the quotient in advance
-# This is absolutely crucial to prevent huge quadrature degrees from being necessary to assemble the form
-rho_N2 = Function(func_space).interpolate(rho_bar / (N_bar**2))
+# Prevents huge quadrature degrees from being estimated by the form compiler if a quadrature degree is not explicitly set
+rho_N2 = Function(cg_space).interpolate(rho_bar / (N_bar**2))
 
 x_base = rho_bar * phi * v * n[0]
 y_base = rho_bar * phi * -u * n[1]
@@ -1216,12 +1286,11 @@ z_base = n[2] * (f**2) * phi * rho_N2
 
 L_x = x_base * ds_v((1, 2)) # Tuple that refers to both x-boundaries on the extruded mesh
 L_y = y_base * ds_v((3, 4)) # Same but for y-boundaries
-L_bottom = z_base * bottom_boundary * ds_b # ds_b is the bottom boundary in an extruded mesh
-L_top = z_base * top_boundary * ds_t # ds_t is the top boundary in an extruded mesh 
+L_z = z_base * self._vertical_boundary * ds_tb # ds_bt represents the vertical boundaries in an extruded mesh
 L_vol = -q * rho_bar * phi * dx
 
 # Linear form L
-L = L_x + L_y + L_bottom + L_top + L_vol
+L = L_x + L_y + L_z + L_vol
 
 # Bilinear form alpha
 a = (rho_bar * psi.dx(0) * phi.dx(0) +
@@ -1229,23 +1298,46 @@ a = (rho_bar * psi.dx(0) * phi.dx(0) +
      (f**2) * rho_N2 * psi.dx(2) * phi.dx(2)) * dx
 \end{minted}
 
+An important detail to note is that constants that may change depending on atmospheric parameters (such as \mintinline{python}{phys_params.f}) should be wrapped with \mintinline{python}{Constant(...)} once, and subsequently updated with its \mintinline{python}{assign()} method.
+If a plain Python float is used instead, its value is embedded in the UFL form as a literal, so each new parameter value produces a different form, for which Firedrake must generate and compile new C kernels \cite{FiredrakeUserManual}.
+A \mintinline{python}{Constant} is instead a symbolic coefficient whose value is passed to the already compiled kernel at run time, so the form, and hence the generated code, is reused across parameter changes.
+
 \subsection{Solver Parameters}\label{app:solver_params}
 
 A direct Python equivalent for the solver set-up and parameters given in \cref{sec:solver_settings} is provided.
-Additionally, a supplementary set of solver parameters are provided that trade solve time for memory footprint.
-This was necessary as the hardware used to develop the solver (\cref{app:hardware}) has insufficient memory to use an assembled matrix on meshes with $p = 4$ and $N_x = N_y = N_z > 35$.
-The selection of solver parameters is based on the boolean variable \mintinline{python}{save_memory}.
 
 \begin{minted}{python}
-psi_soln = Function(func_space) # The solution will be stored here
+psi_soln = Function(cg_space) # The solution will be stored here
+
+# Stop the form compiler from estimating massive quadrature degrees
+form_compiler_params = {
+    "quadrature_degree": 3*polynomial_order
+}
 
 problem = LinearVariationalProblem(
     a, L, psi_soln,
-    constant_jacobian=True # Saves a lot of time with the assembled solver parameters and repeated solves
+    constant_jacobian=True, # Saves a lot of time with the assembled solver parameters and repeated solves
+    form_compiler_parameters=form_compiler_params
 )
 
-# Use different solver parameters based on the user requirements
-params = matfree_params if save_memory else assembled_mat_params
+params = {
+    "mat_type": "matfree",
+    "ksp_type": "cg",
+    "ksp_rtol": ksp_rtol,
+    "ksp_atol": ksp_atol,
+    # p-multigrid for outer preconditioner
+    "pc_type": "python",
+    "pc_python_type": "firedrake.PMGPC",
+    # For p=2,3,4
+    "pmg_mg_levels_ksp_type": "chebyshev",
+    "pmg_mg_levels_pc_type": "jacobi",
+    "pmg_mg_coarse_ksp_type": "preonly",  # Don't iterate, just apply the direct solver once
+    "pmg_mg_coarse_pc_type": "python",
+    "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
+    "pmg_mg_coarse_assembled_pc_type": "cholesky",
+    "pmg_mg_coarse_assembled_pc_factor_mat_solver_type": "mumps",
+    "pmg_mg_coarse_assembled_mat_mumps_icntl_24": 1  # detect & null out the known null pivot
+}
 
 # Define a constant null space to prevent the matrix from being singular
 nullspace = VectorSpaceBasis(constant=True, comm=mesh.comm)
@@ -1261,50 +1353,34 @@ solver = LinearVariationalSolver(
 solver.solve()
 \end{minted}
 
-The solver parameters described in \cref{sec:solver_settings} are written below in Firedrake syntax.
 A value of \mintinline{python}{ksp_rtol = 1e-9} was selected for the convergence conditions, as minimal benefit arises from setting it much smaller \cite{FiredrakeUserManual}.
+An absolute tolerance of \mintinline{python}{ksp_atol = 1e-3} was used.
+
+\subsubsection{Unused Assembled Matrix Parameters}\label{app:assembled_params}
+
+The parameters used to produce \cref{fig:time_complexity} are given.
+These are inferior to the matrix-free set of parameters given above and in \cref{sec:solver_settings}, but only by an additive constant.
+Both parameter sets achieve $\mathcal{O}(\text{DoF})$ time complexity.
+This parameter set requires substantially more memory than the matrix-free alternative.
 
 \begin{minted}{python}
-assembled_mat_params = {
-    "mat_type": "aij", # Assemble the sparse matrix
-    "ksp_type": "cg", # Conjugate gradient
-    "pc_type": "python",
-    "ksp_rtol": ksp_rtol,
-    "pc_python_type": "firedrake.PMGPC", # p-multigrid
-    "pmg_mg_levels_pc_type": "jacobi",
-    "pmg_mg_coarse_pc_type": "lu", # LU factorisation on the coarsest mesh
-    "ksp_monitor": None, # Print the preconditioned residual norm at each iteration
-    "ksp_converged_reason": None # Print the reason for terminating iteration
-}
-\end{minted}
-
-The more memory efficient -- but much slower -- matrix free version of the above parameters is provided.
-It is suitable for running once-off solves on consumer hardware, but is too slow to be practical for time-stepping.
-
-\begin{minted}{python}
-matfree_params = {
-    "mat_type": "matfree", # Only use matrix free operators
+params = {
+    "mat_type": "aij",
     "ksp_type": "cg",
-    "ksp_rtol": ksp_rtol,
-    # p-multigrid for outer preconditioner
     "pc_type": "python",
+    "ksp_rtol": ksp_rtol,
+    "ksp_atol": ksp_atol,
     "pc_python_type": "firedrake.PMGPC",
-    # Smoother for p=2,3,4
-    "pmg_mg_levels_ksp_type": "chebyshev",
     "pmg_mg_levels_pc_type": "jacobi",
-    # p=1 coarse mesh solver
-    "pmg_mg_coarse_ksp_type": "preonly",  # Don't iterate on the coarse p=1 mesh, just apply the direct solver once
-    "pmg_mg_coarse_pc_type": "python",
-    "pmg_mg_coarse_pc_python_type": "firedrake.AssembledPC",  # Force assembly of ONLY the p=1 matrix
-    "pmg_mg_coarse_assembled_pc_type": "lu",  # Apply LU to the explicitly assembled coarse matrix
-    "ksp_monitor" : None,
-    "ksp_converged_reason" : None
+    "pmg_mg_coarse_ksp_type": "preonly",
+    "pmg_mg_coarse_pc_type": "hypre",
+    "pmg_mg_coarse_pc_hypre_type": "boomeramg"
 }
 \end{minted}
 
 \subsection{Running in Parallel with MPI}
 
-To run Firedrake in parallel, it is necessary to use \href{https://www.firedrakeproject.org/parallelism.html}{a Message Passing Interface (MPI) Library} \cite{FiredrakeUserManual}.
+To run Firedrake in parallel, it is necessary to use \href{https://www.firedrakeproject.org/parallelism.html}{a Message Passing Interface (MPI) Library} \cite{FiredrakeUserManual, Dalcin2011}.
 For example:
 
 \begin{minted}{bash}
@@ -1313,11 +1389,19 @@ mpiexec -n 16 python simulation.py
 
 It is worth noting that standard python functions will run redundantly on every single MPI rank, including \mintinline{python}{print()} statements.
 Firedrake's standard functions know how to handle multiple ranks seamlessly, however normal python libraries will not necessarily handle this correctly.
-Instead Firedrake's functions should be used where possible, such as \mintinline{python}{PETSc.Sys.Print()} instead of \mintinline{python}{print()} \cite{FiredrakeUserManual}.
+Instead Firedrake's functions should be used where possible, such as \mintinline{python}{PETSc.Sys.Print()} instead of \mintinline{python}{print()} \cite{FiredrakeUserManual, Dalcin2011}.
 
 \section{Hardware Used}\label{app:hardware}
 
-The majority of benchmarking and solver optimisation was conducted on an 8 core-16 thread AMD Ryzen 7 7730U with a base clock speed of \qty{2}{\giga \hertz} and a boost clock speed of \qty{4.5}{\giga \hertz}. This processor has a total of \qty{512}{\kilo \byte} of L1 cache, \qty{4}{\mega \byte} of L2 cache and \qty{16}{\mega \byte} of L3 cache. Firedrake scripts were executed on Windows Subsystem for Linux (WSL) with \qty{12}{\giga \byte} of memory available.
+\subsection{Consumer Grade Hardware Used for Primary Testing}\label{app:hardware_consumer}
+
+The majority of benchmarking and solver optimisation was conducted on an 8 core-16 thread AMD Ryzen 7 7730U with a base clock speed of \qty{2}{\giga \hertz} and a boost clock speed of \qty{4.5}{\giga \hertz}. This processor has a total of \qty{512}{\kilo \byte} of L1 cache, \qty{4}{\mega \byte} of L2 cache and \qty{16}{\mega \byte} of L3 cache. Firedrake scripts were executed on Windows Subsystem for Linux (WSL) with \qty{12}{\giga \byte} of DDR4 memory (3200 MT/s) available.
+
+\subsection{High Performance Cluster}\label{app:hardware_hpc}
+
+Heavy computations were performed using facilities provided by the University of Cape Town’s ICTS High Performance Computing team: \href{hpc.uct.ac.za}{hpc.uct.ac.za} \cite{HPC}
+I was given access to a maximum of 40 cores and 320GB of memory per job.
+Each node has 2 Intel Xeon Gold 6442Y processors, each with 24 cores, 24 threads, \qty{1.92}{\mega\byte} of L1 cache, \qty{48}{\mebi\byte} of L2 cache and \qty{60}{\mebi\byte} of L3 cache.
 
 \end{appendices}
 

@@ -298,11 +298,20 @@
     author = {Saad, Yousef}
 }
 
-@article{PETScUserManual,
-    author = {Balay, Satish and Brown, Jed and Buschelman, Kris and Eijkhout, Victor and Gropp, William and Kaushik, Dinesh and Knepley, Matthew and Smith, Barry and Zhang, Hong},
-    year = {2019},
-    month = {03},
-    title = {PETSc users manual}
+@TechReport{PETScUserManual,
+  author      = {Satish Balay and Shrirang Abhyankar and Mark~F. Adams and Steven Benson and Jed Brown
+    and Peter Brune and Kris Buschelman and Emil Constantinescu and Lisandro Dalcin and Alp Dener
+    and Victor Eijkhout and Jacob Faibussowitsch and William~D. Gropp and V{\'a}clav Hapla and Tobin Isaac and Pierre Jolivet
+    and Dmitry Karpeev and Dinesh Kaushik and Matthew~G. Knepley and Fande Kong and Scott Kruger
+    and Dave~A. May and Lois Curfman McInnes and Richard Tran Mills and Lawrence Mitchell and Todd Munson
+    and Jose~E. Roman and Karl Rupp and Patrick Sanan and Jason Sarich and Barry~F. Smith and Hansol Suh
+    and Stefano Zampini and Hong Zhang and Hong Zhang and Junchao Zhang},
+  title       = {{PETSc/TAO} Users Manual},
+  number      = {ANL-21/39 - Revision 3.24},
+  doi         = {10.2172/2998643},
+  institution = {Argonne National Laboratory},
+  year        = {2025},
+  month       = {9}
 }
 
 @article{UFL,
@@ -745,4 +754,151 @@
   pages   = {105290},
   year    = {2021},
   doi     = {10.1016/j.atmosres.2020.105290}
+}
+
+@article{McRae2016,
+  author  = {McRae, Andrew T. T. and Bercea, Gheorghe-Teodor and Mitchell, Lawrence and Ham, David A. and Cotter, Colin J.},
+  title   = {Automated Generation and Symbolic Manipulation of Tensor Product Finite Elements},
+  journal = {SIAM Journal on Scientific Computing},
+  volume  = {38},
+  number  = {5},
+  pages   = {S25--S47},
+  year    = {2016},
+  doi     = {10.1137/15M1021167}
+}
+
+@article{HomolyaHam2016,
+  author  = {Homolya, Mikl{\'{o}}s and Ham, David A.},
+  title   = {A Parallel Edge Orientation Algorithm for Quadrilateral Meshes},
+  journal = {SIAM Journal on Scientific Computing},
+  volume  = {38},
+  number  = {5},
+  pages   = {S48--S61},
+  year    = {2016},
+  doi     = {10.1137/15M1021325}
+}
+
+@article{KirbyMitchell2018,
+  author  = {Kirby, Robert C. and Mitchell, Lawrence},
+  title   = {Solver Composition Across the {PDE}/Linear Algebra Barrier},
+  journal = {SIAM Journal on Scientific Computing},
+  volume  = {40},
+  number  = {1},
+  pages   = {C76--C98},
+  year    = {2018},
+  doi     = {10.1137/17M1133208}
+}
+
+@article{Bercea2016,
+  author  = {Bercea, Gheorghe-Teodor and McRae, Andrew T. T. and Ham, David A. and Mitchell, Lawrence and Rathgeber, Florian and Nardi, Luigi and Luporini, Fabio and Kelly, Paul H. J.},
+  title   = {A structure-exploiting numbering algorithm for finite elements on extruded meshes, and its performance evaluation in {Firedrake}},
+  journal = {Geoscientific Model Development},
+  volume  = {9},
+  number  = {10},
+  pages   = {3803--3815},
+  year    = {2016},
+  doi     = {10.5194/gmd-9-3803-2016}
+}
+
+@article{Kronbichler2022,
+  author  = {Kronbichler, Martin and Sashko, Dmytro and Munch, Peter},
+  title   = {Enhancing data locality of the conjugate gradient method for high-order matrix-free finite-element implementations},
+  journal = {The International Journal of High Performance Computing Applications},
+  volume  = {37},
+  number  = {2},
+  pages   = {61--81},
+  year    = {2023},
+  doi     = {10.1177/10943420221107880},
+  note    = {Published online 2022; the archived copy (Paper~I of Muench2024, PDF pages 101--125) uses online-first pagination pp.~1--21}
+}
+
+@misc{HPC,
+  doi = {10.5281/ZENODO.10021612},
+  author = {{University of Cape Town} and Carr,  Timothy and Lewis,  Andrew},
+  language = {en},
+  title = {UCT HPC Facility},
+  publisher = {Zenodo},
+  year = {2023},
+  copyright = {Creative Commons Attribution 4.0 International}
+}
+
+@InProceedings{petsc-efficient,
+  author    = {Satish Balay and William D. Gropp and Lois Curfman McInnes and Barry F. Smith},
+  title     = {Efficient Management of Parallelism in Object Oriented Numerical Software Libraries},
+  booktitle = {Modern Software Tools in Scientific Computing},
+  editor    = {E. Arge and A. M. Bruaset and H. P. Langtangen},
+  pages     = {163--202},
+  publisher = {Birkh{\"{a}}user Press},
+  year      = {1997},
+  doi       = {10.1007/978-1-4612-1986-6_8}
+}
+
+@Article{Dalcin2011,
+  author  = {Lisandro D. Dalcin and Rodrigo R. Paz and Pablo A. Kler and Alejandro Cosimo},
+  title   = {Parallel distributed computing using {P}ython},
+  journal = {Advances in Water Resources},
+  note    = {New Computational Methods and Software Tools},
+  volume  = {34},
+  number  = {9},
+  pages   = {1124--1139},
+  year    = {2011},
+  doi     = {10.1016/j.advwatres.2011.04.013}
+}
+
+@article{LangeMitchellKnepleyGorman2015,
+  title   = {Efficient mesh management in {Firedrake} using {PETSc-DMPlex}},
+  author  = {Michael Lange and Lawrence Mitchell and Matthew G. Knepley and Gerard J. Gorman},
+  journal = {SIAM Journal on Scientific Computing},
+  volume  = {38},
+  number  = {5},
+  pages   = {S143--S155},
+  eprint  = {1506.07749},
+  archiveprefix = {arXiv},
+  doi     = {10.1137/15M1026092},
+  year    = {2016}
+}
+
+@article{nixonhill2023consistent,
+  author  = {Nixon-Hill, R. W. and Shapero, D. and Cotter, C. J. and Ham, D. A.},
+  doi     = {10.5194/gmd-17-5369-2024},
+  journal = {Geoscientific Model Development},
+  number  = {13},
+  pages   = {5369--5386},
+  title   = {Consistent point data assimilation in {Firedrake} and {Icepack}},
+  url     = {https://gmd.copernicus.org/articles/17/5369/2024/},
+  volume  = {17},
+  year    = {2024}
+}
+
+@article{PTSCOTCH,
+  author  = {C. Chevalier and F. Pellegrini},
+  title   = {{PT-SCOTCH}: a tool for efficient parallel graph ordering},
+  journal = {Parallel Computing},
+  volume  = {34},
+  number  = {6},
+  pages   = {318--331},
+  year    = {2008},
+  doi     = {10.1016/j.parco.2007.12.001}
+}
+
+@article{MUMPS01,
+  author  = {P.~R. Amestoy and I.~S. Duff and J.-Y. L'Excellent and J. Koster},
+  title   = {A fully asynchronous multifrontal solver using distributed dynamic scheduling},
+  journal = {SIAM Journal on Matrix Analysis and Applications},
+  volume  = {23},
+  number  = {1},
+  pages   = {15--41},
+  year    = {2001},
+  doi     = {10.1137/S0895479899358194}
+}
+
+@article{MUMPS02,
+  author  = {P.~R. Amestoy and A. Guermouche and J.-Y. L'Excellent and S. Pralet},
+  title   = {Hybrid scheduling for the parallel solution of linear systems},
+  journal = {Parallel Computing},
+  volume  = {32},
+  number  = {2},
+  pages   = {136--156},
+  year    = {2006},
+  doi     = {10.1016/j.parco.2005.07.004}
 }
