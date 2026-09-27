@@ -302,7 +302,7 @@ def main():
         N = 40
         solver_params = SolverParams(
             nx=N, ny=N, nz=N,
-            check_flux=False
+            check_flux=True
         )
         phys_params = PhysicalParams()
         if args.params:

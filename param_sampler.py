@@ -68,10 +68,9 @@ class ParamSampler:
         except ConvergenceError as exc:
             if self.rank == 0:
                 print(f"solve diverged at {params}: {exc}, scoring it 0", flush=True)
-            return 0.0  # all three quantities are negative where they are interesting
+            return 0.0  # both quantities are negative where they are interesting
 
-        # Punish the optimiser for creating background states with large rossby numbers
-        # todo experimentally using the post-inversion rossby number
+        # todo switch to penalty method for rossby number and invalid EPV
         rossby_gap = derived.rossby_number() - params.max_rossby
         if rossby_gap > 0:
             return rossby_gap
@@ -110,7 +109,7 @@ class ParamSampler:
         try:
             soln = pybobyqa.solve(
                 self.driver_cost,
-                x0=self.normalised_control,
+                x0=0.5*np.ones(self.dim), # the control parameters are not necessarily in the parameter space, so use domain centre as a starting point instead.
                 bounds=(np.zeros(self.dim), np.ones(self.dim)),
                 rhobeg=0.1,
                 rhoend=0.001,
