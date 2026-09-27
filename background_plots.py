@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import scipy.sparse
 import contourpy
 from mpi4py import MPI
-from firedrake import PointEvaluator, Function
+from firedrake import PointEvaluator, Function, And
 import math_utils
 from parameters import *
 from barnes_atmosphere import *
@@ -77,10 +77,10 @@ def plot_function_vs_z(f, plot_title, x_title, x_coord=None, y_coord=None, num_p
     # 4. Plot only on the root rank
     if comm.rank == 0:
         plt.figure(figsize=(3.15, 4.5))
-        plt.plot(f_values, z_values, color='#004488', linestyle='-', linewidth=1.5)
+        plt.plot(f_values, z_values / 1e3, color='#004488', linestyle='-', linewidth=1.5)
 
         plt.xlabel(x_title)
-        plt.ylabel(r'$z$ [\unit{\meter}]')
+        plt.ylabel(r'$z$ [\unit{\kilo\meter}]')
         plt.grid(True, linestyle=':', alpha=0.5)
         # Fixed margins, not tight_layout: every profile gets the same axes box; the tight bbox only crops whitespace
         plt.subplots_adjust(left=0.25, right=0.93, bottom=0.12, top=0.97)
@@ -92,7 +92,7 @@ def plot_function_vs_z(f, plot_title, x_title, x_coord=None, y_coord=None, num_p
 
 def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_coord=None,
                        num_points_h=200, num_points_v=200, figsize=(3.15*2, 4.0), cbar_min = None, cbar_max = None,
-                       vector_field=None, quiver_density=15, highlight_level=None):
+                       vector_field=None, quiver_density=15, highlight_level=None, ax=None, bounds=None):
     """
     Evaluates and plots a 2D heatmap (with contours) of a 3D Firedrake function
     along a plane normal to the specified axis (x, y, or z).
@@ -127,22 +127,25 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
     highlight_level : float, optional
         A single contour value to redraw as a heavy solid line, picking it out of
         the surrounding contours (e.g. the dynamical tropopause).
+    ax : matplotlib.axes.Axes, optional
+        Draw into this axis (rank 0 only) and return the heatmap, leaving the colorbar
+        and saving to the caller. Otherwise a standalone figure is saved.
+    bounds : ((x_min, x_max), (y_min, y_max), (z_min, z_max)), optional
+        The window to plot. Defaults to the whole domain.
     """
     mesh = f.function_space().mesh()
     comm = mesh.comm
 
     # 1. Get global bounds using the helper
-    (x_min, x_max), (y_min, y_max), (z_min, z_max) = get_global_mesh_bounds(mesh)
+    (x_min, x_max), (y_min, y_max), (z_min, z_max) = bounds or get_global_mesh_bounds(mesh)
 
     normal_dir = normal_dir.lower()
     if normal_dir not in ['x', 'y', 'z']:
         raise ValueError("normal_dir must be 'x', 'y' or 'z'.")
 
-    # Axes 'x' and 'y' are displayed in kilometers; 'z' (altitude) stays in meters.
+    # All axes are displayed in kilometers
     def axis_label_and_scale(axis):
-        if axis in ('x', 'y'):
-            return rf'${axis}$ [\unit{{\kilo\meter}}]', 1e-3
-        return r'$z$ [\unit{\meter}]', 1.0
+        return rf'${axis}$ [\unit{{\kilo\meter}}]', 1e-3
 
     # 2. Determine bounds, labels, and slice coordinate based on normal direction
     if normal_dir == 'x':
@@ -204,14 +207,16 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
         # Reshape evaluated 1D array back to 2D meshgrid shape
         F = f_values_flat.reshape(H.shape)
 
-        plt.figure(figsize=figsize)
+        standalone = ax is None
+        if standalone:
+            _, ax = plt.subplots(figsize=figsize)
 
         H_plot, V_plot = H * h_scale, V * v_scale
 
-        heatmap = plt.pcolormesh(H_plot, V_plot, F, cmap='viridis', shading='auto', rasterized=True, vmin=cbar_min, vmax=cbar_max)
+        heatmap = ax.pcolormesh(H_plot, V_plot, F, cmap='viridis', shading='auto', rasterized=True, vmin=cbar_min, vmax=cbar_max)
 
         # Superimposed solid contours
-        plt.contour(H_plot, V_plot, F, levels=levels, colors='black', linewidths=0.5, alpha=0.5)
+        ax.contour(H_plot, V_plot, F, levels=levels, colors='black', linewidths=0.5, alpha=0.5)
 
         if highlight_level is not None:
             # Heavy line on the lowest piece of the level spanning the full width (e.g. the tropopause, not a crossing aloft)
@@ -219,17 +224,20 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
                      if np.isclose(l[:, 0].min(), H_plot.min()) and np.isclose(l[:, 0].max(), H_plot.max())]
             if lines:
                 h, v = min(lines, key=lambda l: l[:, 1].mean()).T
-                plt.plot(h, v, color='black', linewidth=1.5)
+                ax.plot(h, v, color='black', linewidth=1.5)
 
         if vector_field is not None:
-            plt.quiver(Hq * h_scale, Vq * v_scale, Uh, Uv, color='white', pivot='mid', alpha=0.8)
+            ax.quiver(Hq * h_scale, Vq * v_scale, Uh, Uv, color='white', pivot='mid', alpha=0.8)
+
+        ax.set_xlabel(h_label)
+        ax.set_ylabel(v_label)
+
+        if not standalone:
+            return heatmap
 
         # Add colorbar
-        cbar = plt.colorbar(heatmap)
+        cbar = plt.colorbar(heatmap, ax=ax)
         cbar.set_label(cbar_title)
-
-        plt.xlabel(h_label)
-        plt.ylabel(v_label)
 
         plt.tight_layout()
 
@@ -240,43 +248,64 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
 
 def multislice(func : Function, title : str, cbar_title : str, levels, normals ='xyz', cbar_bound_region = None,
                highlight_level = None):
+    # Plot only the middle of the domain horizontally, and below z_top
+    half_width, z_top = 2500e3, 20e3
+    (x_min, x_max), (y_min, y_max), (z_min, _) = get_global_mesh_bounds(func.function_space().mesh())
+    cx, cy = (x_min + x_max) / 2, (y_min + y_max) / 2
+    bounds = ((cx - half_width, cx + half_width), (cy - half_width, cy + half_width), (z_min, z_top))
+
+    # Colour scale from the plotted window unless told otherwise
     if cbar_bound_region is None:
-        min, max = math_utils.get_global_extrema(func)
-    else:
-        min, max = math_utils.get_regional_extrema(func, cbar_bound_region)
+        cbar_bound_region = lambda x, y, z: And(And(abs(x - cx) < half_width, abs(y - cy) < half_width), z < z_top)
+
+    min, max = math_utils.get_regional_extrema(func, cbar_bound_region)
 
     if max - min >= 1:
         min, max = np.floor(min), np.ceil(max)
 
+    # The surface is a standalone plot, on the same colour scale as the vertical sections
     if 'z' in normals:
         plot_slice_heatmap(
-            func,
-            title + " Surface",
-            cbar_title, levels,
+            func, title + " Surface", cbar_title, levels,
             normal_dir='z', slice_coord=0,
             cbar_min=min, cbar_max=max,
-            highlight_level=highlight_level
+            highlight_level=highlight_level,
+            bounds=bounds
         )
 
-    if 'x' in normals:
-        plot_slice_heatmap(
-            func,
-            title + " X",
-            cbar_title, levels,
-            normal_dir='x',
-            cbar_min=min, cbar_max=max,
-            highlight_level=highlight_level
-        )
+    # The vertical sections are stacked panels in the order given, sharing a single colorbar, in one file.
+    # Height/width of each panel: flattened to show the domain's anisotropy
+    aspects = {'x': 0.3, 'y': 0.3}
+    panels = [n for n in normals if n in 'xy']
+    if panels:
+        fig = axes = None
+        if func.function_space().mesh().comm.rank == 0:
+            ratios = [aspects[n] for n in panels]
+            # ~0.9 of the width is axes, plus room for each panel's labels and the colorbar below
+            fig, axes = plt.subplots(len(panels), 1, squeeze=False, layout='constrained', height_ratios=ratios,
+                                     figsize=(FIGURE_SIZE[0], 0.9 * FIGURE_SIZE[0] * sum(ratios) + 0.6 * len(panels) + 0.7))
+            axes = axes[:, 0]
+            for ax, r in zip(axes, ratios):
+                ax.set_box_aspect(r)
 
-    if 'y' in normals:
-        plot_slice_heatmap(
-            func,
-            title + " Y",
-            cbar_title, levels,
-            normal_dir='y',
-            cbar_min=min, cbar_max=max,
-            highlight_level=highlight_level
-        )
+        for i, n in enumerate(panels):
+            heatmap = plot_slice_heatmap(
+                func, title, cbar_title, levels,
+                normal_dir=n,
+                cbar_min=min, cbar_max=max,
+                highlight_level=highlight_level,
+                ax=axes[i] if axes is not None else None,
+                bounds=bounds
+            )
+            if fig is not None and len(panels) > 1:
+                axes[i].set_title(f"({'abc'[i]})")
+
+        if fig is not None:
+            # Shrunk to about the length of a standalone plot's colorbar; thickness is length / aspect, so this matches it too
+            fig.colorbar(heatmap, ax=axes, location='bottom', shrink=0.5).set_label(cbar_title)
+            lwr_case = title.replace(" ", "_").lower()
+            fig.savefig(f"tex/plots/{lwr_case}{FILE_SUFFIX}.pdf", bbox_inches='tight')
+            plt.close(fig)
 
 def plot_alpha_sparsity(orders=(1, 2, 4), dofs_per_dir=9):
     """
