@@ -399,7 +399,7 @@ def main():
         derived.horizontal_wind_speed(),
         "Surface Wind",
         r"$\left|\mathbf{u}\right|$ [\unit{\meter \per \second}]",
-        levels=np.arange(0, 10, 1),
+        levels=np.arange(0, 10, 0.5),
         normal_dir="z",
         slice_coord=0,
         vector_field=(derived.u(), derived.v())
@@ -420,14 +420,6 @@ def main():
         levels=np.arange(-3, 0.5, 0.5),
         normals='xy',
         highlight_level=-1.5  # dynamical tropopause
-    )
-
-    multislice(
-        q,
-        "QGPV",
-        r"$q$ [\unit{\per \second}]",
-        levels=np.linspace(-0.001, 0.001, 11),
-        normals='xyz'
     )
 
     PETSc.Sys.Print("Saved PV plots")
@@ -471,7 +463,7 @@ def main():
             "Background Geostrophic Vorticity",
             r"$\overline{\zeta_g}$ [\unit{\per\second}]",
             levels=np.linspace(-5e-5, 5e-5, 11),
-            normals='xy'
+            normals='x'
         )
 
     multislice(
@@ -479,14 +471,14 @@ def main():
         "Geostrophic Vorticity",
         r"$\zeta_g$ [\unit{\per\second}]",
         levels=np.linspace(-0.0002, 0.00005, 11),
-        normals='xyz'
+        normals='xy'
     )
 
     multislice(
         derived.potential_temperature_anomaly(),
         "Potential Temperature Anomaly",
         r"$\theta^*$ [\unit{\kelvin}/\unit{\celsius}]",
-        levels=np.arange(-20, 20, 1),
+        levels=np.arange(-20, 20, 3),
         normals='xy',
     )
 
@@ -494,7 +486,7 @@ def main():
         derived.potential_temperature(),
         "Potential Temperature",
         r"$\theta$ [\unit{\kelvin}]",
-        levels = np.arange(250, 800, 10),
+        levels = np.arange(250, 350, 5),
         normals='xy'
     )
 
@@ -503,7 +495,7 @@ def main():
         "Pressure Anomaly",
         r"$p^*$ [\unit{\hecto\pascal}]",
         levels=np.arange(-30, 30, 1),
-        normals='xyz'
+        normals='xy'
     )
 
     multislice(
@@ -519,7 +511,7 @@ def main():
         derived.temperature_anomaly(),
         "Temperature Anomaly",
         r"$T^*$ [\unit{\kelvin}/\unit{\celsius}]",
-        levels=np.arange(-20, 20, 1),
+        levels=np.arange(-20, 20, 3),
         normals='xy'
     )
 
