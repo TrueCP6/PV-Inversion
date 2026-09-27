@@ -13,7 +13,6 @@ from derived_quantities import *
 from prognostic_solver import *
 from prognostic_mms_checker import *
 import tropopause
-import petsctools
 
 class UtilTests(unittest.TestCase):
     def test_resolutions_for_dofs(self):
@@ -453,4 +452,3 @@ class PrognosticMMSTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-    petsctools.print_citations_at_exit()

@@ -18,6 +18,7 @@ from domain_builder import *
 from diagnostic_solver import *
 from plot_utils import apply_style, FIGURE_SIZE
 from derived_quantities import *
+import petsctools
 
 # Global parameters for plot styling
 apply_style()
@@ -516,4 +517,5 @@ def main():
     )
 
 if __name__ == "__main__":
+    petsctools.print_citations_at_exit()
     main()
