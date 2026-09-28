@@ -394,6 +394,7 @@ def main():
         epv = atmos.ertel_pv()
 
     cg_space = atmos.cg_space
+    PETSc.Sys.Print(f"z_dyn = {derived.min_dyn_tropopause_height()}")
     PETSc.Sys.Print(f"Ro after inversion = {derived.rossby_number()}")
     PETSc.Sys.Print(f"Fr after inversion = {derived.froude_number()}")
 

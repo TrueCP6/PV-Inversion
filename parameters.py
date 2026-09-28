@@ -59,7 +59,7 @@ class PhysicalParams:
     # A = y_size / x_size, so bounding them never produces very large or very small corners
     anomaly_radius: float = 200e3
     anomaly_log_aspect: float = 0 # > 0 meridionally elongated, < 0 zonally elongated
-    anomaly_z_size: float = 3500
+    anomaly_z_size: float = 5000
     anomaly_mag: float = -4e-6
     anomaly_clip: float = -1.5e-6
     anomaly_clip_smoothing: float = 0.075 # a fraction of anomaly_mag
