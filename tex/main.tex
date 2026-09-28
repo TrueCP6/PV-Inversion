@@ -171,7 +171,7 @@ We will call this quantity Ertel's potential vorticity (EPV) and denote it as $Q
 \end{equation}
 where the material derivative $\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla$ is used and $Q$ has dimensions of $M^{-1} L^2 T^{-1} \Theta$ \cite{Barnes2022main}.
 
-\subsection{Rossby Waves}
+\subsection{Rossby Waves}\label{sec:rossby_waves}
 
 \textbf{Rossby waves} are the large scale meanders (wave lengths $\sim \qty{3000}{\kilo\meter}$) of the mid-latitude prevailing westerly winds, manifesting in the upper troposphere as a series of alternating troughs and ridges \cite{Stull2015} along the jet stream and the tropopause \cite{Hoskins1985}.
 They owe their existence to a background gradient of PV, most simply that provided by the variation of $f$ with latitude;
@@ -186,7 +186,7 @@ As the amplitude grows, however, the contours no longer simply undulate but over
 During equatorward breaking, tongues of high-PV stratospheric air are drawn equatorward and downward, appearing as a tropopause fold in the tropopause in a vertical cross-section \cite{Sprenger2007ste,Hoskins1985,Stull2015}.
 These filaments can detach entirely from the main stratospheric reservoir of high-PV air, forming pools of high-PV air surrounded by low-PV air in the troposphere \cite{Sprenger2007ste}.
 
-\subsection{Cut-off Lows}
+\subsection{Cut-off Lows}\label{sec:cols}
 
 When such a filament detaches, the isolated high-PV anomaly induces a closed cyclonic\footnote{Clockwise in the Southern Hemisphere and anticlockwise in the Northern Hemisphere; the sense in which geostrophic wind flow circulates around a low pressure zone \cite{WMO1992}.} circulation beneath it that is cut off equatorward from the prevailing westerlies: a cold-cored \textbf{cut-off low} (COL) \cite{WMO1992}.
 Rossby wave breaking is the dominant formation mechanism: 89\% of Southern Hemisphere COLs are linked to RWB events, with most of the remainder linked to PV intrusions in which high-PV air is advected equatorward without the contours overturning \cite{NdaranaWaugh2010}.
@@ -1123,7 +1123,7 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
     \begin{figure}[tp]
         \centering
         \includegraphics{surface_wind.pdf}
-        \caption{Surface wind of the control state, calculated using \cref{wind}. A contour interval of \qty{0.5}{\meter\per\second} is used, so that contour density can be more easily compared in later plots with larger wind speeds. This plot shows cyclonic rotation induced by the anomaly defined in \cref{Q_star}.}
+        \caption{Surface wind of the control state, calculated using \cref{wind}. A contour interval of \qty{0.5}{\meter\per\second} is used, so that contour density can be more easily compared in later plots with stronger surface wind. This plot shows cyclonic rotation induced by the anomaly defined in \cref{Q_star}.}
         \label{fig:control_surface_wind}
     \end{figure}
 
@@ -1136,7 +1136,7 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
 
 
     \item \textbf{Geostrophic vorticity} $\zeta_g$: Calculated using \cref{geostrophic_vorticity} and $u$ and $v$ from \cref{wind}.
-    Control state plotted in \cref{fig:control_vorticity}
+    Control state plotted in \cref{fig:control_vorticity}.
 
     \begin{figure}[tp]
         \centering
@@ -1144,7 +1144,44 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
         \caption{Vertical slices of the geostrophic vorticity of the control state (post-inversion). In this case the vorticity induced by the anomaly has negligible effect on the surface.}
         \label{fig:control_vorticity}
     \end{figure}
-    
+
+    \item \textbf{Pressure anomaly} $p^*$: Since $\psi=\Phi^* / f_0$, and to leading order a geopotential anomaly corresponds hydrostatically to a pressure anomaly $p^* \approx \overline\rho\,\Phi^*$ \cite{Vallis2017},
+
+    \begin{equation}\label{p_star}
+        p^*(x,y,z) = \overline\rho(z)\, f_0 \left[\psi(x,y,z) - \psi_0(z)\right]
+    \end{equation}
+
+    where $\psi_0(z)$ is the mean of $\psi$ around the lateral boundary at height $z$ \cite{sprenger2007userguide}:
+    \begin{equation}\label{psi_0}
+        \psi_0(z) = \frac{1}{2(L_x + L_y)} \left[ \int_0^{L_x} \left[\psi(x,0,z) + \psi(x,L_y,z)\right]\,dx + \int_0^{L_y} \left[\psi(0,y,z) + \psi(L_x,y,z)\right]\,dy \right]
+    \end{equation}
+
+    Subtracting $\psi_0$ leaves the wind (\cref{wind}) unchanged, because $\psi_0$ does not vary horizontally.
+    It also fixes the reference so that $p^*$ averages to zero around the lateral walls at every height, making $\overline p(z)$ the far-field pressure.
+    Plotted in \cref{fig:control_pressure_anomaly}.
+
+    \begin{figure}[tp]
+        \centering
+        \includegraphics{pressure_anomaly.pdf}
+        \caption{Vertical slices of the pressure anomaly of the control state calculated with \cref{p_star}. A contour interval of \qty{1}{\hecto\pascal} is used.}
+        \label{fig:control_pressure_anomaly}
+    \end{figure}
+
+    \item \textbf{Pressure} $p$: The total pressure is given by $p = \overline p + p^*$. Plotted in \cref{fig:control_pressure}.
+
+    \begin{figure}[tp]
+        \centering
+        \includegraphics{pressure_surface.pdf}
+        \caption{Surface pressure of the control state. A contour interval of \qty{1}{\hecto\pascal} is used. The anomaly induces a weak pressure gradient on the surface here.}
+        \label{fig:control_pressure}
+    \end{figure}
+
+    \begin{figure}[tp]
+        \centering
+        \includegraphics{potential_temperature.pdf}
+        \caption{Vertical slices of the potential temperature of the control state. A contour interval of \qty{5}{\kelvin} where the contours are the isentropes like those discussed in \cref{sec:rossby_waves,sec:cols}.}
+        \label{fig:control_pressure}
+    \end{figure}
 \end{itemize}
 
 \section{References}
