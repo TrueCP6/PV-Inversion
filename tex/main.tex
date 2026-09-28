@@ -30,7 +30,7 @@
 %\renewcommand{\topfraction}{0.9}        % max fraction of a text page for top floats
 %\renewcommand{\bottomfraction}{0.8}     % max fraction of a text page for bottom floats
 %\renewcommand{\textfraction}{0.1}       % min fraction of a text page that must be text
-\renewcommand{\floatpagefraction}{0.85} % min fraction of a float-only page that must be floats
+\renewcommand{\floatpagefraction}{0.7} % min fraction of a float-only page that must be floats
 \setcounter{topnumber}{3}
 \setcounter{bottomnumber}{2}
 \setcounter{totalnumber}{5}
@@ -849,7 +849,8 @@ Consequently, the maximum spacing of nodes in a cell of size $\Delta z$ can be e
 We have the strictly heuristic stability constraint $\Delta z < \qty{1222}{\meter}$, however the smallest feature we wish to capture is the smoothed tropopause which has a vertical thickness of $w_\text{trop} = \qty{1000}{\meter}$, so a safer limit would be $\Delta z \leq \qty{500}{\meter}$.
 
 It is shown that a solution using the \mintinline{python}{'Q'} function space will likely not be polluted by spurious oscillations caused by high advection.
-Since the solutions to \cref{qgpv} appear to be reasonably smooth \cite{Barnes2022main}, we will initially take $p=4$, and later find a more optimal polynomial order once the solver is fully developed.
+Since the solutions to \cref{qgpv} appear to be reasonably smooth \cite{Barnes2022main}, we can take advantage of the high order convergence high degree polynomials provide, using fewer degrees of freedom than a standard 2nd order finite difference scheme, while achieving far greater accuracy \cite{Donea2003} (see \cref{fig:error_convergence}).
+We will initially take $p=4$; a relatively arbitrary choice.
 The definition with Firedrake is written as
 
 \begin{minted}{python}
@@ -857,13 +858,14 @@ p = solver_params.polynomial_order # For now p=4
 cg_space = FunctionSpace(mesh, 'Q', p) # Sometimes called 'V'
 \end{minted}
 
-Note that the total number of degrees of freedom can be retrieved programatically with \mintinline{python}{V.dim()} \cite{FiredrakeUserManual} or analytically \cite{Homolya2017}: %todo cite
+Note that the total number of degrees of freedom can be retrieved programatically with \mintinline{python}{V.dim()} \cite{FiredrakeUserManual} or analytically \cite{Homolya2017}:
 
 \begin{equation}\label{degrees_of_freedom}
     \text{DOFs} = (N_x p+1)(N_y p +1 )(N_z p + 1)
 \end{equation}
 
 where if $N_x = N_y=N_z=40$ and $p=4$, the total number of degrees of freedom is $\approx 8 \times 10^6$.
+Barnes et al.\ solve the inversion with the finite-difference scheme of Sprenger \cite{sprenger2007userguide}, which uses three-point centred differences on a uniform grid \cite{Barnes2022main} and is therefore second-order accurate \cite{LeVeque2007}.
 Barnes et al. used a second order finite difference scheme and a total of \num{12e6} mesh points \cite{Barnes2022main}.
 
 \subsection{Weak Form}
@@ -1058,7 +1060,7 @@ Nevertheless, the following caveats should be noted:
     On simplicial meshes, where Firedrake did not offer sum-factorisation, assembled sparse matrix-vector products were found to be faster than matrix-free ones \cite{KirbyMitchell2018}, so these conclusions should not be assumed to transfer to tetrahedral meshes.
 \end{itemize}
 
-\subsection{Solver Verification}
+\subsection{Solver Verification}\label{sec:mms}
 
 To verify the solver itself is correct, the method of manufactured solutions will be used \cite{Roache2002}.
 We choose some analytically expressible function $\psi_a(x,y,z)$ that has similar properties to the true solution to \cref{qgpv}.
@@ -1092,13 +1094,61 @@ The anomaly term is a Lorentzian rather than a Gaussian because inverting \cref{
 A least-squares fit against the numerical solution at the control parameters gives $\Psi_a = \qty{8e6}{\meter\squared\per\second}$, $L_a = \qty{500}{\km}$, $h_a = \qty{5}{\km}$, $z_a = \qty{8.75}{\km}$ and $\Lambda = \qty{45}{\meter\per\second}$, at which \cref{mms_psi} is within \qty{3}{\percent} of that solution in the relative $L^2$ norm.
 The solver is therefore verified against a problem carrying the same length scales, gradients and magnitudes as the one it is built to solve.
 Substituting \cref{mms_psi} into \cref{mms_source} supplies the source term, and its first derivatives supply the boundary data: $\overline v = \partial \psi_a / \partial x$ and $\overline u = -\partial \psi_a / \partial y$ in \cref{qgpv_bcs_hor}, while $\partial \psi_a / \partial z$ is prescribed directly on the top and bottom boundaries in place of \cref{qgpv_bcs_vert}.
-Since $\psi$ is only determined up to an additive constant (\cref{sec:solver_settings}), the mean of each field is removed before the relative $L^2$ error between the numerical solution and $\psi_a$ is taken.
+Since $\psi$ is only determined up to an additive constant, the mean of each field is removed before the relative $L^2$ error between the numerical solution and $\psi_a$ is taken (\cref{app:rel_error}).
 
-\section{Derived}
+\begin{figure}[tp]
+    \centering
+    \includegraphics{error_convergence.pdf}
+    \caption{Log-log error convergence at varying $p$ of the manufactured solution outlined in \cref{sec:mms}. Each polynomial order is limited to $\text{DoF} \in \left[\num{4e6},\num{2e7}\right]$. Error is calculated using the method from \cref{app:rel_error} with $H=\qty{20}{\kilo\meter}$. Each line's slope is within 0.03 of $p+1$, so $\mathcal{O}\left({\Delta z}^{p+1}\right)$ error convergence is achieved.}
+    \label{fig:error_convergence}
+\end{figure}
+
+The relative error of the numerical solution for varying $p$ against \cref{mms_psi} is given in \cref{fig:error_convergence}.
+Since the error of the $p=4$ scheme is satisfactory and the solver settings were optimised for $p=4$, we will keep the arbitrarily chosen $p=4$.
+It should also be noted that according to \cref{fig:error_convergence}, this 5th order scheme should provide orders of magnitude less error than the second order scheme used by Barnes et Al, at a fraction of the degrees of freedom.
+
+\section{Post-Inversion Diagnostics}
+\subsection{Derived Atmospheric Quantities}
+
+Using the numerically calculated stream function $\psi$ that satisfies \cref{qgpv}, we can finally calculate and plot\footnote{Plots are generated by sampling points using Firedrake's \mintinline{python}{PointEvaluator} \cite{nixonhill2023consistent}.} the post-inversion state of the control atmosphere using the invertibility principle.
+
+\begin{itemize}
+    \item \textbf{Wind components} $\bm{u}=(u,v,0)$: Calculated directly using properties of the stream function.
+    Control state plotted in \cref{fig:control_surface_wind,fig:control_wind_speed}.
+    
+    \begin{equation}\label{wind}
+        u=-\frac{\partial \psi}{\partial y}, \qquad v=\frac{\partial \psi}{\partial x}
+    \end{equation}
+
+    \begin{figure}[tp]
+        \centering
+        \includegraphics{surface_wind.pdf}
+        \caption{Surface wind of the control state, calculated using \cref{wind}. A contour interval of \qty{0.5}{\meter\per\second} is used, so that contour density can be more easily compared in later plots with larger wind speeds. This plot shows cyclonic rotation induced by the anomaly defined in \cref{Q_star}.}
+        \label{fig:control_surface_wind}
+    \end{figure}
+
+    \begin{figure}[tp]
+        \centering
+        \includegraphics{wind_speed.pdf}
+        \caption{Vertical slices of wind speed of the control state, calculated using \cref{wind}. A contour interval of \qty{5}{\meter\per\second} is used. In this case the jet is the most significant source of wind, with the anomaly distorting it at the domain centre.}
+        \label{fig:control_wind_speed}
+    \end{figure}
 
 
+    \item \textbf{Geostrophic vorticity} $\zeta_g$: Calculated using \cref{geostrophic_vorticity} and $u$ and $v$ from \cref{wind}.
+    Control state plotted in \cref{fig:control_vorticity}
 
-\printbibliography
+    \begin{figure}[tp]
+        \centering
+        \includegraphics{geostrophic_vorticity.pdf}
+        \caption{Vertical slices of the geostrophic vorticity of the control state (post-inversion). In this case the vorticity induced by the anomaly has negligible effect on the surface.}
+        \label{fig:control_vorticity}
+    \end{figure}
+    
+\end{itemize}
+
+\section{References}
+\printbibliography[heading=none]
 
 \section{TEMP}
 \subsection{Plan}
@@ -1122,7 +1172,7 @@ Since $\psi$ is only determined up to an additive constant (\cref{sec:solver_set
     \item \st{Utility functions}
     \item \st{Specifying the equation in Firedrake}
     \item \st{Choosing solver parameters (matfree vs assembled)}
-    \item Verify setup is correct using MMS - order of accuracy
+    \item \st{Verify setup is correct using MMS - order of accuracy}
     \item Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude
     \item Limitations of QGPV
     \item Quantities to vary
@@ -1385,6 +1435,50 @@ mpiexec -n 16 python simulation.py
 It is worth noting that standard python functions will run redundantly on every single MPI rank, including \mintinline{python}{print()} statements.
 Firedrake's standard functions know how to handle multiple ranks seamlessly, however normal python libraries will not necessarily handle this correctly.
 Instead Firedrake's functions should be used where possible, such as \mintinline{python}{PETSc.Sys.Print()} instead of \mintinline{python}{print()} \cite{FiredrakeUserManual, Dalcin2011}.
+
+\subsection{Relative Error Norm}\label{app:rel_error}
+
+Because \cref{qgpv} is a pure Neumann problem, the numerical solution $\psi_h$ can only be compared with the manufactured solution $\psi_a$ up to an additive constant.
+The constant chosen is the one that minimises $\lVert \psi_h - \psi_a - c \rVert_{L^2}$, which is the mean of the difference, $c = \langle \psi_h - \psi_a \rangle$, where
+
+\begin{equation}
+    \langle g \rangle \equiv \frac{1}{\lvert V\rvert} \int_V g \,dV, \quad \lVert g \rVert_{L^2} \equiv \left( \int_V g^2 \,dV \right)^{1/2}
+\end{equation}
+
+The relative error is then:
+
+\begin{equation}\label{rel_error}
+    e = \frac{\lVert (\psi_h - \psi_a) - \langle \psi_h - \psi_a \rangle \rVert_{L^2}}{\lVert \psi_a - \langle \psi_a \rangle \rVert_{L^2}}
+\end{equation}
+
+The mean is also removed from $\psi_a$ in the denominator, since its additive constant is just as arbitrary and would otherwise inflate $\lVert \psi_a \rVert_{L^2}$ and shrink $e$.
+
+Since $\psi_a$ is not a polynomial, the integrals in \cref{rel_error} cannot be computed exactly.
+The quadrature degree is therefore set well above that of the finite element space, so that the quadrature error is not what limits the measured error.
+The annotated code, simplified to compute only the $L^2$ norm, is given:
+
+\begin{minted}{python}
+def relative_error(exact, numerical : Function):
+    """
+    Relative L2 error between an exact UFL expression and a numerical Function, after the mean of each is removed.
+    """
+    # Quadrature degree well above that of the finite element space, so that integrating against the non-polynomial exact solution does not set the error floor
+    degree = 3 * numerical.function_space().ufl_element().embedded_superdegree + 6
+    dx_q = dx(domain=numerical.function_space().mesh(), degree=degree)
+
+    volume = assemble(Constant(1) * dx_q)
+
+    # The solution is only defined up to an additive constant, so remove the mean
+    def mean_removed(expr):
+        return expr - assemble(expr * dx_q) / volume
+
+    def l2_norm(expr):
+        return np.sqrt(assemble(expr**2 * dx_q))
+
+    return float(l2_norm(mean_removed(numerical - exact)) / l2_norm(mean_removed(exact)))
+\end{minted}
+
+Each \mintinline{python}{assemble} call sums its integral over every MPI rank, so unlike \mintinline{python}{compute_vertical_integral}, this function gives the same result however the mesh is partitioned.
 
 \section{Hardware Used}\label{app:hardware}
 
