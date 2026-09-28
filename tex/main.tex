@@ -29,8 +29,8 @@
 % Float placement tuning (reduce float-only pages)
 %\renewcommand{\topfraction}{0.9}        % max fraction of a text page for top floats
 %\renewcommand{\bottomfraction}{0.8}     % max fraction of a text page for bottom floats
-%\renewcommand{\textfraction}{0.1}       % min fraction of a text page that must be text
-\renewcommand{\floatpagefraction}{0.7} % min fraction of a float-only page that must be floats
+%\renewcommand{\textfraction}{0.6}       % min fraction of a text page that must be text
+\renewcommand{\floatpagefraction}{0.75} % min fraction of a float-only page that must be floats
 \setcounter{topnumber}{3}
 \setcounter{bottomnumber}{2}
 \setcounter{totalnumber}{5}
@@ -497,7 +497,7 @@ We impose Neumann horizontal boundary conditions \cite{Barnes2022main,sprenger20
 
 Changing \cref{theta_star_pressure} to height coordinates, and using the background state of \cref{R_p_def} ($\mathcal{R} = 1/\left(\overline{\rho} \overline\theta\right)$) yields
 
-\begin{equation}
+\begin{equation}\label{theta_star}
     \frac{f_0}{g \overline\rho} \frac{\partial \psi}{\partial z} = \mathcal{R} \theta^* \quad \implies \quad 
 \frac{\partial\psi}{\partial z} = \frac{g\theta^*}{f_0\overline\theta}
 \end{equation}
@@ -578,7 +578,7 @@ We can then determine the reference potential temperature profile by solving for
     \overline{\theta}(z) = \overline{\theta}(0) \exp \left( \frac{1}{g} \int _0 ^z \overline{N}(\xi)^2 \, d\xi\right)
 \end{equation}
 
-\begin{figure}[hbtp]
+\begin{figure}[tp]
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
@@ -611,7 +611,7 @@ To determine the pressure profile $\overline{p}(z)$ we use the hydrostatic assum
     \overline{p}(z) = \overline {p}(0) \left( 1- \frac{\kappa g}{R} \left( \frac{p_\text{surf}}{\overline{p}(0)}\right)^\kappa \int_0^z \frac{d \xi}{\overline{\theta}(\xi)}\right)^{1/\kappa}
 \end{equation}
 
-\begin{figure}[hbtp]
+\begin{figure}[tp]
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
@@ -644,7 +644,7 @@ We will let
     \overline v = 0
 \end{equation}
 
-\begin{figure}[btp]
+\begin{figure}[tp]
     \centering
     \includegraphics{jet_stream.pdf}
     \caption{Jet stream specified in \cref{u_boundary}. A contour interval of \qty{5}{\meter\per\second} is used.}
@@ -663,7 +663,7 @@ We integrate \cref{u_boundary,v_boundary} using $\overline u = -\overline \psi_y
 
 The background QGPV $\overline q$ can then be calculated using \cref{qgpv}, with $\overline{\zeta_g} = \nabla^2_h\overline{\psi}$ (\cref{geostrophic_vorticity}):
 
-\begin{figure}[btp]
+\begin{figure}[tp]
     \centering
     \includegraphics{background_geostrophic_vorticity.pdf}
     \caption{Background geostrophic vorticity calculated from \cref{psi_bar} using \cref{geostrophic_vorticity}}
@@ -700,7 +700,7 @@ The smoothing value chosen was $\tau=\displaystyle 0.075 |Q^*_\text{mag}|$.
     \operatorname{softmax}_\tau \{a,b\} \equiv \max \{a,b\} + \tau \ln \left[1+\exp \left(- \frac{|a-b|}{\tau} \right)\right]
 \end{equation}
 
-\begin{figure}[btp]
+\begin{figure}[tp]
     \centering
     \includegraphics{epv.pdf}
     \caption{EPV distribution specified in \cref{Q_bar,Q_star}. A contour interval of \qty{0.5}{PVU} (Potential Vorticity Units) is used. $\qty{1}{PVU} = \qty{e-6}{\kelvin \meter \squared \per \second \per \kg}$. The thick solid line represents the dynamical tropopause -- the \qty{-1.5}{PVU} contour. Thin solid lines represent contours where $Q>0$, indicating a non-physical background state.}
@@ -821,24 +821,24 @@ The maximum spacing between GLL nodes for some $p$ is given by \cref{tab:gll_max
 
 \begin{table}[hbtp]
     \centering
-    \caption{Position of GLL nodes in the range $x_i \in [-1,1)$ for various polynomial degrees \cite[Table 25.6]{abramowitz1965handbook}. For even $p$, $\left|x\right|_\text{min}$ corresponds exactly to the maximum spacing between GLL nodes on the interval $[-1,1]$. For odd $p$ it corresponds to half the spacing. The minimum spacing between nodes is given by $\Delta x_\text{min} (p) = 1-x_\text{max}(p)$.}
+    \caption{Position of GLL nodes in the range $x_i \in [-1,1)$ for various polynomial degrees \cite[Table 25.6]{abramowitz1965handbook}. For even $p$, $\left|x\right|_\text{min}$ corresponds exactly to the maximum spacing between GLL nodes on the interval $[-1,1]$. For odd $p$ it corresponds to half the spacing.}
     \label{tab:gll_max_spacing}
-    \begin{tabular}{cccc}
+    \begin{tabular}{ccc}
         \toprule
-        $p$ & $\left|x\right|_\text{min}(p)$ & $\Delta x _\text{max} (p)$ & $x _\text{max}(p)$\\
+        $p$ & $\left|x\right|_\text{min}(p)$ & $\Delta x _\text{max} (p)$ \\
         \midrule
-        1 & 1.0000 & 2.0000 & -1.0000 \\
-        2 & 1.0000 & 1.0000 & 0.0000 \\
-        3 & 0.44721 & 0.89443 & 0.44721\\
-        4 & 0.65465 & 0.65465 & 0.65465\\
-        5 & 0.28523 & 0.57046 & 0.76506\\
-        6 & 0.46885 & 0.46885 & 0.83022\\
-        7 & 0.20930 & 0.41860 & 0.87174\\
-        8 & 0.36312 & 0.36312 & 0.89976\\
-        9 & 0.16528 & 0.33056 & 0.91954\\
+        1 & 1.0000 & 2.0000 \\
+        2 & 1.0000 & 1.0000 \\
+        3 & 0.44721 & 0.89443 \\
+        4 & 0.65465 & 0.65465 \\
+        5 & 0.28523 & 0.57046 \\
+        6 & 0.46885 & 0.46885 \\
+        7 & 0.20930 & 0.41860 \\
+        8 & 0.36312 & 0.36312 \\
+        9 & 0.16528 & 0.33056 \\
         \bottomrule
     \end{tabular}
-\end{table}
+\end{table} %TODO FIX THIS IDEM
 
 Consequently, the maximum spacing of nodes in a cell of size $\Delta z$ can be expressed as $h_\text{max} = \Delta x _\text{max} (p) \Delta z / 2$, and $\mathrm{Pe}$ \eqref{peclet_def} for $p=4$ can be bounded by
 
@@ -913,7 +913,7 @@ We then substitute everything into equation \eqref{weak_form_1} and move terms a
 
 Now \cref{qgpv}, with the boundary conditions embedded, is in a weak form that can easily be expressed in Firedrake's syntax\footnote{shown in \cref{app:weak_form}}.
 
-\begin{figure}[hbtp]
+\begin{figure}[tp]
     \centering
     \includegraphics{plots/alpha_sparsity.pdf}
     \caption{Sparsity pattern of the matrix assembled from the bilinear form $\alpha$ (\cref{final_weak_form}) for $p = 1, 2, 4$.
@@ -1114,7 +1114,7 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
 
 \begin{itemize}
     \item \textbf{Wind components} $\bm{u}=(u,v,0)$: Calculated directly using properties of the stream function.
-    Control state plotted in \cref{fig:control_surface_wind,fig:control_wind_speed}.
+    The control state is plotted in \cref{fig:control_surface_wind,fig:control_wind_speed}.
     
     \begin{equation}\label{wind}
         u=-\frac{\partial \psi}{\partial y}, \qquad v=\frac{\partial \psi}{\partial x}
@@ -1123,7 +1123,7 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
     \begin{figure}[tp]
         \centering
         \includegraphics{surface_wind.pdf}
-        \caption{Surface wind of the control state, calculated using \cref{wind}. A contour interval of \qty{0.5}{\meter\per\second} is used, so that contour density can be more easily compared in later plots with stronger surface wind. This plot shows cyclonic rotation induced by the anomaly defined in \cref{Q_star}.}
+        \caption{Surface wind of the control state, calculated using \cref{wind}. A contour interval of \qty{0.5}{\meter\per\second} is used, so that contour density can be more easily compared in later plots with stronger surface wind. This plot shows weak cyclonic rotation induced by the anomaly defined in \cref{Q_star}.}
         \label{fig:control_surface_wind}
     \end{figure}
 
@@ -1136,7 +1136,7 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
 
 
     \item \textbf{Geostrophic vorticity} $\zeta_g$: Calculated using \cref{geostrophic_vorticity} and $u$ and $v$ from \cref{wind}.
-    Control state plotted in \cref{fig:control_vorticity}.
+    The control state is plotted in \cref{fig:control_vorticity}.
 
     \begin{figure}[tp]
         \centering
@@ -1158,7 +1158,7 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
 
     Subtracting $\psi_0$ leaves the wind (\cref{wind}) unchanged, because $\psi_0$ does not vary horizontally.
     It also fixes the reference so that $p^*$ averages to zero around the lateral walls at every height, making $\overline p(z)$ the far-field pressure.
-    Plotted in \cref{fig:control_pressure_anomaly}.
+    The control state is plotted in \cref{fig:control_pressure_anomaly}.
 
     \begin{figure}[tp]
         \centering
@@ -1167,7 +1167,27 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
         \label{fig:control_pressure_anomaly}
     \end{figure}
 
-    \item \textbf{Pressure} $p$: The total pressure is given by $p = \overline p + p^*$. Plotted in \cref{fig:control_pressure}.
+    \item \textbf{True potential temperature anomaly} $\theta^*$: Calculated using \cref{theta_star}. The control state is plotted in \cref{fig:control_theta_star}.
+
+    \begin{figure}[tp]
+        \centering
+        \includegraphics{potential_temperature_anomaly.pdf}
+        \caption{Vertical slices of the potential temperature anomaly of the control state. A contour interval of \qty{3}{\kelvin} is used. In this case most of the potential temperature anomaly is induced by the jet.}
+        \label{fig:control_theta_star}
+    \end{figure}
+
+    \item \textbf{Temperature anomaly} $T^*$: Calculated from $\theta*$, using the definition of potential temperature in \cref{pot_temp}.
+    % The control state is plotted in \cref{fig:control_T_star}.
+
+    % \begin{figure}[tp]
+    %     \centering
+    %     \includegraphics{temperature_anomaly.pdf}
+    %     \caption{Vertical slices of the potential temperature anomaly of the control state. A contour interval of \qty{3}{\kelvin} is used. Like in \cref{fig:control_theta_star}, most of the temperature anomaly is induced by the jet.}
+    %     \label{fig:control_T_star}
+    % \end{figure}
+
+    \item \textbf{Pressure} $p$ and \textbf{potential temperature} $\theta$: The total pressure and total potential temperature is given by $p = \overline p + p^*$ and $\theta = \overline \theta + \theta^*$ respectively.
+    The control state is plotted in \cref{fig:control_pressure,fig:control_theta}.
 
     \begin{figure}[tp]
         \centering
@@ -1179,17 +1199,22 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
     \begin{figure}[tp]
         \centering
         \includegraphics{potential_temperature.pdf}
-        \caption{Vertical slices of the potential temperature of the control state. A contour interval of \qty{5}{\kelvin} where the contours are the isentropes like those discussed in \cref{sec:rossby_waves,sec:cols}.}
-        \label{fig:control_pressure}
+        \caption{Vertical slices of the potential temperature of the control state. A contour interval of \qty{5}{\kelvin} is used, where the contours are isentropes like those discussed in \cref{sec:rossby_waves,sec:cols} \cite{Hoskins1985}.}
+        \label{fig:control_theta}
     \end{figure}
+
+    \item \textbf{Minimum dynamical tropopause height}: %TODO
+    
 \end{itemize}
 
+\clearpage
 \section{References}
 \printbibliography[heading=none]
 
 \section{TEMP}
 \subsection{Plan}
 \begin{enumerate}
+    \item Title and abstract
     \item Introduction
     \item \st{Basic structure of the atmosphere}
     \item \st{What is potential vorticity?}
