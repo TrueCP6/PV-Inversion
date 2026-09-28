@@ -282,9 +282,10 @@ def multislice(func : Function, title : str, cbar_title : str, levels, normals =
         fig = axes = None
         if func.function_space().mesh().comm.rank == 0:
             ratios = [aspects[n] for n in panels]
-            # ~0.9 of the width is axes, plus room for each panel's labels and the colorbar below
+            # ~0.8 of the width is axes (the rest is the colorbar to the right), plus room for each panel's labels.
+            # Any taller and constrained layout pads the gap between panels; any shorter and it narrows the axes
             fig, axes = plt.subplots(len(panels), 1, squeeze=False, layout='constrained', height_ratios=ratios,
-                                     figsize=(FIGURE_SIZE[0], 0.9 * FIGURE_SIZE[0] * sum(ratios) + 0.6 * len(panels) + 0.7))
+                                     figsize=(FIGURE_SIZE[0], 0.8 * FIGURE_SIZE[0] * sum(ratios) + 0.6 * len(panels)))
             axes = axes[:, 0]
             for ax, r in zip(axes, ratios):
                 ax.set_box_aspect(r)
@@ -302,8 +303,8 @@ def multislice(func : Function, title : str, cbar_title : str, levels, normals =
                 axes[i].set_title(f"({'abc'[i]})")
 
         if fig is not None:
-            # Shrunk to about the length of a standalone plot's colorbar; thickness is length / aspect, so this matches it too
-            fig.colorbar(heatmap, ax=axes, location='bottom', shrink=0.5).set_label(cbar_title)
+            # Spans most of the stacked panels' height; aspect (length / thickness) raised from the default 20 to keep it slim
+            fig.colorbar(heatmap, ax=axes, location='right', shrink=0.8, aspect=25).set_label(cbar_title)
             lwr_case = title.replace(" ", "_").lower()
             fig.savefig(f"tex/plots/{lwr_case}{FILE_SUFFIX}.pdf", bbox_inches='tight')
             plt.close(fig)
