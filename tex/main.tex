@@ -1156,6 +1156,7 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
         \psi_0(z) = \frac{1}{2(L_x + L_y)} \left[ \int_0^{L_x} \left[\psi(x,0,z) + \psi(x,L_y,z)\right]\,dx + \int_0^{L_y} \left[\psi(0,y,z) + \psi(L_x,y,z)\right]\,dy \right]
     \end{equation}
 
+    Its implementation is given in \cref{app:psi_0}.
     Subtracting $\psi_0$ leaves the wind (\cref{wind}) unchanged, because $\psi_0$ does not vary horizontally.
     It also fixes the reference so that $p^*$ averages to zero around the lateral walls at every height, making $\overline p(z)$ the far-field pressure.
     The control state is plotted in \cref{fig:control_pressure_anomaly}.
@@ -1541,6 +1542,63 @@ def relative_error(exact, numerical : Function):
 \end{minted}
 
 Each \mintinline{python}{assemble} call sums its integral over every MPI rank, so unlike \mintinline{python}{compute_vertical_integral}, this function gives the same result however the mesh is partitioned.
+
+\subsection{Lateral Boundary Mean}\label{app:psi_0}
+
+Firedrake has no built-in way to integrate over a curve at each height, as \cref{psi_0} requires.
+Instead, the test function is integrated over the lateral walls of the domain, which gives one weight per DoF that is zero away from the walls.
+The basis functions of the \mintinline{python}{'Q'} space are products of a horizontal and a vertical part, so every DoF on a given $z$ level shares the same vertical factor in its weight.
+That factor cancels when the weighted sum of $\psi$ on a level is divided by the sum of the weights, which leaves exactly the perimeter mean of $\psi_h$ at that level.
+The annotated code is given:
+
+\begin{minted}{python}
+def compute_psi_0(psi : Function):
+    """
+    Computes psi_0(z), the mean of psi around the lateral boundary at each height, as a Function that varies with z alone.
+    """
+    V = psi.function_space()
+    mesh = V.mesh()
+
+    # Height of every DoF on this rank, including the halo
+    z = Function(V).interpolate(SpatialCoordinate(mesh)[2]).dat.data_ro_with_halos
+
+    # Collapse the heights into the distinct z levels of the extruded mesh
+    z_sorted = np.sort(z)
+    tol = 1e-8 * (z_sorted[-1] - z_sorted[0])
+    levels = z_sorted[np.concatenate(([True], np.diff(z_sorted) > tol))]
+
+    # Index of the level each DoF sits on
+    above = np.clip(np.searchsorted(levels, z), 1, levels.size - 1)
+    level = np.where(z - levels[above - 1] <= levels[above] - z, above - 1, above)
+
+    # Integrate each basis function over the lateral walls (ds_v); zero for DoFs off the walls
+    weights = assemble(TestFunction(V) * ds_v).dat.data_ro
+    psi_data = psi.dat.data_ro
+    owned_level = level[:weights.size] # data_ro holds only owned DoFs, so none are counted twice
+
+    # Sum the weighted psi, and the weights, on each level
+    local = np.concatenate((
+        np.bincount(owned_level, weights=weights * psi_data, minlength=levels.size),
+        np.bincount(owned_level, weights=weights, minlength=levels.size)
+    ))
+
+    # The lateral walls are split between ranks, so add up every rank's contribution
+    totals = np.empty_like(local)
+    mesh.comm.Allreduce(local, totals, op=MPI.SUM)
+
+    # Weighted mean on each level
+    profile = totals[:levels.size] / totals[levels.size:]
+
+    # Write the same profile into every column, so psi_0 is exactly horizontally uniform
+    psi_0 = Function(V, name="psi_0")
+    psi_0.dat.data_with_halos[:] = profile[level]
+
+    return psi_0
+\end{minted}
+
+As with \mintinline{python}{compute_vertical_integral}, this relies on Firedrake only subdividing extruded meshes horizontally, so that every rank holds whole columns, sees every $z$ level, and numbers the levels identically.
+Unlike it, the lateral walls are shared between many ranks, so the per-level sums must be combined with an explicit \mintinline{python}{Allreduce} before the mean is taken.
+Writing the profile directly into the DoFs, rather than interpolating an expression, guarantees that $\psi_0$ has no horizontal variation, so none can leak into $p^*$ through \cref{p_star}.
 
 \section{Hardware Used}\label{app:hardware}
 
