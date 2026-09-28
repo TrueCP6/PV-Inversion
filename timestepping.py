@@ -30,6 +30,35 @@ DIAGNOSTIC_PANELS = [
 
 ACCENT = '#004488'
 
+# The timestepped run's domain: the anomaly starts well clear of the inflow wall, and Lx is
+# stretched in run() to hold everything the jet carries it through
+ANOMALY_X = 2.5e6
+LY = 5e6
+NY, NZ = 40, 50 # doubled at p=2
+
+class _TimesteppingParams(PhysicalParams):
+    # ponytail: a checkpoint reloads as a plain PhysicalParams, so its anomaly_x_pos reads Lx/2 -
+    # harmless, since it only positions q_init and a checkpoint carries its own q
+    @property
+    def anomaly_x_pos(self):
+        return ANOMALY_X
+
+def _phys_params(Lx=PhysicalParams.Lx):
+    return _TimesteppingParams(Lx=Lx, Ly=LY, jet_y_pos=LY / 2) # anomaly_y_pos is Ly/2 too
+
+def _domain(T, p):
+    """(nx, ny, nz, Lx) for a run to T at order p, with dx = dy.
+
+    Lx leaves room for the anomaly to be carried T downstream at the jet's peak speed - an
+    overestimate, since it steers with the flow averaged over its extent and propagates
+    upstream against it - with the same clearance ahead of it as it starts with behind.
+    """
+    scale = 4.0/p
+    ny, nz = int(NY * scale), int(NZ * scale)
+    dx = LY / ny
+    nx = int(np.ceil((2 * ANOMALY_X + PhysicalParams.jet_magnitude * T) / dx))
+    return nx, ny, nz, nx * dx
+
 @dataclass
 class StepRecord:
     """One timestep's diagnostics. t is the time at the end of the step."""
@@ -43,14 +72,16 @@ class StepRecord:
     max_wind : float
     min_vort : float
     min_pressure : float
-    # Along the jet axis at the points _hovmoller_x gives: q - q_bar at the anomaly's height,
+    # Along the jet axis at the points _hovmoller_x gives: Ertel PV [PVU] at the anomaly's height,
     # and the surface pressure anomaly [hPa]. None in results files written before they were added.
-    q_line : list = None
+    epv_line : list = None
     pressure_line : list = None
+    q_line : list = None # q - q_bar, in files written before epv_line replaced it
     # The minimum of the vorticity anomaly over each z level, lowest first, and those levels'
     # heights - which never change, so only the first record carries them.
     vort_profile : list = None
     level_heights : list = None
+    Lx : float = None # first record only; None in files from runs on the default domain
 
 @dataclass
 class CflRecord:
@@ -91,8 +122,6 @@ class _HovmollerSampling:
 
         self.upper = VertexOnlyMesh(mesh, [[xi, p.anomaly_y_pos, p.anomaly_z_pos] for xi in x])
         self.surface = VertexOnlyMesh(mesh._base_mesh, [[xi, p.anomaly_y_pos] for xi in x])
-        # The background q the anomaly sits on, so the upper line shows the anomaly alone
-        self.q_bar = Function(solver.q.function_space()).interpolate(solver.atmos.q_bar())
         # The jet's own shear vorticity is larger than the anomaly's, so the profile is taken
         # against it. solver.psi is only there for its function space here.
         self.zeta_bar = Function(solver.psi.function_space()).interpolate(
@@ -115,6 +144,7 @@ def _diagnostics(solver, lines):
     from firedrake import assemble, dx
     from derived_quantities import ResolvedAtmosphere
     from math_utils import get_global_extrema
+    from tropopause import PVU
 
     solver.resolve()
     derived = ResolvedAtmosphere(solver.psi, solver.atmos, solver.q)
@@ -129,7 +159,7 @@ def _diagnostics(solver, lines):
         max_wind=derived.max_surf_wind_speed(),
         min_vort=derived.min_surf_vort(),
         min_pressure=derived.min_surf_pressure_ano_hpa(),
-        q_line=lines.sample(solver.q - lines.q_bar, lines.upper),
+        epv_line=lines.sample(solver.atmos.ertel_from_qgpv(solver.q) / PVU, lines.upper),
         pressure_line=lines.sample(derived.surf_pressure_ano_hpa(), lines.surface),
         vort_profile=derived.min_per_level(
             derived.geostrophic_vorticity() - lines.zeta_bar).tolist(),
@@ -189,14 +219,14 @@ def load_checkpoint(path):
     atmos = BarnesAtmosphere(DomainBuilder(solver_params, phys_params, mesh))
     return atmos, psi, q, t
 
-def _build_solver(n, p):
-    from parameters import SolverParams, PhysicalParams
+def _build_solver(nx, ny, nz, p, phys_params=None):
+    from parameters import SolverParams
     from prognostic_solver import PrognosticSolver
 
-    solver_params = SolverParams(nx=n, ny=n, nz=n, polynomial_order=p, check_flux=False)
-    return PrognosticSolver(solver_params, PhysicalParams(), matfree=True)
+    solver_params = SolverParams(nx=nx, ny=ny, nz=nz, polynomial_order=p, check_flux=False)
+    return PrognosticSolver(solver_params, phys_params or PhysicalParams(), matfree=True)
 
-def run(out_path, T=DAY, n=None, p=None, courant=None, backup=24):
+def run(out_path, T=DAY, p=None, courant=None, backup=24):
     """Step to T, recording diagnostics every step, and write them to out_path as we go.
 
     The records are rewritten after every step rather than at the end, so a run that is
@@ -209,16 +239,17 @@ def run(out_path, T=DAY, n=None, p=None, courant=None, backup=24):
     from parameters import SolverParams
 
     sweep.quiet_petsc()
-    n = n if n is not None else SolverParams.nx
     p = p if p is not None else SolverParams.polynomial_order
     courant = courant if courant is not None else SAFETY
+    nx, ny, nz, Lx = _domain(T, p)
 
-    solver = _build_solver(n, p)
+    solver = _build_solver(nx, ny, nz, p, _phys_params(Lx))
     lines = _HovmollerSampling(solver)
     initial = _diagnostics(solver, lines)
-    records = [StepRecord(t=0.0, dt=float('nan'), level_heights=lines.heights, **initial)]
+    records = [StepRecord(t=0.0, dt=float('nan'), level_heights=lines.heights, Lx=Lx, **initial)]
 
-    PETSc.Sys.Print(f"Stepping to {T / 3600:.1f} h at n={n}, p={p}, Courant={courant}")
+    PETSc.Sys.Print(f"Stepping to {T / 3600:.1f} h on {nx}x{ny}x{nz} cells, Lx={Lx / 1e3:.0f} km, "
+                    f"p={p}, Courant={courant}")
     started = time.perf_counter()
     next_backup = backup * 3600
 
@@ -296,7 +327,7 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
 
     records = []
     for courant in courants:
-        solver = _build_solver(n, p)
+        solver = _build_solver(n, n, n, p)
         solver.resolve()
         initial, initial_l2 = max_abs_q(solver), norm(solver.q)
 
@@ -362,6 +393,10 @@ def _stacked_panels(records, panels, output_path, height=1.5):
     plt.savefig(output_path, bbox_inches='tight')
     plt.close()
 
+def _run_params(records):
+    """The parameters a results file was run with - the default domain if it predates Lx."""
+    return PhysicalParams() if records[0].Lx is None else _phys_params(records[0].Lx)
+
 def plot_conservation(json_path, output_path="tex/plots/timestepping_conservation.pdf"):
     """Drift of the domain integrals of q and q^2, and q's overshoot, against time.
 
@@ -387,7 +422,7 @@ def plot_conservation(json_path, output_path="tex/plots/timestepping_conservatio
         values = np.array([getattr(r, field) for r in records])
         return values - values[0]
 
-    volume = PhysicalParams().domain_volume
+    volume = _run_params(records).domain_volume
     q_rms = np.sqrt(records[0].enstrophy / volume)
 
     _stacked_panels(records, [
@@ -411,49 +446,64 @@ def plot_diagnostics(json_path, output_path="tex/plots/timestepping_diagnostics.
     ], output_path)
 
 def plot_hovmoller(json_path, output_path="tex/plots/timestepping_hovmoller.pdf"):
-    """Hovmoller diagrams along the jet axis: the upper PV anomaly beside the surface low.
+    """Hovmoller diagrams along the jet axis: the upper Ertel PV beside the surface low.
 
     The two share their axes, so a system's track reads as a diagonal whose slope is its
     phase speed, and any horizontal offset between the tracks is the tilt between the
     upper anomaly and the surface low it induces.
     """
     import matplotlib.pyplot as plt
-    from matplotlib.colors import CenteredNorm
+    from matplotlib.colors import CenteredNorm, TwoSlopeNorm
     import plot_utils
 
     if not sweep.is_main_rank():
         return
 
     records = sweep.load_records(json_path, StepRecord)
-    if records[0].q_line is None:
-        print(f"{json_path} predates the jet axis lines - no Hovmoller diagram")
+    if records[0].epv_line is None:
+        print(f"{json_path} predates the jet axis EPV line - no Hovmoller diagram")
         return
     plot_utils.apply_style()
 
     hours = np.array([r.t for r in records]) / 3600
     panels = [
-        (np.array([r.q_line for r in records]), r"$q - \bar{q}$ [\unit{\per\second}]",
-         r"$z = z_\text{trop}$", True),
+        (np.array([r.epv_line for r in records]), r"$Q$ [PVU]", r"$z = z_\text{trop}$", False),
         (np.array([r.pressure_line for r in records]), r"$p^*$ [\unit{\hecto\pascal}]",
-         r"$z = 0$", False),
+         r"$z = 0$", True),
     ]
-    x_km = _hovmoller_x(PhysicalParams().Lx, panels[0][0].shape[1]) / 1e3
+    x_km = _hovmoller_x(_run_params(records).Lx, panels[0][0].shape[1]) / 1e3
 
     fig, axes = plt.subplots(1, 2, sharey=True, figsize=(plot_utils.FIGURE_SIZE[0], 4.5))
-    for ax, (values, label, title, scientific) in zip(axes, panels):
-        # A percentile, not the max, sets the scale: one grid-scale spike would otherwise
+    for ax, (values, label, title, centered) in zip(axes, panels):
+        # Percentiles, not the extremes, set the scale: one grid-scale spike would otherwise
         # wash every coherent feature out to white
-        half_range = np.nanpercentile(np.abs(values), 99.5)
-        mesh = ax.pcolormesh(x_km, hours, values, cmap='RdBu_r',
-                             norm=CenteredNorm(halfrange=half_range),
+        if centered:
+            half_range = np.nanpercentile(np.abs(values), 99.5)
+            norm, cmap = CenteredNorm(halfrange=half_range), 'RdBu_r'
+            # No zero contour - it would trace every sign flip of grid-scale noise
+            levels = np.delete(np.linspace(-half_range, half_range, 9), 4)
+        else:
+            # Physical EPV has the sign of f; the inversion can leave nonphysical pockets of the
+            # other sign, which take the opposite colour. The physical side is scaled by a
+            # percentile as above, the wrong side by its true extreme so that no pocket is
+            # clipped away however small it is.
+            sign = np.sign(PhysicalParams().f)
+            physical = sign * np.nanpercentile(sign * values, 99.5)
+            wrong = -sign * max(np.nanmax(-sign * values), 1e-3 * abs(physical))
+            norm, cmap = TwoSlopeNorm(0, *sorted([physical, wrong])), 'RdBu_r'
+            levels = np.linspace(physical, 0, 9)[1:-1]
+            # The dynamical tropopause, 1.5 PVU with the sign of f, and the edge of any
+            # nonphysical pocket
+            ax.contour(x_km, hours, values, levels=sorted([sign * 1.5, 0]),
+                       colors='k', linewidths=1.2, linestyles='solid')
+        mesh = ax.pcolormesh(x_km, hours, values, cmap=cmap, norm=norm,
                              shading='nearest', rasterized=True)
-        # No zero contour - it would trace every sign flip of grid-scale noise
-        levels = np.delete(np.linspace(-half_range, half_range, 9), 4)
-        ax.contour(x_km, hours, values, levels=levels, colors='k', linewidths=0.4)
-        colorbar = fig.colorbar(mesh, ax=ax, orientation='horizontal', pad=0.12, extend='both')
+        ax.contour(x_km, hours, values, levels=sorted(levels), colors='k', linewidths=0.4)
+        extend = 'both' if centered else ('min' if physical < 0 else 'max')
+        colorbar = fig.colorbar(mesh, ax=ax, orientation='horizontal', pad=0.12, extend=extend)
+        # TwoSlopeNorm would give each sign half the bar - linear sizes each by its range
+        colorbar.ax.set_xscale('linear')
         colorbar.set_label(label)
-        if scientific:
-            colorbar.formatter.set_powerlimits((0, 0))
         ax.set_title(title)
         ax.set_xlabel(r"$x$ [\unit{\kilo\meter}]")
 
@@ -535,7 +585,6 @@ def plot_cfl(json_path, output_path="tex/plots/cfl_verification.pdf"):
 def main():
     parser = argparse.ArgumentParser(description='Run and plot a timestepped simulation')
     parser.add_argument('-T', '--hours', type=float, default=24, help='Simulated hours to run for')
-    parser.add_argument('-n', type=int, default=None, help='Cells per axis (default: SolverParams.nx)')
     parser.add_argument('-p', '--polynomial_order', type=int, default=None)
     parser.add_argument('-c', '--courant', type=float, default=None,
                         help='Fraction of the CFL limit to step at (default: prognostic_solver.SAFETY)')
@@ -573,8 +622,7 @@ def main():
                  n=args.scan_n, p=args.polynomial_order, T=T)
         return
 
-    run(f"timestepping_{args.job_id}.json", T=args.hours * 3600, n=args.n,
-        p=args.polynomial_order, courant=args.courant, backup=args.backup)
+    run(f"timestepping_{args.job_id}.json", T=args.hours * 3600, p=args.polynomial_order, courant=args.courant, backup=args.backup)
 
 if __name__ == '__main__':
     main()

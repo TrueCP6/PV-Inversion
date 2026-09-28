@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --account maths
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 #SBATCH --nodes=1 --ntasks=40
 #SBATCH --mem=300G
 #SBATCH --job-name="firedrake"
@@ -23,7 +23,6 @@ apptainer exec \
     mpiexec -n 40 \
     python3 ~/Thesis/timestepping.py \
     --job_id ${SLURM_JOB_ID} \
-    -n 50 \
     -p 4 \
-    -T 240 \
+    -T 168 \
     --backup 24
