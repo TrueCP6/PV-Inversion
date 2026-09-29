@@ -25,7 +25,6 @@ class ParamSampler:
         self.job_id = job_id
 
         control = PhysicalParams()
-        self.normalised_control = self.record_to_normalised(control)  # A representation of the control in normalised space
         self._rossby_max = control.max_rossby
 
     def _get_effectual_params(self): # Reduce dimensionality by removing parameters that don't make a difference
@@ -35,9 +34,6 @@ class ParamSampler:
 
     def sample_normalised(self): # Gets a random vector of normalised parameter values
         return self.rng.uniform(low=0.0, high=1.0, size=self.dim)
-
-    def dist_to_control(self, normalised):
-        return float(np.linalg.norm(normalised - self.normalised_control))
 
     def normalised_to_dict(self, normalised_arr):
         dict = {}
@@ -134,43 +130,54 @@ class ParamSampler:
                 print(f"solve diverged at {params}: {exc}, dropping the sample", flush=True)
             return None
 
+        v_minus = derived.atmos.invalid_epv()
+        if v_minus > 1e-10:
+            PETSc.Sys.Print(f"Rejected sample because V_minus = {v_minus:.3g}")
+            return None
+
         wind = derived.max_surf_wind_speed()
         vort = derived.min_surf_vort()
         pres = derived.min_surf_pressure_ano_hpa()
-        dist = self.dist_to_control(x)
+        rossby = derived.rossby_number()
         trop = derived.min_dyn_tropopause_height()
 
-        return wind, vort, pres, dist, trop
+        return wind, vort, pres, rossby, trop
 
     def random_sample_data(self, num_samples):
-        all_data = [self.all_data(self.sample_normalised()) for _ in range(num_samples)]
-        all_data = [data for data in all_data if data is not None]
+        all_data = []
+
+        while len(all_data) < num_samples:
+            x = self.sample_normalised()
+            dat = self.all_data(x)
+            if dat is not None:
+                all_data.append(dat)
+
         # zip of nothing unpacks to nothing, so spell out the every-sample-diverged case
-        wind, vort, pres, dist, trop = list(map(list, zip(*all_data))) if all_data else ([],) * 5
+        wind, vort, pres, rossby, trop = list(map(list, zip(*all_data))) if all_data else ([],) * 5
 
         return {
             "max_surface_wind": wind,
             "min_surf_vort": vort,
             "min_surf_pres": pres,
-            "dist_to_control": dist,
+            "rossby_number": rossby,
             "min_dyn_trop_height": trop,
         }
 
 def plot_trop_correlation(json_path, output_path="tex/plots/random_sample_trop_correlations.pdf"):
-    """Scatter random_sample_data's results against tropopause height, coloured by distance from the control."""
+    """Scatter random_sample_data's results against tropopause height, coloured by Rossby number."""
     if not sweep.is_main_rank():
         return
 
     with open(json_path) as f:
         data = json.load(f)
 
-    # Draw the furthest samples first, so those nearest the control sit on top
-    order = np.argsort(data["dist_to_control"])[::-1]
-    dist = np.asarray(data["dist_to_control"])[order]
+    # Draw the lowest Rossby numbers first, so the most ageostrophic samples sit on top
+    order = np.argsort(data["rossby_number"])
+    rossby = np.asarray(data["rossby_number"])[order]
     trop = np.asarray(data["min_dyn_trop_height"])[order]
 
     # Shrink and fade the dots as the sample count grows, so 10 points stay visible and 10000 don't become a blob
-    n = len(dist)
+    n = len(rossby)
     size = np.clip(200 / np.sqrt(n), 1.5, 16)
     alpha = np.clip(30 / np.sqrt(n), 0.3, 0.9)
 
@@ -179,15 +186,15 @@ def plot_trop_correlation(json_path, output_path="tex/plots/random_sample_trop_c
     fig, axes = trop_correlation_axes()
     for ax, key in zip(axes, ["min_surf_pres", "max_surface_wind", "min_surf_vort"]):
         values = np.asarray(data[key])[order]
-        points = ax.scatter(trop, values, c=dist, cmap=cmap,
-                            vmin=0, vmax=dist.max(), s=size, alpha=alpha, linewidths=0)
+        points = ax.scatter(trop, values, c=rossby, cmap=cmap,
+                            vmin=rossby.min(), vmax=rossby.max(), s=size, alpha=alpha, linewidths=0)
 
         rho = spearmanr(trop, values).statistic
         ax.legend([Line2D([], [], linestyle='none')], [rf"$\rho = {rho:.2f}$"], loc='best', fontsize=9,
                   handlelength=0, handletextpad=0, borderpad=0.3, framealpha=0.8, edgecolor='none')
 
     colourbar = fig.colorbar(points, ax=axes, location='bottom', shrink=0.5, aspect=40)
-    colourbar.set_label("Normalised distance from control")
+    colourbar.set_label("Rossby number")
     colourbar.solids.set_alpha(1)
 
     plt.savefig(output_path, bbox_inches='tight')

@@ -50,7 +50,7 @@ def trop_correlation_axes():
 
 class Variator:
     def __init__(self):
-        solver_params = SolverParams(check_flux=False)
+        solver_params = SolverParams(check_flux=False, nx=50, ny=50, nz=50)
         phys_params = PhysicalParams()
 
         self.domain = DomainBuilder(solver_params, phys_params)
@@ -83,7 +83,7 @@ class Variator:
             # Barnes's tested radial widths; with A in [1/4, 4] the axes span 50 x 200 km to 200 x 800 km
             ("anomaly_radius", (100e3, 400e3), 1e-3, r"$\sqrt{x_\text{size} y_\text{size}} \in [min, max]$ [\unit{\kilo\meter}]"),
             # Coherent anomalies are 2-4 : 1 (Fehlmann); uniform in ln A makes 1:4 and 4:1 equally likely
-            ("anomaly_log_aspect", (-np.log(4), np.log(4)), 1, r"$\ln(y_\text{size} / x_\text{size}) \in [min, max]$"),
+            ("anomaly_log_aspect", (np.log(0.25), np.log(4)), 1, r"$\ln(y_\text{size} / x_\text{size}) \in [min, max]$"),
             ("anomaly_z_size", (3500, 7000), 1, r"$z_\text{size} \in [min, max]$ [\unit{\meter}]"),
             ("anomaly_clip", (-2e-6, -1e-6), 1e6, r"$Q_\text{anoclip} \in [min, max]$ [\unit{PVU}]"),
             ("jet_y_size", (200e3, 1000e3), 1e-3, r"$L_\text{jet} \in [min, max]$ [\unit{\kilo\meter}]"),
