@@ -13,7 +13,10 @@
 #SBATCH --output=firedrake_%j.out
 #SBATCH --error=firedrake_%j.err
 
-POINTS=6 # Courant 1.3 (SAFETY), 1.5, ..., 2.3 - either side of the predicted limit, ~1.9
+# cfl_scan_3 found nothing unstable up to 2.3. 1.3 (SAFETY) is the reference the others'
+# roughness is judged against (timestepping.roughness_ratios), so it has to last the full run
+COURANTS="1.3 1.7 1.9 2.1 2.3 2.5 2.7"
+POINTS=$(echo $COURANTS | wc -w)
 # The slowest run, C = 1.3, takes ~25 steps per simulated hour (scaled from cfl_scan_2's
 # 2817 steps to 96 h) - ~35 if max(|u| + |v|) is sqrt(2) past max|u| - at 5-11 s a step:
 # 2-6 minutes a simulated hour, so 168 h fits in ~18 h at worst
@@ -28,7 +31,7 @@ if [ -z "$SLURM_JOB_ID" ]; then
     exit
 fi
 
-COURANT=$(awk "BEGIN { print 1.3 + 0.2 * $TASK }")
+COURANT=$(echo $COURANTS | cut -d" " -f$((TASK + 1)))
 
 HOST_CACHE_DIR=/tmp/firedrake_cache_${SLURM_JOB_ID}
 mkdir -p $HOST_CACHE_DIR

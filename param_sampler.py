@@ -63,17 +63,21 @@ class ParamSampler:
                 print(f"solve diverged at {params}: {exc}, scoring it 0", flush=True)
             return 0.0  # both quantities are negative where they are interesting
 
-        # todo switch to penalty method for rossby number and invalid EPV
-        rossby_gap = derived.rossby_number() - params.max_rossby
-        if rossby_gap > 0:
-            return rossby_gap
-
         if self.optimise_for == "pres":
             cost = derived.min_surf_pressure_ano_hpa()
         elif self.optimise_for == "wind":
             cost = -derived.max_surf_wind_speed()
         else:
             raise ValueError
+
+        # 0.5 is good enough, so stop rewarding here
+        ro = max(derived.rossby_number(), 0.5)
+        fr = max(derived.froude_number(), 0.5)
+
+        cost = cost/np.sqrt(ro*fr)
+
+        v_minus = derived.atmos.invalid_epv()
+        cost += 1e6 * v_minus
 
         return cost
 
