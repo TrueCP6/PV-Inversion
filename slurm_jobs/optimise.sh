@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --account maths
-#SBATCH --time=12:00:00
+#SBATCH --time=24:00:00
 #SBATCH --nodes=1 --ntasks=40
 #SBATCH --mem=300G
 #SBATCH --job-name="firedrake"
@@ -23,4 +23,4 @@ apptainer exec \
     python3 ~/Thesis/param_sampler.py \
     --job_id ${SLURM_JOB_ID} \
     --optimise_for pres \
-    --num_samples 1000
+    --num_samples 5000

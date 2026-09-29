@@ -22,5 +22,5 @@ apptainer exec \
     mpiexec -n 40 \
     python3 ~/Thesis/param_sampler.py \
     --job_id ${SLURM_JOB_ID} \
-    --num_samples 5000 \
+    --num_samples 1000 \
     --seed 1
