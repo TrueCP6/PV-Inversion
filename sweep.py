@@ -1,4 +1,5 @@
 import json
+import os
 from dataclasses import asdict
 import numpy as np
 from parameters import PhysicalParams, SolverParams
@@ -63,8 +64,11 @@ def save_records(path, records, indent=None):
     if not is_main_rank():
         return
 
-    with open(path, "w") as f:
+    # write then rename, so a reader or a kill mid-write never sees a truncated file
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w") as f:
         json.dump([asdict(record) for record in records], f, indent=indent)
+    os.replace(tmp_path, path)
 
 def load_records(path, record_cls):
     """Read a JSON results file back into a list of record_cls instances."""

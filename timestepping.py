@@ -18,6 +18,10 @@ DAY = 24 * 3600
 # running to the end in floating point garbage.
 BLOWUP_FACTOR = 1e3
 
+# run() rewrites its whole results file each save, so saving every step costs I/O that grows
+# with the run; every SAVE_EVERY steps loses at most that many on an interruption.
+SAVE_EVERY = 10
+
 # The panels of the diagnostics figure, in order, as (field, y label, scientific y ticks).
 # Labelled as variator.py labels the same quantities, so the two figures read alike.
 DIAGNOSTIC_PANELS = [
@@ -229,8 +233,8 @@ def _build_solver(nx, ny, nz, p, phys_params=None):
 def run(out_path, T=DAY, p=None, courant=None, backup=24):
     """Step to T, recording diagnostics every step, and write them to out_path as we go.
 
-    The records are rewritten after every step rather than at the end, so a run that is
-    interrupted - or that a laptop sleeps through - still leaves everything it reached.
+    The records are rewritten every SAVE_EVERY steps rather than at the end, so a run that is
+    interrupted - or that a laptop sleeps through - still leaves nearly everything it reached.
     Every backup hours (never, if it is 0) the full state is checkpointed beside out_path,
     as <out_path stem>_t<hours>h.h5, for background_plots.py --checkpoint.
     """
@@ -258,7 +262,7 @@ def run(out_path, T=DAY, p=None, courant=None, backup=24):
         diagnostics = _diagnostics(solver, lines)
         records.append(StepRecord(t=solver.t, dt=dt, **diagnostics))
 
-        if sweep.is_main_rank():
+        if sweep.is_main_rank() and (len(records) - 1) % SAVE_EVERY == 0:
             sweep.save_records(out_path, records)
 
         if backup and solver.t >= next_backup:
@@ -278,6 +282,9 @@ def run(out_path, T=DAY, p=None, courant=None, backup=24):
         if not np.isfinite(growth) or growth > BLOWUP_FACTOR:
             PETSc.Sys.Print(f"max|q| grew {growth:.3g}x - stopping, the run has gone unstable")
             break
+
+    if sweep.is_main_rank():
+        sweep.save_records(out_path, records)
 
     PETSc.Sys.Print(f"Done in {_format_duration(time.perf_counter() - started)}, "
                     f"{len(records) - 1} steps, wrote {out_path}")
