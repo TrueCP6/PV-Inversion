@@ -248,9 +248,7 @@ class ResolvedAtmosphere:
 
     @lru_cache(maxsize=1)
     def froude_number(self):
-        theta = self.potential_temperature()
-        g = self.ufl_params.g
-        N = sqrt(g * theta.dx(2) / theta)
-        u = self.u()
+        N = self.atmos.N_bar()
+        u = sqrt(self.u()**2 + self.v()**2)
         fr = abs(u.dx(2) / N)
         return get_global_max(self._interp(fr))
