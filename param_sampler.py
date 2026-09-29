@@ -1,5 +1,3 @@
-import petsc4py.PETSc
-
 from hash_seed import use_same_hash
 use_same_hash()
 from variator import Variator, trop_correlation_axes
@@ -141,12 +139,18 @@ class ParamSampler:
 
     def random_sample_data(self, num_samples):
         all_data = []
+        rejections = 0
 
         while len(all_data) < num_samples:
             x = self.sample_normalised()
             dat = self.all_data(x)
             if dat is not None:
                 all_data.append(dat)
+            else:
+                rejections += 1
+
+        rate = rejections / (num_samples+rejections)
+        PETSc.Sys.Print(f"Random sample rejection rate of {rate*100:.3g}%")
 
         # zip of nothing unpacks to nothing, so spell out the every-sample-diverged case
         wind, vort, pres, rossby, trop = list(map(list, zip(*all_data))) if all_data else ([],) * 5
