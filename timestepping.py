@@ -18,12 +18,12 @@ DAY = 24 * 3600
 # running to the end in floating point garbage.
 BLOWUP_FACTOR = 1e3
 
-# cfl_scan stops a point, as unstable, once its roughness passes this multiple of its initial
-# value. Past the limit the noise levels off without tripping BLOWUP_FACTOR: timestepping_1377808's
-# checkpoints peak at 0.095-0.106|f| where it grew, and at 0.040|f| where the cyclone sharpened
-# subcritically. 7 puts the cut near 0.06|f| between them for the n=40 p=4 scan, which starts
-# at 0.008|f| - the factor is grid dependent, since the initial value is.
-ROUGHNESS_FACTOR = 7
+# A cfl scan point is called unstable once its roughness passes this multiple of the lowest
+# Courant number's at the same time. An absolute cut can't tell grid-scale noise from the flow
+# sharpening q: cfl_scan_3 crossed 7x its initial roughness at ~16 h at every Courant number
+# from 1.3 to 2.3, all within 1% of each other. Sharpening is the same at every step size,
+# noise from the step is not, so the ratio sees only the noise.
+ROUGHNESS_RATIO = 1.5
 
 # run() rewrites its whole results file each save, so saving every step costs I/O that grows
 # with the run; every SAVE_EVERY steps loses at most that many on an interruption.
@@ -352,7 +352,8 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
 
     Neither catches a step just past the limit: the grid-scale noise it grows levels off well
     inside the bounds (timestepping_1377808's jet core sat past it for days, flagged by
-    neither). The roughness does - it climbs well past its initial value where the noise grows.
+    neither). The roughness does, but so does the flow sharpening q, so it is judged against
+    the lowest Courant number after the fact (roughness_ratios), not against a fixed cut here.
 
     Coarser than a production run by default: this is a check on a dimensionless number,
     and the scan has to step through it many times over.
@@ -394,11 +395,11 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
             limited.append(solver.limiter.limited_fraction)
             roughness.append(roughness_of() / initial_roughness)
 
-            if not np.isfinite(growth) or growth > BLOWUP_FACTOR or roughness[-1] > ROUGHNESS_FACTOR:
+            if not np.isfinite(growth) or growth > BLOWUP_FACTOR:
                 break
 
-        stable = bool(np.isfinite(growth) and growth <= BLOWUP_FACTOR
-                      and roughness[-1] <= ROUGHNESS_FACTOR)
+        # Only blow up here - the roughness verdict needs the other Courant numbers (roughness_ratios)
+        stable = bool(np.isfinite(growth) and growth <= BLOWUP_FACTOR)
         records.append(CflRecord(courant=float(courant), steps=taken,
                                  growth=float(growth) if np.isfinite(growth) else BLOWUP_FACTOR,
                                  stable=stable, t=t, max_growth=max_growth, l2_growth=l2_growth,
@@ -606,15 +607,35 @@ def plot_height_time(json_path, output_path="tex/plots/timestepping_height_time.
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
 
-def plot_cfl(json_path, output_path="tex/plots/cfl_verification.pdf"):
-    """Growth of max|q| against Courant number, either side of the predicted limit."""
+def roughness_ratios(records):
+    """Each record's peak roughness as a multiple of the lowest Courant number's at the same
+    time, over the time both reached. The lowest is the reference, so it reads 1.
+    """
+    reference = min(records, key=lambda r: r.courant)
+    peaks = []
+    for r in records:
+        t, roughness = np.array(r.t), np.array(r.roughness)
+        shared = t <= reference.t[-1]
+        peaks.append(float(np.max(roughness[shared] / np.interp(t[shared], reference.t, reference.roughness))))
+    return peaks
+
+def plot_cfl(json_paths, output_path="tex/plots/cfl_verification.pdf"):
+    """Growth of max|q| against Courant number, either side of the predicted limit. Prints each
+    point's roughness verdict too, which needs the whole scan - one file per Courant number
+    from slurm_jobs/cfl_scan.sh, so this takes several.
+    """
     import matplotlib.pyplot as plt
     import plot_utils
 
     if not sweep.is_main_rank():
         return
 
-    records = sorted(sweep.load_records(json_path, CflRecord), key=lambda r: r.courant)
+    records = sorted((r for path in json_paths for r in sweep.load_records(path, CflRecord)),
+                     key=lambda r: r.courant)
+    # cfl_scan and cfl_scan_2 predate the roughness, and get the plot alone
+    for r, ratio in zip(records, roughness_ratios(records) if records[0].roughness else []):
+        print(f"Courant {r.courant:.2f}: roughness peaks at {ratio:.3g}x the lowest's, "
+              f"{'stable' if r.stable and ratio <= ROUGHNESS_RATIO else 'UNSTABLE'}")
     plot_utils.apply_style()
 
     courant = np.array([r.courant for r in records])
@@ -650,7 +671,8 @@ def main():
                         help='Steps taken at every Courant number in the scan')
     parser.add_argument('--scan-hours', type=float, default=None, metavar='H',
                         help='Run every Courant number to H simulated hours instead of --scan-steps')
-    parser.add_argument('--plot-cfl', metavar='JSON_PATH', help='Plot a cfl scan results file, then exit')
+    parser.add_argument('--plot-cfl', metavar='JSON_PATH', nargs='+',
+                        help='Plot cfl scan results files, one per Courant number or not, then exit')
     sweep.add_common_arguments(parser)
     args = parser.parse_args()
 
