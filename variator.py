@@ -1,6 +1,7 @@
 from hash_seed import use_same_hash
 use_same_hash()
 import argparse
+import gc
 import json
 import re
 from mpi4py import MPI
@@ -58,11 +59,22 @@ class Variator:
         atmos = BarnesAtmosphere(self.domain)
         self.solver = DiagnosticSolver(atmos, True)
 
-    def get_derived(self, phys_params) -> ResolvedAtmosphere:
+    def get_derived(self, phys_params, max_invalid_epv=None) -> ResolvedAtmosphere | None:
         if not isinstance(phys_params, PhysicalParams):
             phys_params = PhysicalParams(**phys_params)
 
+        # Discarded atmospheres sit in reference cycles holding ~180 MB/rank each, so free them
+        # before building the next one or a long sweep runs out of memory
+        gc.collect()
+        PETSc.garbage_cleanup(self.comm)
+
         atmos = BarnesAtmosphere(self.domain, phys_params)
+        if max_invalid_epv is not None:
+            v_minus = atmos.invalid_epv()
+            if v_minus > max_invalid_epv:
+                PETSc.Sys.Print(f"Rejected sample because V_minus = {v_minus:.3g}")
+                return None
+
         self.solver.update_atmosphere(atmos)
 
         self.solver.solve_psi()

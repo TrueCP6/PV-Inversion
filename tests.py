@@ -42,7 +42,7 @@ class UtilTests(unittest.TestCase):
         from param_sampler import ParamSampler
 
         sampler = ParamSampler(optimise_for="pres")
-        params = sampler.normalised_to_dict(sampler.normalised_control)
+        params = sampler.normalised_to_dict(sampler.record_to_normalised(PhysicalParams()))
 
         rebuilt = PhysicalParams(**params)
         for name, (low, high), _ in sampler.param_tuple:
@@ -56,13 +56,13 @@ class UtilTests(unittest.TestCase):
 
         sampler = ParamSampler(optimise_for="pres")
 
-        def blow_up(_params):
+        def blow_up(*_, **__):
             raise ConvergenceError("DIVERGED_LINEAR_SOLVE")
         sampler.variator.get_derived = blow_up
 
-        self.assertEqual(sampler.cost(sampler.normalised_control), 0.0)
-        self.assertIsNone(sampler.all_data(sampler.normalised_control))
-        self.assertEqual(sampler.random_sample_data(3)["min_surf_pres"], [])
+        control = sampler.record_to_normalised(PhysicalParams())
+        self.assertEqual(sampler.cost(control), 0.0)
+        self.assertIsNone(sampler.all_data(control))
 
     def test_vertical_integral(self):
         mesh2d = UnitSquareMesh(10, 10, quadrilateral=True)

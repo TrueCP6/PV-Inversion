@@ -1,3 +1,5 @@
+import petsc4py.PETSc
+
 from hash_seed import use_same_hash
 use_same_hash()
 from variator import Variator, trop_correlation_axes
@@ -23,9 +25,6 @@ class ParamSampler:
         self.rng = np.random.default_rng(seed) # not shared between all ranks but all ranks will have the same seed
         self.optimise_for = optimise_for
         self.job_id = job_id
-
-        control = PhysicalParams()
-        self._rossby_max = control.max_rossby
 
     def _get_effectual_params(self): # Reduce dimensionality by removing parameters that don't make a difference
         ineffectual_params = ["delta", "N_strat_variation", "trop_width"]
@@ -88,7 +87,7 @@ class ParamSampler:
         return f
 
     def optimise(self, max_evals):
-        """Minimise the cost over the normalised parameter box with Py-BOBYQA, starting from the control.
+        """Minimise the cost over the normalised parameter box with Py-BOBYQA, starting from the centre of the box.
 
         Py-BOBYQA runs on rank 0 only, while the other ranks wait for each point it asks for and
         solve alongside it. Returns (x, f) of the best point found on every rank.
@@ -123,16 +122,13 @@ class ParamSampler:
     def all_data(self, x):
         params = self.normalised_to_dict(x)
         try:
-            derived = self.variator.get_derived(params)
+            derived = self.variator.get_derived(params, max_invalid_epv=1e-10)
         # Same collective failure on every rank, so they all drop the same sample
         except ConvergenceError as exc:
-            if self.rank == 0:
-                print(f"solve diverged at {params}: {exc}, dropping the sample", flush=True)
+            PETSc.Sys.Print(f"solve diverged at {params}: {exc}, dropping the sample")
             return None
 
-        v_minus = derived.atmos.invalid_epv()
-        if v_minus > 1e-10:
-            PETSc.Sys.Print(f"Rejected sample because V_minus = {v_minus:.3g}")
+        if derived is None:
             return None
 
         wind = derived.max_surf_wind_speed()
