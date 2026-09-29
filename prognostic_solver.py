@@ -1,3 +1,4 @@
+import numpy as np
 import math_utils
 from barnes_atmosphere import BarnesAtmosphere
 from diagnostic_solver import DiagnosticSolver
@@ -5,8 +6,17 @@ from domain_builder import DomainBuilder
 from parameters import SolverParams, PhysicalParams
 from firedrake import *
 
-# Fraction of the CFL limit a step is taken at, unless the caller asks for another.
-SAFETY = 0.6
+# Multiple of dx_eff / max(|u| + |v|) (see dt()) a step is taken at. Upwind DG + SSPRK3 on GL
+# nodes is stable to ~1.9 (von Neumann, p = 1-5); Zhang-Shu bounds hold to 1.48 (p = 2).
+SAFETY = 1.3
+
+def min_node_gap(V):
+    """Smallest horizontal gap between neighbouring nodes of V's reference cell, counting the
+    cell's edges, as a fraction of its width. Read off the element so it follows the node
+    variant: 0.0469 at p = 4 on DQ's default Gauss-Legendre nodes."""
+    points = V.finat_element.dual_basis[1].points # on the reference cell [0, 1]^3, z last
+    return min(np.diff(np.unique(np.concatenate([[0.0, 1.0], points[:, axis]]))).min()
+               for axis in (0, 1))
 
 class ZhangShuLimiter:
     """Zhang & Shu's (2010) bound-preserving limiter: scales q about each cell's mean, just
@@ -90,17 +100,7 @@ class PrognosticSolver:
         # Off for anything with a source (the MMS): q is then free to leave its initial bounds
         self.limiter = ZhangShuLimiter(self.q, solver_params.polynomial_order) if limit else None
         self._prognostic_solver = self._build_solver()
-
-        self._x_max = { # positions of GLL node closest to x=1, p varying
-            2: 0,
-            3: 0.44721360,
-            4: 0.65465367,
-            5: 0.76505532,
-            6: 0.83022390,
-            7: 0.87174015,
-            8: 0.8997579954,
-            9: 0.9195393082
-        }
+        self._node_gap = min_node_gap(self._dg_space)
 
     # Hooks - override these to drive the transport with something other than the Barnes
     # atmosphere (see prognostic_mms_checker.py)
@@ -170,13 +170,11 @@ class PrognosticSolver:
         dx = self._atmos.dxy_min # CFL is set by the smallest cell
         u = self._velocity()
         # Into the dg space, not the cg one: u is discontinuous, and interpolating it somewhere continuous would average the peaks
-        vel = Function(self._dg_space).interpolate(sqrt(u[0]**2 + u[1]**2))
+        # |u| + |v|, not the speed: DG's CFL condition bounds c_x + c_y
+        vel = Function(self._dg_space).interpolate(abs(u[0]) + abs(u[1]))
         max_vel = math_utils.get_global_max(vel)
-        p = self._solver_params.polynomial_order
 
-        scale = 0.5 * (1 - self._x_max[p])
-        dx_eff = dx*scale
-
+        dx_eff = dx * self._node_gap
         return safety * dx_eff / max_vel
 
     def RHS(self, q, t=None) -> Function:

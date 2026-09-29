@@ -293,10 +293,11 @@ def run(out_path, T=DAY, p=None, courant=None, backup=24):
 def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
     """Step at each Courant number and record how far max|q| and ||q||_L2 ran away.
 
-    prognostic_solver.dt() claims the limit is dt = dx_eff / |u|, where dx_eff is the gap
-    between a cell edge and the nearest interior Gauss-Lobatto node, (1 - x_max) dx / 2.
-    A run at Courant number 1 sits exactly on it. If that is right, everything below 1
-    stays bounded and everything above it diverges.
+    prognostic_solver.dt() steps at a multiple of dx_eff / max(|u| + |v|), where dx_eff is
+    the smallest gap between neighbouring nodes in a cell, counting its edges. 1D von Neumann
+    analysis of upwind DG under SSPRK3 puts the limit at about 1.9 of it for DQ's
+    Gauss-Legendre nodes. If that is right, everything below it stays bounded and everything
+    above it diverges.
 
     By default every point takes the same number of steps. Instability is a per-step
     amplification that compounds, so for finding the limit what has to be held equal is how
@@ -594,7 +595,7 @@ def main():
     parser.add_argument('-T', '--hours', type=float, default=24, help='Simulated hours to run for')
     parser.add_argument('-p', '--polynomial_order', type=int, default=None)
     parser.add_argument('-c', '--courant', type=float, default=None,
-                        help='Fraction of the CFL limit to step at (default: prognostic_solver.SAFETY)')
+                        help='Multiple of dx_eff / max(|u| + |v|) to step at (default: prognostic_solver.SAFETY)')
     parser.add_argument('--backup', type=float, default=24, metavar='H',
                         help='Checkpoint psi, q and the parameters every H simulated hours (0: never)')
 
