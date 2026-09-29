@@ -18,6 +18,13 @@ DAY = 24 * 3600
 # running to the end in floating point garbage.
 BLOWUP_FACTOR = 1e3
 
+# cfl_scan stops a point, as unstable, once its roughness passes this multiple of its initial
+# value. Past the limit the noise levels off without tripping BLOWUP_FACTOR: timestepping_1377808's
+# checkpoints peak at 0.095-0.106|f| where it grew, and at 0.040|f| where the cyclone sharpened
+# subcritically. 7 puts the cut near 0.06|f| between them for the n=40 p=4 scan, which starts
+# at 0.008|f| - the factor is grid dependent, since the initial value is.
+ROUGHNESS_FACTOR = 7
+
 # run() rewrites its whole results file each save, so saving every step costs I/O that grows
 # with the run; every SAVE_EVERY steps loses at most that many on an interruption.
 SAVE_EVERY = 10
@@ -99,12 +106,14 @@ class CflRecord:
     growth : float
     stable : bool
     # Per step, or None in files written before they were added: the time the step ended at,
-    # max|q| and ||q||_L2 there as multiples of their initial values, and the fraction of the
-    # domain the limiter touched (None in files from scans that could run without it).
+    # max|q|, ||q||_L2 and the roughness (see _roughness_meter) there as multiples of their
+    # initial values, and the fraction of the domain the limiter touched (None in files from
+    # scans that could run without it).
     t : list = None
     max_growth : list = None
     l2_growth : list = None
     limited : list = None
+    roughness : list = None
 
 def _hovmoller_x(Lx, count):
     """Cell-centred points along x - clear of the lateral walls, where a point can fall outside."""
@@ -290,6 +299,29 @@ def run(out_path, T=DAY, p=None, courant=None, backup=24):
                     f"{len(records) - 1} steps, wrote {out_path}")
     return records
 
+def _roughness_meter(q, p):
+    """A function giving the largest RMS over cells of q's horizontally degree-p part - what
+    interpolating onto one degree lower in x and y misses. Grid-scale noise lives there; a
+    smooth q has little, however sharp it is in z.
+    """
+    from firedrake import Function, FunctionSpace, TestFunction, assemble, dx, interval, quadrilateral
+    from finat.ufl import FiniteElement, TensorProductElement
+    from math_utils import get_global_max
+
+    mesh = q.function_space().mesh()
+    lowered = Function(FunctionSpace(mesh, TensorProductElement(
+        FiniteElement("DQ", quadrilateral, p - 1), FiniteElement("DG", interval, p))))
+    W0 = FunctionSpace(mesh, "DQ", 0)
+    w = TestFunction(W0)
+    volume = assemble(w * dx).dat.data_ro.copy()
+    per_cell = Function(W0)
+
+    def roughness():
+        lowered.interpolate(q)
+        per_cell.dat.data_wo[:] = assemble((q - lowered) ** 2 * w * dx).dat.data_ro / volume
+        return np.sqrt(get_global_max(per_cell))
+    return roughness
+
 def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
     """Step at each Courant number and record how far max|q| and ||q||_L2 ran away.
 
@@ -318,6 +350,10 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
     The limited fraction is the measure instead - near zero while the limiter only trims
     overshoots, and climbing, with ||q||_L2 falling faster, once it is fighting an instability.
 
+    Neither catches a step just past the limit: the grid-scale noise it grows levels off well
+    inside the bounds (timestepping_1377808's jet core sat past it for days, flagged by
+    neither). The roughness does - it climbs well past its initial value where the noise grows.
+
     Coarser than a production run by default: this is a check on a dimensionless number,
     and the scan has to step through it many times over.
     """
@@ -338,9 +374,11 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
         solver = _build_solver(n, n, n, p)
         solver.resolve()
         initial, initial_l2 = max_abs_q(solver), norm(solver.q)
+        roughness_of = _roughness_meter(solver.q, p)
+        initial_roughness = roughness_of()
 
         growth, taken = 1.0, 0
-        t, max_growth, l2_growth, limited = [], [], [], []
+        t, max_growth, l2_growth, limited, roughness = [], [], [], [], []
         while (solver.t < T) if T is not None else (taken < steps):
             dt = solver.dt(safety=courant)
             if T is not None:
@@ -354,17 +392,20 @@ def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
             max_growth.append(float(growth))
             l2_growth.append(norm(solver.q) / initial_l2)
             limited.append(solver.limiter.limited_fraction)
+            roughness.append(roughness_of() / initial_roughness)
 
-            if not np.isfinite(growth) or growth > BLOWUP_FACTOR:
+            if not np.isfinite(growth) or growth > BLOWUP_FACTOR or roughness[-1] > ROUGHNESS_FACTOR:
                 break
 
-        stable = bool(np.isfinite(growth) and growth <= BLOWUP_FACTOR)
+        stable = bool(np.isfinite(growth) and growth <= BLOWUP_FACTOR
+                      and roughness[-1] <= ROUGHNESS_FACTOR)
         records.append(CflRecord(courant=float(courant), steps=taken,
                                  growth=float(growth) if np.isfinite(growth) else BLOWUP_FACTOR,
                                  stable=stable, t=t, max_growth=max_growth, l2_growth=l2_growth,
-                                 limited=limited))
+                                 limited=limited, roughness=roughness))
         PETSc.Sys.Print(f"Courant {courant:.2f}: {taken:4d} steps to t = {solver.t / 3600:.2f} h, "
                         f"max|q| grew {growth:.4g}x, ||q||_L2 {l2_growth[-1]:.4g}x, "
+                        f"roughness {roughness[-1]:.4g}x (peak {max(roughness):.4g}x), "
                         f"{'stable' if stable else 'UNSTABLE'}")
 
         if sweep.is_main_rank():
@@ -580,13 +621,14 @@ def plot_cfl(json_path, output_path="tex/plots/cfl_verification.pdf"):
     growth = np.array([r.growth for r in records])
 
     plt.figure(figsize=plot_utils.SQUARE_HALF_FIGURE_SIZE)
-    plt.axvspan(1.0, max(courant.max(), 1.0), color='0.9', zorder=0)
-    plt.axvline(1.0, color='0.4', linestyle='--', linewidth=1.2,
-                label=r'Predicted limit, $\mathrm{C}=1$')
+    limit = 1.9 # 1D von Neumann, upwind DG + SSPRK3 on Gauss-Legendre nodes (see cfl_scan)
+    plt.axvspan(limit, max(courant.max(), limit), color='0.9', zorder=0)
+    plt.axvline(limit, color='0.4', linestyle='--', linewidth=1.2,
+                label=rf'Predicted limit, $\mathrm{{C}}={limit}$')
     plt.semilogy(courant, growth, color=ACCENT, marker='o', markersize=4, linewidth=1.5,
                  label=r'$\max|q| / \max|q|_{t=0}$')
 
-    plt.xlabel(r'Courant number $\mathrm{C} = \Delta t\, |\mathbf{u}| / \Delta x_\text{eff}$')
+    plt.xlabel(r'Courant number $\mathrm{C} = \Delta t\, \max(|u| + |v|) / \Delta x_\text{eff}$')
     plt.ylabel(r'Growth of $\max|q|$')
     plot_utils.finish_figure(output_path, legend_kwargs={'loc': 'upper left', 'fontsize': 7})
 

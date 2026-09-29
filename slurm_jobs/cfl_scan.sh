@@ -1,6 +1,6 @@
 #!/bin/sh
-# One job per (configuration, Courant number): 2 configurations x 5 Courant numbers,
-# each run to the same simulated time.
+# One job per Courant number at n=40 p=4, each run to the same simulated time.
+# The limiter is always on (prognostic_solver).
 # Run with `sh cfl_scan.sh` (not sbatch): it submits itself once per task,
 # since array jobs never get scheduled on this cluster.
 #SBATCH --account maths
@@ -13,22 +13,22 @@
 #SBATCH --output=firedrake_%j.out
 #SBATCH --error=firedrake_%j.err
 
-POINTS=5 # Courant 0.3, 0.4, ..., 0.7
-# Roughly the time the old 2000-step scan covered at C = 0.3 (~2000 steps for n=40 p=4 at
-# ~40 m/s peak wind), so the slowest run still fits in the wall time
-HOURS=96
+POINTS=6 # Courant 1.3 (SAFETY), 1.5, ..., 2.3 - either side of the predicted limit, ~1.9
+# The slowest run, C = 1.3, takes ~25 steps per simulated hour (scaled from cfl_scan_2's
+# 2817 steps to 96 h) - ~35 if max(|u| + |v|) is sqrt(2) past max|u| - at 5-11 s a step:
+# 2-6 minutes a simulated hour, so 168 h fits in ~18 h at worst
+HOURS=168
+N=40
+P=4
 
 if [ -z "$SLURM_JOB_ID" ]; then
-    for TASK in $(seq 0 $((2 * POINTS - 1))); do
+    for TASK in $(seq 0 $((POINTS - 1))); do
         sbatch --export=ALL,TASK=$TASK "$0"
     done
     exit
 fi
 
-CONFIG=$((TASK / POINTS))
-COURANT=$(awk "BEGIN { print 0.3 + 0.1 * ($TASK % $POINTS) }")
-
-if [ "$CONFIG" -eq 0 ]; then N=80; P=2; else N=40; P=4; fi
+COURANT=$(awk "BEGIN { print 1.3 + 0.2 * $TASK }")
 
 HOST_CACHE_DIR=/tmp/firedrake_cache_${SLURM_JOB_ID}
 mkdir -p $HOST_CACHE_DIR
