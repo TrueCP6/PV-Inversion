@@ -118,14 +118,41 @@ class DiagnosticSolver:
         try:
             self.solver.solve()
         except ConvergenceError:
-            ksp = self.solver.snes.ksp
-            reasons = {v: k for k, v in vars(PETSc.KSP.ConvergedReason).items() if isinstance(v, int)}
-            PETSc.Sys.Print(f"KSP failed: {reasons.get(ksp.getConvergedReason(), ksp.getConvergedReason())} "
-                            f"after {ksp.getIterationNumber()} iterations")
-            # A failed solve can leave NaN in psi_soln, which is the next solve's initial guess, so clear it or every solve after this fails too
-            self.psi_soln.assign(0)
-            raise
+            self._report_failure()
+            # A failure used to stick: once the coarse grid's MUMPS factorisation fails, PETSc never
+            # factorises it again and its solves return Inf, so every later solve diverged at
+            # iteration 0 whatever the initial guess. A rebuilt solver factorises from scratch
+            self._rebuild_solver()
+            try:
+                self.solver.solve()
+            except ConvergenceError:
+                self._report_failure()
+                self._rebuild_solver() # leave a working solver for the next solve
+                raise
+            PETSc.Sys.Print("Solve converged after rebuilding the solver")
         solve_time = time.perf_counter()-start_time
         PETSc.Sys.Print(f"Solve completed in {solve_time:0.2f} sec")
 
         return solve_time
+
+    def _rebuild_solver(self):
+        # A failed solve can leave NaN in psi_soln, which would be the next solve's initial guess
+        self.psi_soln.assign(0)
+        self._setup_solver()
+
+    def _report_failure(self):
+        ksp = self.solver.snes.ksp
+        reasons = {v: k for k, v in vars(PETSc.KSP.ConvergedReason).items() if isinstance(v, int)}
+        PETSc.Sys.Print(f"KSP failed: {reasons.get(ksp.getConvergedReason(), ksp.getConvergedReason())} "
+                        f"after {ksp.getIterationNumber()} iterations, "
+                        f"coarse MUMPS INFOG(1) = {self._coarse_mumps_status()}")
+
+    def _coarse_mumps_status(self):
+        """INFOG(1) of the p-multigrid coarse grid's MUMPS factorisation - negative if it failed -
+        or None if this solver has no such factorisation (the assembled parameters use hypre)."""
+        try:
+            mg = self.solver.snes.ksp.getPC().getPythonContext().ppc
+            coarse_pc = mg.getMGCoarseSolve().getPC().getPythonContext().pc
+            return coarse_pc.getFactorMatrix().getMumpsInfog(1)
+        except Exception:
+            return None

@@ -9,6 +9,9 @@
 #SBATCH --output=firedrake_%j.out
 #SBATCH --error=firedrake_%j.err
 
+# usage: sbatch optimise.sh [pres|wind] - the quantity to optimise for, pres if left out
+QUANTITY=${1:-pres}
+
 HOST_CACHE_DIR=/tmp/firedrake_cache_${SLURM_JOB_ID}
 mkdir -p $HOST_CACHE_DIR
 
@@ -22,5 +25,5 @@ apptainer exec \
     mpiexec -n 40 \
     python3 ~/Thesis/param_sampler.py \
     --job_id ${SLURM_JOB_ID} \
-    --optimise_for pres \
+    --optimise_for $QUANTITY \
     --num_samples 5000
