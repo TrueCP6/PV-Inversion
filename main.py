@@ -13,20 +13,18 @@ from domain_builder import *
 from parameters import *
 
 def main():
-    # plot_trop_correlation("variator_1365465.json")
-    # plot_variator_results("variator_1365465.json")
+    plot_trop_correlation("variator_1380684.json")
+    plot_variator_results("variator_1380684.json")
 
-    # todo add support for updated params in derived_quantities
-
-    vary = Variator()
-    base = vary.get_derived(PhysicalParams(p_bottom=1000e2))
-    base = base.psi.copy(deepcopy=True)
-
-    perturb = vary.get_derived(PhysicalParams(p_bottom=800e2))
-    perturb = perturb.psi
-
-    err = relative_error(base, perturb)
-    PETSc.Sys.Print(err)
+    # vary = Variator()
+    # base = vary.get_derived(PhysicalParams(p_bottom=1000e2))
+    # base = base.psi.copy(deepcopy=True)
+    #
+    # perturb = vary.get_derived(PhysicalParams(p_bottom=800e2))
+    # perturb = perturb.psi
+    #
+    # err = relative_error(base, perturb)
+    # PETSc.Sys.Print(err)
 
 if __name__ == "__main__":
     main()
