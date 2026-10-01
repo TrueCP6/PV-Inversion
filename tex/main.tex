@@ -1507,42 +1507,49 @@ Furthermore, nonlinear relationships between parameters are not possible to inve
 \subsection{Random Sampling}\label{sec:random_sampling}
 
 In an effort to address the issues stated above, we investigate the relationship between the surface variables and $z_\text{dyn}$ by randomly and uniformly sampling parameter vectors from the ranges outlined in \cref{tab:parameter_bounds}.
+The linearity of \cref{qgpv} allows us to split the inversion into an anomaly part (inverting $q^*$ gives $\psi^*$) and a background part (directly calculate $\overline q$ from $\overline\psi$).
+The full streamfunction can easily be recovered by computing $\psi = \overline\psi + \psi^*$.
+This allows us to safely remove all jet related parameters from the sweep, and effectively set $U_\text{jet} = 0$.
 We reject any samples with $\mathcal{V}_- > 0$, and colour each sample point by its Rossby number.
 Accumulating 1000 valid samples gives \cref{fig:random_sample}.
-Only 5\% of parameter vectors sampled meet the $\mathcal{V}_- = 0$ requirement, raising doubts as to the validity of the findings of \cref{sec:one_param}.
-
-\begin{figure}[hbtp]
-    \centering
-    \includegraphics{random_sample_trop_correlations.pdf}
-    \caption{1000 randomly sampled parameters from \cref{tab:parameter_bounds} with $\mathcal{V}_- = 0$. Points corresponding to an individual atmospheric state are coloured by their Rossby number.}
-    \label{fig:random_sample}
-\end{figure}
-
-We employ the Spearman $\rho$ to quantify the strength of the monotonic relationship between each surface variable and $z_\text{dyn}$.
-\Cref{fig:random_sample} shows a moderately strong monotonic relationship between $z_\text{dyn}$ and the surface variables, with vorticity being on the edge of what could be called a strong relationship \cite{Schober2018}.
-
-However, most of the atmospheric states in \cref{fig:random_sample} are beyond the range of $\mathrm{Ro}$ for which QGPV is quantitatively or qualitatively useful (as discussed in \cref{sec:limits_of_qgpv}).
-To address this we drop any points with $\mathrm{Ro} \geq 1$ to produce \cref{fig:random_sample_ro}.
-
-\begin{figure}[hbtp]
-    \centering
-    \includegraphics{random_sample_trop_correlations_ro_below_1.pdf}
-    \caption{Same as \cref{fig:random_sample}, but only the 21.6\% of points with $\mathrm{Ro} < 1$.}
-    \label{fig:random_sample_ro}
-\end{figure}
-
-\Cref{fig:random_sample_ro} now only consists of points which fall broadly within the range that QGPV has (at minimum) qualitative usefulness.
-For quantitative usefulness, we require $\mathrm{Ro} \lesssim 0.5$, but only 0.6\% of points have $\mathrm{Ro} < 0.5$, so this was practical to test.
-The $\rho$ of each panel changes very little from \cref{fig:random_sample} to \cref{fig:random_sample_ro}, which supports the moderate monotonic relationship between $z_\text{dyn}$ and surface effects.
-
-The above findings support the conclusion that minimum surface vorticity, minimum surface pressure anomaly and maximum surface wind speed are largely driven by the minimum dynamical tropopause height induced by an anomaly.
-Other characteristics of the anomaly are not as important as the height of the \qty{-1.5}{PVU} contour above the surface.
+%TODO FIX FROM HERE
+    Only 5\% of parameter vectors sampled meet the $\mathcal{V}_- = 0$ requirement, raising doubts as to the validity of the findings of \cref{sec:one_param}.
+    
+    \begin{figure}[hbtp]
+        \centering
+        \includegraphics{random_sample_trop_correlations.pdf}
+        \caption{1000 randomly sampled parameters from \cref{tab:parameter_bounds} with $\mathcal{V}_- = 0$. Points corresponding to an individual atmospheric state are coloured by their Rossby number.}
+        \label{fig:random_sample}
+    \end{figure}
+    
+    We employ the Spearman $\rho$ to quantify the strength of the monotonic relationship between each surface variable and $z_\text{dyn}$.
+    \Cref{fig:random_sample} shows a moderately strong monotonic relationship between $z_\text{dyn}$ and the surface variables, with vorticity being on the edge of what could be called a strong relationship \cite{Schober2018}.
+    
+    However, most of the atmospheric states in \cref{fig:random_sample} are beyond the range of $\mathrm{Ro}$ for which QGPV is quantitatively or qualitatively useful (as discussed in \cref{sec:limits_of_qgpv}).
+    To address this we drop any points with $\mathrm{Ro} \geq 1$ to produce \cref{fig:random_sample_ro}.
+    
+    \begin{figure}[hbtp]
+        \centering
+        \includegraphics{random_sample_trop_correlations_ro_below_1.pdf}
+        \caption{Same as \cref{fig:random_sample}, but only the 21.6\% of points with $\mathrm{Ro} < 1$.}
+        \label{fig:random_sample_ro}
+    \end{figure}
+    
+    \Cref{fig:random_sample_ro} now only consists of points which fall broadly within the range that QGPV has (at minimum) qualitative usefulness.
+    For quantitative usefulness, we require $\mathrm{Ro} \lesssim 0.5$, but only 0.6\% of points have $\mathrm{Ro} < 0.5$, so this was practical to test.
+    The $\rho$ of each panel changes very little from \cref{fig:random_sample} to \cref{fig:random_sample_ro}, which supports the moderate monotonic relationship between $z_\text{dyn}$ and surface effects.
+    
+    The above findings support the conclusion that minimum surface vorticity, minimum surface pressure anomaly and maximum surface wind speed are largely driven by the minimum dynamical tropopause height induced by an anomaly.
+    Other characteristics of the anomaly are not as important as the height of the \qty{-1.5}{PVU} contour above the surface.
+%TO HERE
 
 \subsection{Maximising Surface Response}
 
 Automating the search for parameters that maximise surface response requires setting up an optimisation problem.
 We first reduce the dimensionality of the problem by choosing to not vary $w_\text{trop}$, $\delta$ and $\overline{N}'_\text{strat}$, as \cref{sec:one_param} shows that they have negligible effect on the surface.
+We also only look for the surface response induced by the anomaly, by removing the jet parameters as done above.
 Using the parameter normalisation scheme from \cref{sec:one_param}, we represent any given choice of parameters as a vector $\bm{x} \in [0,1]^d$, where $d$ denotes the dimensionality or number of parameters we allow to vary.
+In this case $d=8$.
 Computing derivatives of $\min p^*_{z=0}$ and $\min -|\bm{u}|_{z=0}$ with respect to each of the parameters in \cref{tab:parameter_bounds} is non-trivial due to the highly nonlinear relationships between some parameters and the surface variables.
 For example, one of the chains of dependence goes as $\min p^*_{z=0} \to p^* \to \psi \to  q \to  Q^* \to z_\text{size}$, where the arrows each represent complex or nonlinear dependence relations.
 This rules out any optimsation schemes which require gradients, such as variants of gradient descent.
@@ -1553,14 +1560,14 @@ It can be configured to seek the global minimum, as opposed to a local one \cite
 We begin the implementation by defining a cost function we seek to minimise:
 
 \begin{equation}\label{cost}
-    C(\bm{x}) = \frac{O}{\sqrt{\tilde{\mathrm{Ro}}\tilde{\mathrm{Fr}}}} + \mu \mathcal{V}_-
+    C(\bm{x}) = \frac{O}{\tilde{\mathrm{Ro}}\cdot \tilde{\mathrm{Fr}}} + \mu \mathcal{V}_-
 \end{equation}
 
 Here $O$ is the objective we wish to minimise, either $\min -|\bm{u}|_{z=0}$ or $\min p^*_{z=0}$.
 The penalty parameter which drives $\mathcal{V}_- \to 0$ is $\mu=10^6$, quickly pushing the optimiser away from parameters that cause $\mathcal{V}_- > 0$.
 The denominator rewards small Rossby and Froude numbers, and punishes large ones, telling the solver to find a balance between surface effect and QG validity.
 Large $\mathrm{Ro}, \mathrm{Fr} > 1$ push $C(\bm{x})$ closer to zero, when interesting values of $O$ are $\sim -10$.
-We use clipped $\tilde{\mathrm{Ro}} = \max\left\{\mathrm{Ro}_\text{max}, 0.5\right\}$ and  $\tilde{\mathrm{Fr}} = \max\left\{\mathrm{Fr}_\text{max}, 0.5\right\}$ to prevent the optimiser from finding that sending $\mathrm{Ro} \times\mathrm{Fr} \to 0$ is the most effective way to send $C(\bm{x}) \to -\infty$, thereby polluting the results.
+We use clipped $\tilde{\mathrm{Ro}} = \max\left\{\mathrm{Ro}_\text{max}, 0.3\right\}$ and  $\tilde{\mathrm{Fr}} = \max\left\{\mathrm{Fr}_\text{max}, 0.3\right\}$ to prevent the optimiser from finding that sending $\mathrm{Ro} \cdot \mathrm{Fr} \to 0$ is the most effective way to send $C(\bm{x}) \to -\infty$, thereby polluting the results.
 We configure Py-BOBYQA to run on a single MPI rank (see \cref{app:mpi}), while allowing the inversion of \cref{qgpv} to run on all ranks.
 
 Running the optimiser for both objectives -- maximum surface wind speed and minimum surface pressure anomaly -- yields \cref{fig:optimiser}.
@@ -1574,6 +1581,24 @@ Py-BOBYQA is configured to call $C(\bm{x})$ a maximum of 5000 times in each case
 \end{figure}
 
 \section{Numerical Time-Evolution}
+
+\subsection{Function Space}
+
+To assess the longevity and general time-evolution of atmospheric parameters we employ the prognostic QGPV \cref{qgpv_time}.
+This equation consists of purely horizontal advection, so the Continuous-Galerkin elements (the \mintinline{python}{'Q'} function space) used to compute $\psi$ will certainly cause spurious oscillations if used to advect $q$\footnote{Discussed in more detail in \cref{sec:cg_space}}.
+
+Instead we employ Discontinuous-Galerkin elements (the \mintinline{python}{'DQ'} function space on tensor-product meshes), which let $q$ jump across cell boundaries.
+The cells are coupled only through a numerical flux on each facet.
+Both neighbouring cells share it, so the scheme conserves mass to round-off.
+We take this flux from the upwind side, which supplies the dissipation that stabilises pure advection \cite{Moura2015}.
+
+Unlike with finite difference schemes, we can not assi
+
+Func space
+Weak form derivation
+Limiter
+Time step size
+Result
 
 \section{Conclusions}
 
