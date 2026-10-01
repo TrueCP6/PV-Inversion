@@ -17,16 +17,17 @@ from scipy.stats import spearmanr
 class ParamSampler:
     def __init__(self, optimise_for="pres", seed=4623, job_id=0):
         self.variator = Variator()
-        self.param_tuple = self._get_effectual_params()
+        self.param_tuple = self._get_nonjet_params()
         self.dim = len(self.param_tuple)
+        PETSc.Sys.Print(f"Built param sampler with {self.dim} dimensions")
         self.comm = COMM_WORLD
         self.rank = self.comm.Get_rank()
         self.rng = np.random.default_rng(seed) # not shared between all ranks but all ranks will have the same seed
         self.optimise_for = optimise_for
         self.job_id = job_id
 
-    def _get_effectual_params(self): # Reduce dimensionality by removing parameters that don't make a difference
-        ineffectual_params = ["delta", "N_strat_variation", "trop_width"]
+    def _get_nonjet_params(self): # Reduce dimensionality by removing parameters that don't make a difference or are related to the jet
+        ineffectual_params = ["delta", "N_strat_variation", "trop_width", "jet_y_size", "jet_z_size", "jet_magnitude", "jet_y_pos"]
         all_params = Variator.quantities_to_vary()
         return [param for param in all_params if param[0] not in ineffectual_params]
 
@@ -34,7 +35,7 @@ class ParamSampler:
         return self.rng.uniform(low=0.0, high=1.0, size=self.dim)
 
     def normalised_to_dict(self, normalised_arr):
-        dict = {}
+        dict = {"jet_magnitude": 0}
         for i in range(self.dim):
             param_name, bound, _ = self.param_tuple[i]
             a, b = bound
@@ -55,7 +56,7 @@ class ParamSampler:
         return normalised
 
     def cost(self, x):
-        params = PhysicalParams(**self.normalised_to_dict(x))
+        params = PhysicalParams(**self.normalised_to_dict(x)) # Force no jet
 
         try:
             derived = self.variator.get_derived(params)
@@ -71,11 +72,11 @@ class ParamSampler:
         else:
             raise ValueError
 
-        # 0.5 is good enough, so stop rewarding here
-        ro = max(derived.rossby_number(), 0.5)
-        fr = max(derived.froude_number(), 0.5)
+        # 0.3 is good enough, so stop rewarding here
+        ro = max(derived.rossby_number(), 0.3)
+        fr = max(derived.froude_number(), 0.3)
 
-        cost = cost/np.sqrt(ro*fr)
+        cost = cost/(ro*fr)
 
         v_minus = derived.atmos.invalid_epv()
         cost += 1e6 * v_minus
