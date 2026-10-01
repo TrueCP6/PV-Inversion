@@ -8,6 +8,7 @@ from dataclasses import asdict
 import argparse
 import json
 import sweep
+import plot_utils
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D
@@ -209,6 +210,31 @@ def plot_trop_correlation(json_path, output_path="tex/plots/random_sample_trop_c
     plt.savefig(output_path, bbox_inches='tight')
     plt.close()
 
+def plot_optimiser_cost(pres_csv, wind_csv, output_path="tex/plots/optimiser_cost.pdf"):
+    """Side-by-side panels of each optimise run's cost against evaluation count, with the best cost found so far."""
+    if not sweep.is_main_rank():
+        return
+
+    plot_utils.apply_style()
+    fig, axes = plt.subplots(1, 2, figsize=(plot_utils.FIGURE_SIZE[0], plot_utils.SQUARE_HALF_FIGURE_SIZE[1]),
+                             constrained_layout=True)
+
+    for ax, csv_path, title in zip(axes, [pres_csv, wind_csv], ["Surface pressure", "Surface wind"]):
+        cost = np.loadtxt(csv_path, delimiter=",")[:, -1] # each row is the normalised parameters then the cost
+        evals = np.arange(1, len(cost) + 1)
+        ax.scatter(evals, cost, s=3, alpha=0.6, color='dimgrey', linewidths=0, label="Evaluation")
+        ax.plot(evals, np.minimum.accumulate(cost), color='C0', linewidth=1.2, label="Best so far")
+        # The invalid-EPV penalty puts costs from about -1e2 to 1e5, either side of zero
+        ax.set_yscale('symlog', linthresh=10)
+        ax.set_title(title)
+        ax.set_xlabel("Evaluation")
+        ax.grid(True, which='both', linestyle=':', alpha=0.5)
+    axes[0].set_ylabel("Cost")
+    axes[0].legend(loc='upper right', fontsize=9, markerscale=4)
+
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close()
+
 def main():
     sweep.quiet_petsc()
     parser = argparse.ArgumentParser(description='Generate data for quantity variation plots')
@@ -218,7 +244,13 @@ def main():
     parser.add_argument('--plot', metavar='JSON_PATH', help='Plot the given results file instead of generating new data, then exit')
     parser.add_argument('-o', '--optimise_for', choices=['pres', 'wind'],
                         help='Search for the parameters that extremise this quantity instead of sampling at random, spending at most --num_samples solves')
+    parser.add_argument('--plot_cost', nargs=2, metavar=('PRES_CSV', 'WIND_CSV'),
+                        help='Plot the cost against evaluation count of a pressure and a wind optimise run, then exit')
     args = parser.parse_args()
+
+    if args.plot_cost:
+        plot_optimiser_cost(*args.plot_cost)
+        return
 
     if args.plot:
         plot_trop_correlation(args.plot)
