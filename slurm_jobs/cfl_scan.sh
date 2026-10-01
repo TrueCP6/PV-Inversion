@@ -13,7 +13,9 @@
 #SBATCH --output=firedrake_%j.out
 #SBATCH --error=firedrake_%j.err
 
-# cfl_scan_3 found nothing unstable up to 2.3. 1.3 (SAFETY) is the reference the others'
+# cfl_scan_3 found nothing unstable up to 2.3, and this scan nothing up to 2.7 - but the jet core,
+# where the limit bites, only sees ~35/55 of the Courant number here (see timestepping.cfl_scan).
+# 1.3 (SAFETY) is the reference the others'
 # roughness is judged against (timestepping.roughness_ratios), so it has to last the full run
 COURANTS="1.3 1.7 1.9 2.1 2.3 2.5 2.7"
 POINTS=$(echo $COURANTS | wc -w)

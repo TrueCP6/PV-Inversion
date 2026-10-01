@@ -6,6 +6,7 @@ use_same_hash()
 import argparse
 from dataclasses import asdict, dataclass
 import json
+from pathlib import Path
 import time
 import numpy as np
 import sweep
@@ -48,16 +49,16 @@ LY = 5e6
 NY, NZ = 40, 50 # doubled at p=2
 
 class _TimesteppingParams(PhysicalParams):
-    # ponytail: a checkpoint reloads as a plain PhysicalParams, so its anomaly_x_pos reads Lx/2 -
-    # harmless, since it only positions q_init and a checkpoint carries its own q
     @property
     def anomaly_x_pos(self):
         return ANOMALY_X
 
-def _phys_params(Lx=PhysicalParams.Lx):
-    return _TimesteppingParams(Lx=Lx, Ly=LY, jet_y_pos=LY / 2) # anomaly_y_pos is Ly/2 too
+def _phys_params(Lx=PhysicalParams.Lx, overrides=None):
+    overrides = dict(overrides or {})
+    offset = overrides.pop("jet_y_pos", PhysicalParams.jet_y_pos) - PhysicalParams().anomaly_y_pos
+    return _TimesteppingParams(**overrides, Lx=Lx, Ly=LY, jet_y_pos=LY / 2 + offset) # anomaly_y_pos is Ly/2 too
 
-def _domain(T, p):
+def _domain(T, p, jet_magnitude=PhysicalParams.jet_magnitude):
     """(nx, ny, nz, Lx) for a run to T at order p, with dx = dy.
 
     Lx leaves room for the anomaly to be carried T downstream at the jet's peak speed - an
@@ -67,7 +68,7 @@ def _domain(T, p):
     scale = 4.0/p
     ny, nz = int(NY * scale), int(NZ * scale)
     dx = LY / ny
-    nx = int(np.ceil((2 * ANOMALY_X + PhysicalParams.jet_magnitude * T) / dx))
+    nx = int(np.ceil((2 * ANOMALY_X + jet_magnitude * T) / dx))
     return nx, ny, nz, nx * dx
 
 @dataclass
@@ -239,14 +240,7 @@ def _build_solver(nx, ny, nz, p, phys_params=None):
     solver_params = SolverParams(nx=nx, ny=ny, nz=nz, polynomial_order=p, check_flux=False)
     return PrognosticSolver(solver_params, phys_params or PhysicalParams(), matfree=True)
 
-def run(out_path, T=DAY, p=None, courant=None, backup=24):
-    """Step to T, recording diagnostics every step, and write them to out_path as we go.
-
-    The records are rewritten every SAVE_EVERY steps rather than at the end, so a run that is
-    interrupted - or that a laptop sleeps through - still leaves nearly everything it reached.
-    Every backup hours (never, if it is 0) the full state is checkpointed beside out_path,
-    as <out_path stem>_t<hours>h.h5, for background_plots.py --checkpoint.
-    """
+def run(out_path, T=DAY, p=None, courant=None, backup=24, params=None):
     from firedrake.petsc import PETSc
     from prognostic_solver import SAFETY
     from parameters import SolverParams
@@ -254,9 +248,9 @@ def run(out_path, T=DAY, p=None, courant=None, backup=24):
     sweep.quiet_petsc()
     p = p if p is not None else SolverParams.polynomial_order
     courant = courant if courant is not None else SAFETY
-    nx, ny, nz, Lx = _domain(T, p)
+    nx, ny, nz, Lx = _domain(T, p, _phys_params(overrides=params).jet_magnitude)
 
-    solver = _build_solver(nx, ny, nz, p, _phys_params(Lx))
+    solver = _build_solver(nx, ny, nz, p, _phys_params(Lx, params))
     lines = _HovmollerSampling(solver)
     initial = _diagnostics(solver, lines)
     records = [StepRecord(t=0.0, dt=float('nan'), level_heights=lines.heights, Lx=Lx, **initial)]
@@ -323,41 +317,6 @@ def _roughness_meter(q, p):
     return roughness
 
 def cfl_scan(out_path, courants, steps=60, n=12, p=None, T=None):
-    """Step at each Courant number and record how far max|q| and ||q||_L2 ran away.
-
-    prognostic_solver.dt() steps at a multiple of dx_eff / max(|u| + |v|), where dx_eff is
-    the smallest gap between neighbouring nodes in a cell, counting its edges. 1D von Neumann
-    analysis of upwind DG under SSPRK3 puts the limit at about 1.9 of it for DQ's
-    Gauss-Legendre nodes. If that is right, everything below it stays bounded and everything
-    above it diverges.
-
-    By default every point takes the same number of steps. Instability is a per-step
-    amplification that compounds, so for finding the limit what has to be held equal is how
-    many chances it had to compound - running to a fixed time would hand the largest steps
-    the fewest of them. Given T, every point instead runs to the same simulated time. That is
-    the comparison for the growth below the limit: equal steps hand the largest steps the
-    most simulated time, so growth that comes from the flow steepening q past what the grid
-    resolves would look like it depended on dt. If the max|q| histories against t collapse
-    across Courant numbers, the growth is spatial; if they fan out, it comes from the step.
-
-    ||q||_L2 is the sharper test. Upwind DG with a velocity whose normal component is
-    continuous cannot grow it, apart from what the lateral boundaries carry in. If it decays
-    while max|q| grows, the growth is DG's ordinary overshoot at unresolved gradients; if it
-    grows too, something is actually wrong.
-
-    The Zhang-Shu limiter is always on, and it holds max|q| inside its initial bounds by
-    design, so a run can hardly cross BLOWUP_FACTOR and nearly every point reads as stable.
-    The limited fraction is the measure instead - near zero while the limiter only trims
-    overshoots, and climbing, with ||q||_L2 falling faster, once it is fighting an instability.
-
-    Neither catches a step just past the limit: the grid-scale noise it grows levels off well
-    inside the bounds (timestepping_1377808's jet core sat past it for days, flagged by
-    neither). The roughness does, but so does the flow sharpening q, so it is judged against
-    the lowest Courant number after the fact (roughness_ratios), not against a fixed cut here.
-
-    Coarser than a production run by default: this is a check on a dimensionless number,
-    and the scan has to step through it many times over.
-    """
     from firedrake import norm
     from firedrake.petsc import PETSc
     from math_utils import get_global_extrema
@@ -661,6 +620,9 @@ def main():
                         help='Multiple of dx_eff / max(|u| + |v|) to step at (default: prognostic_solver.SAFETY)')
     parser.add_argument('--backup', type=float, default=24, metavar='H',
                         help='Checkpoint psi, q and the parameters every H simulated hours (0: never)')
+    parser.add_argument('--params', metavar='JSON_PATH',
+                        help='PhysicalParams overrides, e.g. param_sampler.py\'s optimised_*.json, '
+                             'suffixing the results file names with the JSON\'s')
 
     parser.add_argument('--cfl-scan', action='store_true',
                         help='Scan Courant numbers to check where the scheme goes unstable')
@@ -694,7 +656,13 @@ def main():
                  n=args.scan_n, p=args.polynomial_order, T=T)
         return
 
-    run(f"timestepping_{args.job_id}.json", T=args.hours * 3600, p=args.polynomial_order, courant=args.courant, backup=args.backup)
+    params, suffix = None, ""
+    if args.params:
+        with open(args.params) as f:
+            params = json.load(f)
+        suffix = f"_{Path(args.params).stem}"
+    run(f"timestepping_{args.job_id}{suffix}.json", T=args.hours * 3600, p=args.polynomial_order,
+        courant=args.courant, backup=args.backup, params=params)
 
 if __name__ == '__main__':
     main()
