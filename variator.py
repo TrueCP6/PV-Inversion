@@ -42,7 +42,7 @@ def trop_correlation_axes():
     fig.set_constrained_layout_pads(wspace=0.02, w_pad=0.02, h_pad=0.02)
 
     for ax, y_label in zip(axes, TROP_PANEL_LABELS):
-        ax.set_xlabel(r"$\min\, z_\text{dyn}$ [\unit{\meter}]")
+        ax.set_xlabel(r"$z_\text{dyn}$ [\unit{\meter}]")
         ax.set_ylabel(y_label)
         ax.grid(True, which='both', linestyle=':', alpha=0.5)
     axes[2].ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
@@ -232,7 +232,7 @@ def plot_variator_results(json_path):
     quantities = [
         ("wind_values", "Maximum surface wind speed", r"$\max\left|\mathbf{u}\right|_{z=0}$ [\unit{\meter\per\second}]"),
         ("pressure_values", "Minimum surface pressure anomaly", r"$\min\, p^*_{z=0}$ [\unit{\hecto\pascal}]"),
-        ("trop_height_values", "Minimum dynamical tropopause height", r"$\min\, z_\text{dyn}$ [\unit{\meter}]"),
+        ("trop_height_values", "Minimum dynamical tropopause height", r"$z_\text{dyn}$ [\unit{\meter}]"),
         ("vorticity_values", "Minimum surface vorticity", r"$\min\, \zeta_g|_{z=0}$ [\unit{\per\second}]"),
     ]
 
