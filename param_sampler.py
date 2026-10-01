@@ -177,6 +177,7 @@ def plot_trop_correlation(json_path, output_path="tex/plots/random_sample_trop_c
 
     if max_rossby is not None:
         keep = np.asarray(data["rossby_number"]) < max_rossby
+        print(f"{keep.mean()*100:.3g}% of samples have Ro < {max_rossby}")
         data = {key: np.asarray(values)[keep] for key, values in data.items()}
 
     # Draw the lowest Rossby numbers first, so the most ageostrophic samples sit on top
@@ -222,6 +223,7 @@ def main():
     if args.plot:
         plot_trop_correlation(args.plot)
         plot_trop_correlation(args.plot, "tex/plots/random_sample_trop_correlations_ro_below_1.pdf", max_rossby=1)
+        plot_trop_correlation(args.plot, "tex/plots/random_sample_trop_correlations_ro_below_0.5.pdf", max_rossby=0.5)
         return
 
     sampler = ParamSampler(optimise_for=args.optimise_for, seed=args.seed, job_id=args.job_id)
