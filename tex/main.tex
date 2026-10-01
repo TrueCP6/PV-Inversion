@@ -12,7 +12,12 @@
 \usepackage{subcaption}
 \usepackage{float}
 \usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xltabular}
+\usepackage{ltablex} % longtable + tabularx (auto-stretching columns)
+\keepXColumns
 \usepackage{bm}
+\usepackage[table]{xcolor}
 \usepackage{soul}
 \usepackage{amssymb}
 \usepackage[dvipsnames]{xcolor}
@@ -250,7 +255,7 @@ The specific objectives of this project are to:
   
   \item implement an optimisation scheme that automatically searches parameter space for the intrusions and background states that produce the most severe surface response; and
   
-  \item integrate these configurations forward in time using the prognostic equation \cref{qgpv_time} to assess their longevity and evolution.
+  \item integrate these configurations forward in time using the prognostic \cref{qgpv_time} to assess their longevity and evolution.
 \end{enumerate}
 
 This text therefore focuses on solutions to \cref{qgpv,qgpv_time} and their physical implications.
@@ -633,7 +638,7 @@ It can be numerically calculated that the relative error between $\psi$ when $\o
 
 \subsection{Boundary Conditions}
 To specify the horizontal boundary conditions, we need to choose values of $u$ and $v$. We will define a jet stream aiming to recreate the one shown in \cite{Barnes2022main}.
-The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the middle of the tropopause vertically, is centred about the middle of the domain in the $y$-direction ($y_\text{jet} = L_y /2$), is uniform in the $y$-direction, has a Gaussian shape, and has a similar overall size to the one shown in~\cite{Barnes2022main} ($L_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{3500}{\meter}$).
+The exact function used is not given, but we can specify a function that also has a maximum magnitude of $u_\text{jet} =\qty{35}{\meter\per\second}$, is centred about the middle of the tropopause vertically, is centred about the middle of the domain in the $y$-direction ($y_\text{jet} = L_y /2$), is uniform in the $y$-direction, has a Gaussian shape, and has a similar overall size to the one shown in~\cite{Barnes2022main} ($L_\text{jet} \approx \qty{500}{\km}$ and $z_\text{jet} \approx \qty{4}{\kilo\meter}$).
 We will let
 
 \begin{equation}\label{u_boundary}
@@ -653,7 +658,8 @@ We will let
 
 With regards to the vertical boundary conditions (\cref{qgpv_bcs_vert}), the potential temperature anomaly $\theta^*$ will be calculated in \cref{sec:solv_cond} to ensure satisfaction of the so-called \textit{Neumann solvability condition}.
 
-\subsection{Source term}
+\subsection{Source Term}\label{sec:source_term}
+
 To calculate the source term $q$ we must first specify the background state $\overline q$ and the QGPV associated with the anomaly, $q^*$. 
 We integrate \cref{u_boundary,v_boundary} using $\overline u = -\overline \psi_y$ and $\overline v = \overline \psi_x$ to calculate the background stream function $\overline\psi$:
 
@@ -709,14 +715,14 @@ The smoothing value chosen was $\tau=\displaystyle 0.075 |Q^*_\text{mag}|$.
 
 EPV inversion comes with the condition that $fQ > 0$ everywhere in the domain; a necessity to ensure \cref{epv} remains elliptic and not ill-posed \cite{Hoskins1985}.
 \Cref{qgpv} is elliptic and linear, so the inversion will not fail for $q$ that corresponds to $fQ\leq 0$.
-QGPV is however an approximation of EPV \cite{fehlmann1997pvelements}, so the $fQ > 0$ constraint must be checked manually.
+QGPV is however an approximation of EPV in this case \cite{fehlmann1997pvelements}, so the $fQ > 0$ constraint must be checked manually.
 As is seen in \cref{fig:epv_combined}, $Q=\overline{Q} + Q^*$ has regions where $fQ \leq 0$, implying an EPV inversion over this atmospheric state would fail.
 No explanation is offered as to why Barnes et al. chose a background state that has this feature.
 It must however be acknowledged that Barnes et al. did not publish all information necessary to recreate their background state exactly\footnote{Quantities used but not explicitly given by Barnes et al. include but are not limited to $w_\text{trop}$, $\delta$ and $L_\text{jet}$ \cite{Barnes2022main}.}, so whether this holds is unknown \cite{Barnes2022main}.
 
 Nevertheless, we establish a metric of the volume of 'invalid EPV' compared to the total domain volume as a diagnostic:
 
-\begin{equation}
+\begin{equation}\label{V_minus}
     \mathcal{V}_-\equiv\frac{1}{L_xL_yH} \int_V \vartheta(-fQ)\,dV, \qquad
     \vartheta(x) \equiv \begin{cases}
         1 & x >0 \\
@@ -735,7 +741,7 @@ Despite these issues, we arrive at the expression for the source term of \cref{q
     q \approx \frac{\overline{\rho} g}{\overline{N}^2 \overline{\theta}} \left(\overline Q + Q^*\right) - f
 \end{equation}
 
-\section{Numerical Solution}\label{sec:numerical_soln}
+\section{Numerical QGPV Inversion}\label{sec:numerical_soln}
 
 By adopting a smoothing value of $\delta = 2$ for \cref{kappa_delta}, the integral in \cref{theta_bar} is of the following general form \cite{Mathematica}:
 
@@ -944,7 +950,7 @@ Additionally, $C$ can be pulled out of the integrals in $L(C)$ and divided away,
 
 \begin{equation}\label{solve_cond_1}
     \oint_A {\overline \rho \left( \overline v n_x -  \overline u n_y\right)\,dA}
-    + \underbrace{f_0^2\oint _A {\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA}}_{I_1}
+    + \underbrace{f_0^2\int _A {\frac{\overline \rho}{\overline N^2} \frac{g\theta ^*}{f\overline{\theta}} n_z \, dA}}_{I_1}
     - \int_V { \overline\rho q  \,dV} = 0
 \end{equation}
 
@@ -957,7 +963,7 @@ The integrand of $I_1$ exclusively depends on $z$, meaning the integral can be e
 Rearranging \cref{solve_cond_1} yields the formula for $\theta^*$:
 
 \begin{equation}\label{general_solv_cond}
-    \theta^* = \frac{\displaystyle \int_V { \overline\rho q  \,dV} - \oint_A {\overline \rho \left( \overline v n_x - \overline u n_y\right)\,dA}}{ \displaystyle L_x L_y f_0 g \left(\frac{\overline \rho (H)}{\overline N(H)^2 \overline \theta(H) } - \frac{\overline \rho (0)}{\overline N(0)^2 \overline \theta(0) }\right)}
+    \theta^* = \frac{\displaystyle \int_V { \overline\rho q  \,dV} - \int_A {\overline \rho \left( \overline v n_x - \overline u n_y\right)\,dA}}{ \displaystyle L_x L_y f_0 g \left(\frac{\overline \rho (H)}{\overline N(H)^2 \overline \theta(H) } - \frac{\overline \rho (0)}{\overline N(0)^2 \overline \theta(0) }\right)}
 \end{equation}
 
 Experimentally it was found that $\theta^* \sim \qty{-0.1}{\kelvin}$, representing a very small anomaly in potential temperature, smaller than the approximate \qty{-2}{\kelvin} from \cite{sprenger2007userguide}.
@@ -1115,7 +1121,6 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
 \begin{itemize}
     \item \textbf{Wind components} $\bm{u}=(u,v,0)$: Calculated directly using properties of the stream function.
     The control state is plotted in \cref{fig:control_surface_wind,fig:control_wind_speed}.
-    
     \begin{equation}\label{wind}
         u=-\frac{\partial \psi}{\partial y}, \qquad v=\frac{\partial \psi}{\partial x}
     \end{equation}
@@ -1141,12 +1146,11 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
     \begin{figure}[tp]
         \centering
         \includegraphics{geostrophic_vorticity.pdf}
-        \caption{Vertical slices of the geostrophic vorticity of the control state (post-inversion). In this case the vorticity induced by the anomaly has negligible effect on the surface.}
+        \caption{Vertical slices of the geostrophic vorticity of the control state (post-inversion). In this case the vorticity induced by the anomaly has a minor effect on the surface.}
         \label{fig:control_vorticity}
     \end{figure}
 
     \item \textbf{Pressure anomaly} $p^*$: Since $\psi=\Phi^* / f_0$, and to leading order a geopotential anomaly corresponds hydrostatically to a pressure anomaly $p^* \approx \overline\rho\,\Phi^*$ \cite{Vallis2017},
-
     \begin{equation}\label{p_star}
         p^*(x,y,z) = \overline\rho(z)\, f_0 \left[\psi(x,y,z) - \psi_0(z)\right]
     \end{equation}
@@ -1177,7 +1181,7 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
         \label{fig:control_theta_star}
     \end{figure}
 
-    \item \textbf{Temperature anomaly} $T^*$: Calculated from $\theta*$, using the definition of potential temperature in \cref{pot_temp}.
+    \item \textbf{Temperature anomaly} $T^*$: Calculated from $\theta^*$, using the definition of potential temperature in \cref{pot_temp}.
     % The control state is plotted in \cref{fig:control_T_star}.
 
     % \begin{figure}[tp]
@@ -1193,7 +1197,7 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
     \begin{figure}[tp]
         \centering
         \includegraphics{pressure_surface.pdf}
-        \caption{Surface pressure of the control state. A contour interval of \qty{1}{\hecto\pascal} is used. The anomaly induces a weak pressure gradient on the surface here.}
+        \caption{Surface pressure of the control state. A contour interval of \qty{1}{\hecto\pascal} is used. The anomaly induces a noticeable pressure gradient on the surface here.}
         \label{fig:control_pressure}
     \end{figure}
 
@@ -1204,48 +1208,412 @@ Using the numerically calculated stream function $\psi$ that satisfies \cref{qgp
         \label{fig:control_theta}
     \end{figure}
 
-    \item \textbf{Minimum dynamical tropopause height}: %TODO
-    
+    \item \textbf{Minimum dynamical tropopause height} $z_\text{dyn}$:
+    The lowest point of the dynamical tropopause, which we define as the \qty{\pm 1.5}{PVU} surface that bounds the stratosphere \cite{Barnes2021col}.
+    It is computed by first converting from $q$ to EPV using \cref{Q_to_q_conversion}.
+    A DoF is marked as stratospheric if $fQ>0$ and $|Q| \geq \qty{1.5}{PVU}$, so $Q \leq \qty{-1.5}{PVU}$ in the Southern Hemisphere.
+    Since the mesh is a uniform rectangle extruded with a constant layer height, the DoFs lie on a regular $(x,y,z)$ lattice, so these marks are gathered from every MPI rank into a single boolean array.
+    Detached pockets of stratospheric air below the tropopause proper, such as those left behind by the cut-off lows of \cref{sec:cols}, must not be counted as the tropopause \cite{Barnes2021col}.
+    The connected regions of the array are therefore labelled (with \mintinline{python}{scipy.ndimage.label} \cite{scipy}, connecting only through shared faces), and only the regions that reach the model top at $z=H$ are kept.
+    $z_\text{dyn}$ is the height of the lowest DoF in these regions, so it is resolved only to the vertical spacing of the DoFs.
+    If no stratospheric air reaches the top of the domain, $z_\text{dyn} = H$.
+    The control state has $z_\text{dyn} = \qty{6767}{\meter}$.
+
+    \item The \textbf{maximum Rossby number} is estimated using \cref{rossby_number}:
+    \begin{equation}\label{max_rossby}
+        \mathrm{Ro}_\text{max} \approx \max_V \left|\frac{\zeta_g}{f}\right|
+    \end{equation}
+    The control state has $\mathrm{Ro}_\text{max} \sim 2$, far larger than the $\mathrm{Ro} \ll 1$ required for QGPV to be formally valid \cite{Hoskins1985,Vallis2017}.
+
+    \item The \textbf{Froude number} is given by the following \cite{Vallis2017}, which we approximate to enable direct calculation:
+    \begin{equation}\label{froude_number}
+        \mathrm{Fr} = \frac{U}{NH} \approx \frac{1}{\overline{N}} \frac{\partial \left|\bm{u}\right|}{\partial z}
+    \end{equation}
+    The control state exhibits $\mathrm{Fr}_\text{max} \sim 0.8$.
 \end{itemize}
 
-\clearpage
+\subsection{Limitations of QGPV}\label{sec:limits_of_qgpv}
+
+Now that all the numerical tools are in place to set up, compute and plot solutions to \cref{qgpv}, we are able to examine the effect of various atmospheric and anomaly parameters on surface cyclogenesis.
+
+Before proceeding, we must examine the primary limitations of QGPV and EPV, so that we may restrict our parameter search space not only to physically possible states, but also to states in which QGPV inversion remains a reasonable approximation of the true atmospheric state.
+
+The first constraint is on the sign of the EPV.
+For full EPV inversion, the requirement $fQ>0$ makes the inversion problem elliptic and well posed, and is equivalent to the balanced state being statically, inertially and symmetrically stable \cite{Hoskins1985}.
+To first order, QGPV is related to EPV by linearising about a uniformly stratified reference state at rest, \cite{fehlmann1997pvelements}, although this relation holds only for small relative anomalies and not in general \cite{Hoskins1985}.
+Under this relation $fQ>0$ is equivalent to $q/f > -1$; the QGPV inversion operator itself is linear and elliptic for any $q$, so this is a condition for the inverted state to be physically realisable rather than for the inversion to be solvable.
+We set up a direct way to quantify this in \cref{V_minus}, which brings the implication that for any atmosphere to be physically valid, $\mathcal{V}_-=0$.
+As described in \cref{sec:source_term}, $\mathcal{V}_-$ is driven largely by $|\partial \overline u / \partial z|$.
+
+A further but looser constraint is placed on the Rossby number.
+QGPV is only formally valid $\mathrm{Ro} \ll 1$, although it remains qualitatively useful for observed disturbance amplitudes \cite{HOLTON_chapter6}.
+Davis identified the inaccuracy of QG as the Rossby number becomes $\mathcal{O}(1)$ as its main weakness, while noting, following earlier work, that it may still give useful qualitative information in such situations \cite{Davis1992jas}.
+Davis did not directly measure the error of QG inversion against full EPV inversion, but did compare a truncated linear piecewise inversion, which nearly reduces to QG for a mean state at rest, with the full linear piecewise method \cite{Davis1992jas}.
+For an anomaly with maximum vorticity $\zeta_{\max}  = \qty{1.9e-4}{\per\second}$ (Ro $\approx 1.9$ for $f \approx \qty{e-4}{\per\second}$), the maximum surface wind attributed to one third of the anomaly differed between these methods by approximately 12\%, rising to 24\% at $\zeta_{\max} \approx \qty{2.9e-4}{\per\second}$ \cite{Davis1992jas}.
+Davis further found that the differences among these methods were smaller than their differences from QG inversion \cite{Davis1992jas}, so these figures should be read as a lower bound on the error of QG.
+For positive anomalies, the near-QG method produced stronger winds than the full linear method at the level of the anomaly, but weaker winds at the surface \cite{Davis1992jas}.
+This is consistent with vertical penetration of the anomaly increasing with its amplitude, whereas QG predicts a fixed penetration depth \cite{Davis1992jas}, so QG will tend to underestimate the surface response to strong upper-level anomalies.
+It must also be noted that Muraki et al.\ report that, at $\mathrm{Ro} \approx 0.3$, next-order corrections to QG remove qualitative deficiencies and significantly improve quantitative accuracy in the time-evolution of a baroclinic wave on a jet \cite{Muraki1999}.
+QGPV therefore already carries noticeable errors well below $\mathrm{Ro} = 1$.
+Unfortunately further investigating the error of QGPV inversion is beyond the reasonable scope of this Applied Mathematics Honours project.
+
+A restriction is additionally placed on the Froude number (\cref{froude_number}), which must be much less than one and comparable to $\mathrm{Ro}$.
+Finally, EPV is conserved following the flow only for adiabatic, frictionless motion \cite{Hoskins1985}.
+When condensation or evaporation occurs, heat is added to or removed from the air, and PV is no longer conserved.
+The inversion itself is instantaneous and does not require adiabatic flow, but moisture still affects it: condensation in rising air reduces the effective static stability, which increases the vertical penetration of an anomaly and enhances surface development \cite{Hoskins1985}.
+Our inversion uses dry stratification everywhere, so it may underestimate the surface response in moist ascending regions, the same direction of bias as the QG penetration error above.
+
+Sweeps of atmospheric and anomaly parameters must apply these restrictions, so as to limit the chance of non-physical results being derived.
+
+\section{Parameter Sweeps}
+The high efficiency of the diagnostic solver outlined in \cref{sec:numerical_soln} enables vast searches of the parameter space.
+A full atmospheric state can be constructed, inverted and analysed in under 3 seconds on the hardware given in \cref{app:hardware_hpc}, meaning these sweeps become highly tractable.
+
+\subsection{Parameters to Vary}
+We establish a list of parameters and ranges in which to vary them that correspond to numerically solvable and reasonably physically plausible atmospheric states.
+
+\providecommand{\rowsep}{%
+  \arrayrulecolor{black!20}\specialrule{0.4pt}{4pt}{4pt}\arrayrulecolor{black}}
+\providecommand{\paramgroup}[1]{%
+  \multicolumn{5}{@{}l}{\textbf{#1}}\\[2pt]}
+ 
+\begingroup
+\small
+\setlength{\tabcolsep}{7pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{xltabular}{\textwidth}{@{}
+    >{\raggedright\arraybackslash}l
+    r
+    r
+    >{\raggedright\arraybackslash}l
+    >{\raggedright\arraybackslash}X
+  @{}}
+  \caption{Bounds on the sampled atmospheric and anomaly parameters.}
+  \label{tab:parameter_bounds}\\
+  \toprule
+  & \multicolumn{2}{c}{Bounds} & & \\
+  \cmidrule(lr){2-3}
+  Quantity & Min & Max & Unit & Justification \\
+  \midrule
+  \endfirsthead
+  \caption[]{Bounds on the sampled parameters (continued).}\\
+  \toprule
+  & \multicolumn{2}{c}{Bounds} & & \\
+  \cmidrule(lr){2-3}
+  Quantity & Min & Max & Unit & Justification \\
+  \midrule
+  \endhead
+  \midrule
+  \multicolumn{5}{r@{}}{\emph{Continued on next page}}\\
+  \endfoot
+  \bottomrule
+  \endlastfoot
+  %
+  % ------------------------------------------------------------------
+  \paramgroup{Stratification and tropopause structure}
+  %
+  $\overline{N}'_\text{strat}$ & $-0.005$ & $0.003$ & \unit{\per\second} &
+    Departure from the $\varphi$-dependent mean, which is interpolated using $N^2(\ang{30})=\qty{7e-4}{\per\second\squared}$ and $N^2 (\ang{45})=\qty{4.5e-4}{\per\second\squared}$ \cite{Birner2006}.
+    Upper bound set by $N_\text{max}^2 \approx \qty{6e-4}{\per\second\squared}$.
+    \footnote{This is the lower bound for the stratospheric global maximum $N^2$ \cite{Birner2006}}
+    Lower bound set by $N_\text{min}^2 \approx \qty{3.5e-4}{\per\second\squared}$ \cite[Fig.~4b]{RandelWuForster2007}. \\
+  \rowsep
+  %
+  $\overline{N}_\text{trop}$ & $0.008$ & $0.014$ & \unit{\per\second} &
+    Tropospheric $N^2 \approx \qty{e-4}{\per\second\squared}$ with minimal $\varphi$ variation \cite{Birner2006}.
+    Bounds set by \cite[Fig.~4b]{RandelWuForster2007}. \\
+  \rowsep
+  %
+  $w_\text{trop}$ & $500$ & $2000$ & \unit{\meter} &
+    Observed tropopause inversion layers are $w_\text{trop}(\ang{33}) \approx \qty{500}{\meter}$ and $w_\text{trop}(\ang{48}) \approx \qty{2}{\kilo \meter}$ \cite{Birner2006}.
+    The floor is 1 cell for $N_z = 50$, $H = \qty{25}{\kilo\meter}$.\\
+  \rowsep
+  %
+  $z_\text{trop}$ & $10$ & $15$ & \unit{\kilo\meter} &
+    Same range as \cite{Barnes2022main}. Zonal-mean tropopause height is \qty{10.0}{\kilo\meter} at \ang{50}S and \qty{14.5}{\kilo\meter} at \ang{30}S \cite{Grise2010}\footnote{Synoptic and seasonal variations are about \qty{\pm 3}{\kilo\meter} on top of this \cite{SeidelRandel2006}. Not included in bounds due to numerical constraints.}.
+     \\
+  \rowsep
+  %
+  $\delta$ & $2$ & $10$ & -- &
+    Purely numerical kink-sharpness parameter for \cref{kappa_delta}. \\
+  \midrule
+  %
+  % ------------------------------------------------------------------
+  \paramgroup{Anomaly}
+  %
+  $\sqrt{x_\text{size}\, y_\text{size}}$ & $100$ & $400$ & \unit{\kilo\meter} &
+    Same as \cite{Barnes2022main} but allowing aspect ratio to vary.\\
+  \rowsep
+  %
+  $\ln(y_\text{size}/x_\text{size})$ & $\ln\tfrac14$ & $\ln 4$ & -- &
+    \cite{fehlmann1997pvelements} shows anomalies with aspect ratios of of 2--4\,:\,1, to at most 4\,:\,1.
+    \footnote{Filaments beyond 25\,:\,1 are physically possible \cite{fehlmann1997pvelements} but excluded because their short axes give $\mathrm{Ro} > 1$.}
+     \\
+  \rowsep
+  %
+  $z_\text{size}$ & $3500$ & $7000$ & \unit{\meter} &
+    Same range as \cite{Barnes2022main}.
+    Physical feasibility has not been assessed. \\
+  \rowsep
+  %
+  $Q_\text{anoclip}$ & $-2$ & $-1$ & \unit{PVU} &
+    Same as \cite{Barnes2022main}. \\
+  \midrule
+  %
+  % ------------------------------------------------------------------
+  \paramgroup{Jet parameters}
+  %
+  $L_\text{jet}$ & $200$ & $1000$ & \unit{\kilo\meter} &
+    Jets are about \qtyrange{550}{2000}{\kilo\meter} wide \cite{Stull2015}.
+    Converting width to a Gaussian scale\footnote{under two readings (full extent to \qty{5}{\percent} of $U$, or full width at half maximum)} gives \qtyrange{160}{1200}{\kilo\meter}. Then capped by the domain and rounded. \\
+  \rowsep
+  %
+  $z_\text{jet}$ & $1$ & $6$ & \unit{\kilo\meter} &
+    Jets are \qtyrange{5}{10}{\kilo\meter} deep \cite{Stull2015}, and the S. Hemisphere subtropical jet is confined in \qtyrange{500}{100}{\hecto\pascal} \cite{BalsElsholz2001}.
+    Both give \qtyrange{1.45}{6.0}{\kilo\meter}.
+    \\
+  \rowsep
+  %
+  $U_\text{jet}$ & $10$ & $80$ & \unit{\meter\per\second} &
+    Subtropical jets in the S. Hemisphere range from \qtyrange{5}{80}{\meter\per\second} depending on season \cite{Stull2015}. \\
+  \rowsep
+  %
+  $y_\text{jet}$ & $-1500$ & $500$ & \unit{\kilo\meter} &
+    Measured from $L_y/2$, where the anomaly sits; negative is poleward.
+    Barnes uses $y_\text{jet} = L_y /2$ \cite{Barnes2022main}, but COLs detach equatorward of the jet during their life cycle \cite{Barnes2021col}.
+    Limited to \qty{1500}{\kilo\meter} by the domain and $\beta$=0. \\
+  \midrule
+  %
+  % ------------------------------------------------------------------
+  \paramgroup{Background state}
+  %
+  $\varphi$ & $-50$ & $-30$ & \unit{\degree} &
+    Brackets the control latitude of \ang{42}S \cite{Barnes2022main} and covers the latitudes of S. Hemisphere COLs \cite{Barnes2021col}.\\
+    %
+    $\overline{T}'(0)$ & $-10$ & $14$ & \unit{\kelvin} &
+    Departure from the annual zonal mean (given in \cref{tab:T_bottom_mean}), from daily NCEP/NCAR reanalysis 1991--2020 over southern Africa (\ang{15}--\ang{35}E) \cite{Kalnay1996}.
+    The edges cover the 1st and 99th percentiles at almost every latitude.\\
+  \rowsep
+  %
+\end{xltabular}
+\endgroup
+
+\begin{table}[htbp]
+  \centering
+  \caption{Annual zonal-mean air temperature at \qty{1000}{\hecto\pascal},
+    NCEP/NCAR Reanalysis~1, 1991--2020 monthly long-term means \cite{Kalnay1996}.}
+  \label{tab:T_bottom_mean}
+  \begin{tabular}{l*{7}{c}}
+    \toprule
+    Latitude (\unit{\degree}) & $-50$ & $-45$ & $-40$ & $-35$ & $-30$ & $-25$ & $-20$ \\
+    \midrule
+    $T$ (\unit{\kelvin})      & 279.20 & 282.38 & 285.80 & 288.85 & 291.83 & 294.44 & 296.47 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{One Parameter at a Time}\label{sec:one_param}
+
+Varying a single parameter at a time, using the control state as a base, allows us to investigate the surface effects of each parameter in isolation.
+For this experiment we do not place any restrictions on $\mathcal{V}_-$ , $\mathrm{Ro}$ or $\mathrm{Fr}$.
+We simply aim to see how each parameter in \cref{tab:parameter_bounds} affects maximum surface wind speed, minimum dynamical tropopause height, minimum surface pressure anomaly and minimum surface vorticity.
+
+For each parameter $g$ in \cref{tab:parameter_bounds} that varies in the range $g\in[a,b]$, we define a $g(x)=a + (b-a)x$, with $x\in[0,1]$.
+This gives a normalised parameter range so that each parameter may be plotted on the same set of axes.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics{maximum_surface_wind_speed.pdf}
+    \caption{Effect of taking the control state and varying a single parameter at a time on maximum surface wind speed.}
+    \label{fig:max_surf_wind}
+\end{figure}
+
+It can be seen in \cref{fig:max_surf_wind} that surface wind has a trivial and potentially non-physical relationship with $z_\text{trop}$.
+The Gaussian jet stream (\cref{u_boundary}) induces its own wind upon the surface once $z_\text{jet}$ is large enough, and thus the surface wind is not caused by the anomaly.
+This is supported by the exponential profile of the $z_\text{jet}$ line in \cref{fig:max_surf_wind}, following the exponential increase of effectively moving the Gaussian closer.
+This effect also appears to occur in \cref{fig:min_surf_pres_ano}, increasing the magnitude of the surface pressure anomaly by inducing baroclinity via non-cyclonic wind.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics{minimum_surface_pressure_anomaly.pdf}
+    \caption{Effect of taking the control state and varying a single parameter at a time on minimum surface pressure anomaly.}
+    \label{fig:min_surf_pres_ano}
+\end{figure}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics{minimum_surface_vorticity.pdf}
+    \caption{Effect of taking the control state and varying a single parameter at a time on minimum surface vorticity.}
+    \label{fig:min_surf_vort}
+\end{figure}
+
+Comparing \cref{fig:min_surf_vort} with \cref{fig:min_surf_pres_ano,fig:max_surf_wind} reveals that anomaly size affects surface wind and the pressure anomaly much more than minimum surface vorticity.
+This agrees with the findings of Barnes et al. \cite{Barnes2022main}.
+Moreover, \cref{fig:min_surf_vort,fig:min_surf_pres_ano,fig:max_surf_wind} show that a weakly stratified troposphere moderately intensifies surface effects, even within physically plausible ranges established in \cref{tab:parameter_bounds}.
+
+Jet stream parameters are what determine $\partial \overline{u}/ \partial z$ and hence drive $\mathcal{V}_-$ away from 0, presenting difficulties in justifying the validity of QGPV inversion in certain regions of the parameter space.
+Interestingly however, $U_\text{jet}$, $L_\text{jet}$ and $y_\text{jet}$ have almost no effect on the surface, which may justify using weaker jet streams (or potentially none at all) when performing parameter sweeps, further allowable by the linearity of \cref{qgpv}.
+Expectedly due to linearity, the surface vorticity (\cref{fig:min_surf_vort}), the jet has no effect at all.
+
+Increasing latitude consequently increases $f$, and thereby increases the magnitude of the stretching term in \cref{qgpv}, likely inducing the slight poleward bias towards the stronger surface effects visible in \cref{fig:min_surf_vort,fig:min_surf_pres_ano,fig:max_surf_wind}.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics{minimum_dynamical_tropopause_height.pdf}
+    \caption{Effect of taking the control state and varying a single parameter at a time on minimum dynamical tropopause height. Step-like behaviour is due to $z_\text{dyn}$ only being resolved to the nearest degree of freedom, and is hence discrete.}
+    \label{fig:min_dyn_trop}
+\end{figure}
+
+A strange and unexplained relationship is the sharp step of the $y_\text{jet}$ line in \cref{fig:min_dyn_trop}.
+As the jet is offset further poleward from the anomaly, $z_\text{dyn}$ exhibits a slight decrease.
+However at the normalised parameter value of 0.6, $z_\text{dyn}$ is sharply pulled up to a \qty{10}{\kilo\meter} altitude.
+This corresponds to $y_\text{jet} \approx L_y/2 - \qty{300}{\kilo\meter}$.
+The phenomenon may be related to $L_\text{jet} = \qty{500}{\kilo\meter}$ in the control parameters, but no explanation is offered at present.
+
+\Cref{fig:max_surf_wind,fig:min_dyn_trop,fig:min_surf_pres_ano,fig:min_surf_vort} show common behaviour, shedding some light on which atmospheric and anomaly parameters most significantly affect the surface across multiple metrics.
+The tropopause thickness parameters $w_\text{trop}$ and $\delta$ have almost no measurable effect on any of the plots, most surprisingly \cref{fig:min_dyn_trop}.
+This is reassuring as it shows that how the tropopause is treated numerically is not important when calculating surface effects.
+The same is true for $\overline{N}'_\text{strat}$, which could be why Barnes et al. use an unrealistic value for $\overline{N}_\text{strat}$ \cite{Barnes2022main}; it simply does not matter on the surface.
+Furthermore, the aspect ratio of the anomaly $y_\text{size}/x_\text{size}$ unexpectedly has no effect on the surface wind, vorticity or pressure anomaly.
+Surface temperature variation $\overline{T}'(0)$ also has very little to no effect on any of the plots, with the exception of causing slight variation in $z_\text{dyn}$ in \cref{fig:min_dyn_trop}.
+
+In accordance with the findings of Barnes et al., $z_\text{trop}$ and $z_\text{size}$ have a significant effect on all three surface quantities \cite{Barnes2022main}, and have a trivially strong relationship with $z_\text{dyn}$.
+
+Of \cref{fig:max_surf_wind,fig:min_dyn_trop,fig:min_surf_pres_ano,fig:min_surf_vort}, only \cref{fig:min_dyn_trop} appears to show a non-negligible effect induced by $Q_\text{anoclip}$.
+This is likely caused in part by its range being much smaller than most of the other parameters.
+
+Barnes et al. \cite{Barnes2022main} found that the minimum dynamical tropopause height is the major factor in surface cyclogenetic forcing, more so than the intrusion's vertical extent.
+We can view the relationship between the surface variables and minimum dynamical tropopause height by reusing the data from \cref{fig:max_surf_wind,fig:min_dyn_trop,fig:min_surf_pres_ano,fig:min_surf_vort}.
+
+\begin{figure}[hbtp]
+    \centering
+    \includegraphics{tropopause_height_correlations.pdf}
+    \caption{Minimum dynamical tropopause height versus minimum surface pressure anomaly, maximum surface wind speed and minimum surface vorticity. No restrictions are placed on $\mathcal{V}_-$, $\mathrm{Ro}$ or $\mathrm{Fr}$. Parameters are varied one at a time from the control parameters.}
+    \label{fig:trop_height_correl}
+\end{figure}
+
+Most of the observations above arising from \cref{fig:max_surf_wind,fig:min_dyn_trop,fig:min_surf_pres_ano,fig:min_surf_vort} are also apparent in \cref{fig:trop_height_correl}.
+The parameters that increase surface effects are also correlated with a lowered $z_\text{dyn}$.
+One of the noticeable exceptions is $\overline{N}_\text{trop}$.
+$\overline{N}_\text{trop}$ brings \textit{up} $z_\text{dyn}$ while increasing surface effects.
+Another exception is anomaly size.
+Anomaly size does not affect $z_\text{dyn}$, but has a major effect on $p^*_{z=0}$ and $|\bm{u}|_{z=0}$.
+A wider anomaly makes the surface low deeper, but it also spreads the low over a larger area.
+Those two effects largely cancel in the vorticity, while pressure and wind keep growing \cite{Barnes2022main}.
+
+Since no restrictions are placed on whether each parameter evaluation results in a QG-invertible or physically plausible ($\mathcal{V}_-=0$) atmosphere, these findings may not hold in full EPV inversion.
+Furthermore, nonlinear relationships between parameters are not possible to investigate by varying a single parameter at a time.
+
+\subsection{Random Sampling}\label{sec:random_sampling}
+
+In an effort to address the issues stated above, we investigate the relationship between the surface variables and $z_\text{dyn}$ by randomly and uniformly sampling parameter vectors from the ranges outlined in \cref{tab:parameter_bounds}.
+We reject any samples with $\mathcal{V}_- > 0$, and colour each sample point by its Rossby number.
+Accumulating 1000 valid samples gives \cref{fig:random_sample}.
+Only 5\% of parameter vectors sampled meet the $\mathcal{V}_- = 0$ requirement, raising doubts as to the validity of the findings of \cref{sec:one_param}.
+
+\begin{figure}[hbtp]
+    \centering
+    \includegraphics{random_sample_trop_correlations.pdf}
+    \caption{1000 randomly sampled parameters from \cref{tab:parameter_bounds} with $\mathcal{V}_- = 0$. Points corresponding to an individual atmospheric state are coloured by their Rossby number.}
+    \label{fig:random_sample}
+\end{figure}
+
+We employ the Spearman $\rho$ to quantify the strength of the monotonic relationship between each surface variable and $z_\text{dyn}$.
+\Cref{fig:random_sample} shows a moderately strong monotonic relationship between $z_\text{dyn}$ and the surface variables, with vorticity being on the edge of what could be called a strong relationship \cite{Schober2018}.
+
+However, most of the atmospheric states in \cref{fig:random_sample} are beyond the range of $\mathrm{Ro}$ for which QGPV is quantitatively or qualitatively useful (as discussed in \cref{sec:limits_of_qgpv}).
+To address this we drop any points with $\mathrm{Ro} \geq 1$ to produce \cref{fig:random_sample_ro}.
+
+\begin{figure}[hbtp]
+    \centering
+    \includegraphics{random_sample_trop_correlations_ro_below_1.pdf}
+    \caption{Same as \cref{fig:random_sample}, but only the 21.6\% of points with $\mathrm{Ro} < 1$.}
+    \label{fig:random_sample_ro}
+\end{figure}
+
+\Cref{fig:random_sample_ro} now only consists of points which fall broadly within the range that QGPV has (at minimum) qualitative usefulness.
+For quantitative usefulness, we require $\mathrm{Ro} \lesssim 0.5$, but only 0.6\% of points have $\mathrm{Ro} < 0.5$, so this was practical to test.
+The $\rho$ of each panel changes very little from \cref{fig:random_sample} to \cref{fig:random_sample_ro}, which supports the moderate monotonic relationship between $z_\text{dyn}$ and surface effects.
+
+The above findings support the conclusion that minimum surface vorticity, minimum surface pressure anomaly and maximum surface wind speed are largely driven by the minimum dynamical tropopause height induced by an anomaly.
+Other characteristics of the anomaly are not as important as the height of the \qty{-1.5}{PVU} contour above the surface.
+
+\subsection{Maximising Surface Response}
+
+Automating the search for parameters that maximise surface response requires setting up an optimisation problem.
+We first reduce the dimensionality of the problem by choosing to not vary $w_\text{trop}$, $\delta$ and $\overline{N}'_\text{strat}$, as \cref{sec:one_param} shows that they have negligible effect on the surface.
+Using the parameter normalisation scheme from \cref{sec:one_param}, we represent any given choice of parameters as a vector $\bm{x} \in [0,1]^d$, where $d$ denotes the dimensionality or number of parameters we allow to vary.
+Computing derivatives of $\min p^*_{z=0}$ and $\min -|\bm{u}|_{z=0}$ with respect to each of the parameters in \cref{tab:parameter_bounds} is non-trivial due to the highly nonlinear relationships between some parameters and the surface variables.
+For example, one of the chains of dependence goes as $\min p^*_{z=0} \to p^* \to \psi \to  q \to  Q^* \to z_\text{size}$, where the arrows each represent complex or nonlinear dependence relations.
+This rules out any optimsation schemes which require gradients, such as variants of gradient descent.
+
+Instead we opt for a derivative-free bounded optimiser.
+One such method is BOBYQA \cite{Powell2009}, implemented in Python as Py-BOBYQA \cite{Cartis2019}.
+It can be configured to seek the global minimum, as opposed to a local one \cite{Cartis2021}, which improves the exhaustiveness of our parameter sweep.
+We begin the implementation by defining a cost function we seek to minimise:
+
+\begin{equation}\label{cost}
+    C(\bm{x}) = \frac{O}{\sqrt{\tilde{\mathrm{Ro}}\tilde{\mathrm{Fr}}}} + \mu \mathcal{V}_-
+\end{equation}
+
+Here $O$ is the objective we wish to minimise, either $\min -|\bm{u}|_{z=0}$ or $\min p^*_{z=0}$.
+The penalty parameter which drives $\mathcal{V}_- \to 0$ is $\mu=10^6$, quickly pushing the optimiser away from parameters that cause $\mathcal{V}_- > 0$.
+The denominator rewards small Rossby and Froude numbers, and punishes large ones, telling the solver to find a balance between surface effect and QG validity.
+Large $\mathrm{Ro}, \mathrm{Fr} > 1$ push $C(\bm{x})$ closer to zero, when interesting values of $O$ are $\sim -10$.
+We use clipped $\tilde{\mathrm{Ro}} = \max\left\{\mathrm{Ro}_\text{max}, 0.5\right\}$ and  $\tilde{\mathrm{Fr}} = \max\left\{\mathrm{Fr}_\text{max}, 0.5\right\}$ to prevent the optimiser from finding that sending $\mathrm{Ro} \times\mathrm{Fr} \to 0$ is the most effective way to send $C(\bm{x}) \to -\infty$, thereby polluting the results.
+We configure Py-BOBYQA to run on a single MPI rank (see \cref{app:mpi}), while allowing the inversion of \cref{qgpv} to run on all ranks.
+
+Running the optimiser for both objectives -- maximum surface wind speed and minimum surface pressure anomaly -- yields \cref{fig:optimiser}.
+Py-BOBYQA is configured to call $C(\bm{x})$ a maximum of 5000 times in each case.
+
+\begin{figure}[tp]
+    \centering
+    \includegraphics{optimiser_cost.pdf}
+    \caption{Convergence of Py-BOBYQA towards the global minimum of $C(\bm{x})$, for both objectives $O$.}
+    \label{fig:optimiser}
+\end{figure}
+
+\section{Numerical Time-Evolution}
+
+\section{Conclusions}
+
 \section{References}
 \printbibliography[heading=none]
 
-\section{TEMP}
-\subsection{Plan}
-\begin{enumerate}
-    \item Title and abstract
-    \item Introduction
-    \item \st{Basic structure of the atmosphere}
-    \item \st{What is potential vorticity?}
-    \item \st{Introduce Ertel PV}
-    \item \st{What is a stratospheric intrusion and how does it relate to cut off lows}
-    \item \st{Cut off lows in south africa}
-    \item \st{Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping}
-    \item \st{I.e. investigate the effects of PV anomalies on the weather in an idealised setting, why QGPV?}
-    \item \st{Brief overview of QGPV equation and the assumptions that arise from it.}
-    \item \st{Background states}
-    \item \st{Boundary conditions}
-    \item \st{Specify q and plot it}
-    \item \st{Why we will use finite element and firedrake}
-    \item \st{Building the mesh and function space in Firedrake}
-    \item \st{Putting into weak form}
-    \item \st{Solvability condition}
-    \item \st{Utility functions}
-    \item \st{Specifying the equation in Firedrake}
-    \item \st{Choosing solver parameters (matfree vs assembled)}
-    \item \st{Verify setup is correct using MMS - order of accuracy}
-    \item Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude
-    \item Limitations of QGPV
-    \item Quantities to vary
-    \item Varying one by one
-    \item Random sampler - relationship between tropopause altitude and surface ting - colour by rossby number and frac
-    \item Optimiser
-    \item Feasability of explicit timestepping - stability condition
-    \item Timestepping methodology
-    \item Conclusions
-\end{enumerate}
+% \section{TEMP}
+% \subsection{Plan}
+% \begin{enumerate}
+%     \item Title and abstract
+%     \item Introduction
+%     \item \st{Basic structure of the atmosphere}
+%     \item \st{What is potential vorticity?}
+%     \item \st{Introduce Ertel PV}
+%     \item \st{What is a stratospheric intrusion and how does it relate to cut off lows}
+%     \item \st{Cut off lows in south africa}
+%     \item \st{Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping}
+%     \item \st{I.e. investigate the effects of PV anomalies on the weather in an idealised setting, why QGPV?}
+%     \item \st{Brief overview of QGPV equation and the assumptions that arise from it.}
+%     \item \st{Background states}
+%     \item \st{Boundary conditions}
+%     \item \st{Specify q and plot it}
+%     \item \st{Why we will use finite element and firedrake}
+%     \item \st{Building the mesh and function space in Firedrake}
+%     \item \st{Putting into weak form}
+%     \item \st{Solvability condition}
+%     \item \st{Utility functions}
+%     \item \st{Specifying the equation in Firedrake}
+%     \item \st{Choosing solver parameters (matfree vs assembled)}
+%     \item \st{Verify setup is correct using MMS - order of accuracy}
+%     \item Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude
+%     \item Limitations of QGPV
+%     \item Quantities to vary
+%     \item Varying one by one
+%     \item Random sampler - relationship between tropopause altitude and surface ting - colour by rossby number and frac
+%     \item Optimiser
+%     \item Feasability of explicit timestepping - stability condition
+%     \item Timestepping methodology
+%     \item Conclusions
+% \end{enumerate}
 
 \newpage
 \begin{appendices}
@@ -1486,7 +1854,7 @@ params = {
 }
 \end{minted}
 
-\subsection{Running in Parallel with MPI}
+\subsection{Running in Parallel with MPI}\label{app:mpi}
 
 To run Firedrake in parallel, it is necessary to use \href{https://www.firedrakeproject.org/parallelism.html}{a Message Passing Interface (MPI) Library} \cite{FiredrakeUserManual, Dalcin2011}.
 For example:
