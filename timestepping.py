@@ -33,7 +33,7 @@ SAVE_EVERY = 10
 # The panels of the diagnostics figure, in order, as (field, y label, scientific y ticks).
 # Labelled as variator.py labels the same quantities, so the two figures read alike.
 DIAGNOSTIC_PANELS = [
-    ("trop_height", r"$\min\, z_\text{trop}$ [\unit{\meter}]", False),
+    ("trop_height", r"$\min\, z_\text{dyn}$ [\unit{\meter}]", False),
     ("min_pressure", r"$\min\, p^*_{z=0}$ [\unit{\hecto\pascal}]", False),
     ("max_wind", r"$\max\left|\mathbf{u}\right|_{z=0}$ [\unit{\meter\per\second}]", False),
     ("min_vort", r"$\min\, \zeta_g|_{z=0}$ [\unit{\per\second}]", True),
@@ -554,7 +554,7 @@ def plot_height_time(json_path, output_path="tex/plots/timestepping_height_time.
     levels = np.linspace(strongest, 0, 5)[:-1]
     ax.contour(hours, z_km, values, levels=levels, colors='k', linewidths=0.4)
     ax.plot(hours, np.array([r.trop_height for r in records]) / 1e3, color='k',
-            linestyle='--', linewidth=1.2, label=r"$\min\, z_\text{trop}$")
+            linestyle='--', linewidth=1.2, label=r"$\min\, z_\text{dyn}$")
 
     colorbar = fig.colorbar(mesh, ax=ax, extend='min')
     colorbar.set_label(r"$\min_{x,y}\, (\zeta_g - \bar{\zeta}_g)$ [\unit{\per\second}]")
