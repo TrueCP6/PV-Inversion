@@ -1819,7 +1819,7 @@ Unlike slope limiters, each cell is limited using only its own values and the tw
 
 Since the limiter never changes $\langle q \rangle_K$, it can only succeed if the mean itself lies within $[m, M]$.
 Zhang and Shu proved that the cell means after a forward Euler step stay within bounds, provided that the values on $S_K$ were within bounds at the start of the step, and that the time step satisfies a CFL condition stricter than that required for linear stability \cite{ZhangShu2010}.
-The limiter is therefore applied after every stage of the time stepping scheme, which must in turn be built out of forward Euler steps for the guarantee to carry over \cite{ZhangShu2010}.
+The limiter is therefore applied after every stage of the time stepping scheme, which must in turn be built out of forward Euler steps for the guarantee to carry over (\cref{sec:time_stepping}) \cite{ZhangShu2010}.
 Should a mean leave the bounds regardless, such as when the time step is too large, the cell is flattened to its mean ($\theta_K = 0$) as a safeguard.
 
 The proof also requires $S_K$ to be a specific set of points: on rectangular cells, the tensor product of Gauss-Legendre points along each face with Gauss-Lobatto points across it, which includes the cell faces where the upwind flux \eqref{upwind_flux} reads $q$ \cite{ZhangShu2010}.
@@ -1832,7 +1832,27 @@ In the same way, $m$ and $M$ are taken as the extreme values of the initial $q$ 
 To monitor how often the limiter intervenes, the fraction of the domain's volume in which $\theta_K < 1$ is recorded after each application\footnote{The implementation is shown in \cref{app:limiter}}.
 A source term breaks \cref{max_principle}, so the limiter is switched off for verification with the method of manufactured solutions.
 
-\subsection{Time Stepping Scheme}
+\subsection{Time Stepping Scheme}\label{sec:time_stepping}
+
+Solving $a(\partial_t q, \phi) = L(\phi)$ reduces \cref{qgpv_time} to a system of ordinary differential equations, $\partial_t q = \mathcal{F}(q, t)$, where each evaluation of $\mathcal{F}$ requires one diagnostic inversion followed by one mass matrix solve (\cref{sec:prognostic_weak_form}).
+We advance this system with the three-stage, third-order strong stability preserving Runge-Kutta scheme (SSPRK3) of Shu and Osher \cite{ShuOsher1988}, applying the limiter $\Lambda$ (\cref{sec:limiter}) after every stage:
+
+\begin{equation}\label{ssprk3}
+\begin{aligned}
+    q^{(1)} &= \Lambda \left[ q^n + \Delta t\, \mathcal{F}(q^n, t^n) \right] \\
+    q^{(2)} &= \Lambda \left[ \tfrac{3}{4} q^n + \tfrac{1}{4} \left( q^{(1)} + \Delta t\, \mathcal{F}(q^{(1)}, t^n + \Delta t) \right) \right] \\
+    q^{n+1} &= \Lambda \left[ \tfrac{1}{3} q^n + \tfrac{2}{3} \left( q^{(2)} + \Delta t\, \mathcal{F}(q^{(2)}, t^n + \tfrac{1}{2}\Delta t) \right) \right]
+\end{aligned}
+\end{equation}
+
+The first stage is a forward Euler step, and each later stage is a convex combination of $q^n$ and a forward Euler step from the previous stage, as the weights are non-negative and sum to one.
+Any convex property that a forward Euler step preserves, such as the bounds in \cref{max_principle}, is therefore preserved by the whole scheme under the same time step restriction \cite{GottliebShuTadmor2001}.
+This is precisely what the limiter requires, since Zhang and Shu's guarantee only covers forward Euler steps \cite{ZhangShu2010}.
+The classical fourth-order Runge-Kutta scheme does not have this property\footnote{when $\mathcal{F}$ is nonlinear}, and no explicit four-stage, fourth-order scheme with non-negative coefficients does \cite{GottliebShu1998}.
+
+The stage times $t^n$, $t^n + \Delta t$ and $t^n + \frac{1}{2}\Delta t$ only matter when $q_\text{in}$ or a source term depends on time, as in the verification below.
+Since $\Delta t$ depends on the current wind, it is chosen after the first evaluation of $\mathcal{F}$, which supplies that wind without an extra inversion.
+
 \subsection{MMS Verification}
 \subsection{Step size}
 
