@@ -12,6 +12,7 @@ import plot_utils
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D
+from matplotlib.ticker import LogFormatter
 from scipy.stats import spearmanr
 
 class ParamSampler:
@@ -223,15 +224,20 @@ def plot_optimiser_cost(pres_csv, wind_csv, output_path="tex/plots/optimiser_cos
     for ax, csv_path, title in zip(axes, [pres_csv, wind_csv], ["Surface pressure", "Surface wind"]):
         cost = np.loadtxt(csv_path, delimiter=",")[:, -1] # each row is the normalised parameters then the cost
         evals = np.arange(1, len(cost) + 1)
-        ax.scatter(evals, cost, s=3, alpha=0.6, color='dimgrey', linewidths=0, label="Evaluation")
-        ax.plot(evals, np.minimum.accumulate(cost), color='C0', linewidth=1.2, label="Best so far")
-        # The invalid-EPV penalty puts costs from about -1e2 to 1e5, either side of zero
-        ax.set_yscale('symlog', linthresh=10)
+        # Every cost is negative, so plot its magnitude on log axes
+        ax.scatter(evals, -cost, s=3, alpha=0.6, color='dimgrey', linewidths=0, label="Evaluation")
+        ax.plot(evals, -np.minimum.accumulate(cost), color='C0', linewidth=1.2, label="Best so far")
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        # Plain numbers rather than powers of ten on the ticks
+        ax.xaxis.set_major_formatter(LogFormatter())
+        ax.yaxis.set_major_formatter(LogFormatter(labelOnlyBase=False))
+        ax.yaxis.set_minor_formatter(LogFormatter(labelOnlyBase=False, minor_thresholds=(2, 0.5)))
         ax.set_title(title)
         ax.set_xlabel("Evaluation")
         ax.grid(True, which='both', linestyle=':', alpha=0.5)
-    axes[0].set_ylabel("Cost")
-    axes[0].legend(loc='upper right', fontsize=9, markerscale=4)
+    axes[0].set_ylabel("$-$Cost")
+    axes[0].legend(loc='lower right', fontsize=9, markerscale=4)
 
     plt.savefig(output_path, bbox_inches='tight')
     plt.close()

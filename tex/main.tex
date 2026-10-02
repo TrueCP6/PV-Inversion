@@ -483,7 +483,7 @@ And finally substitute into the last term of \cref{qgpv_pressure_psi}:
 \end{aligned}
 \end{equation}
 
-Now we can at last put \cref{qgpv_pressure_psi} and \cref{qgpv_last_term} together and define the relative quasigeostrophic potential vorticity $q \equiv \tilde q - f$ \cite[p.~6]{sprenger2007userguide} to yield the main equation of study by Barnes et al.\ \cite{Barnes2022main} (cf.\ \cite{Vallis2017}):
+Now we can at last put \cref{qgpv_pressure_psi} and \cref{qgpv_last_term} together and define the relative quasigeostrophic potential vorticity $q \equiv \tilde q - f$ \cite{sprenger2007userguide} to yield the main equation of study by Barnes et al.\ \cite{Barnes2022main} (cf.\ \cite{Vallis2017}):
 
 \begin{equation}\label{qgpv}
     \boxed{ q(x,y,z,t) = \frac{\partial^2 \psi}{\partial x^2} + \frac{\partial^2 \psi}{\partial y^2} + \frac{f_0^2}{\overline{\rho}(z)} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}(z)}{\overline{N}(z)^2}  \frac{\partial \psi}{\partial z} \right) } 
@@ -764,7 +764,7 @@ FEM handles Neumann boundary conditions in the weak form as a boundary integral 
 This work will use the Python library \href{https://www.firedrakeproject.org/}{Firedrake} as the computational framework to build up the numerical solver \cite{FiredrakeFirstPaper}.
 It allows a high level specification of PDEs, automatic highly optimised C code generation and automatic Jacobian computation.
 These features significantly reduce development time, ensuring the project remains within the scope of an honours thesis.
-Furthermore, Firedrake provides access to some of the most efficient matrix solvers and precondtioners, such as conjugate gradient and polynomial multigrid, by simply changing a few lines in the solver parameters \cite{FiredrakeUserManual, PETScUserManual, petsc-efficient, Dalcin2011}.
+Furthermore, Firedrake provides access to some of the most efficient matrix solvers and preconditioners, such as conjugate gradient and polynomial multigrid, by simply changing a few lines in the solver parameters \cite{FiredrakeUserManual, PETScUserManual, petsc-efficient, Dalcin2011}.
 
 Unfortunately Firedrake does not offer a simple way to evaluate purely vertical integrals (such as \cref{theta_bar,p_bar}) efficiently, so a non-trivial alternative method is explained in full in \cref{app:vert_int}.
 
@@ -1111,7 +1111,7 @@ Since $\psi$ is only determined up to an additive constant, the mean of each fie
 
 The relative error of the numerical solution for varying $p$ against \cref{mms_psi} is given in \cref{fig:error_convergence}.
 Since the error of the $p=4$ scheme is satisfactory and the solver settings were optimised for $p=4$, we will keep the arbitrarily chosen $p=4$.
-It should also be noted that according to \cref{fig:error_convergence}, this 5th order scheme should provide orders of magnitude less error than the second order scheme used by Barnes et Al, at a fraction of the degrees of freedom.
+It should also be noted that according to \cref{fig:error_convergence}, this 5th order scheme should provide orders of magnitude less error than the second order scheme used by Barnes et al, at a fraction of the degrees of freedom.
 
 \section{Post-Inversion Diagnostics}
 \subsection{Derived Atmospheric Quantities}
@@ -1512,36 +1512,34 @@ The full streamfunction can easily be recovered by computing $\psi = \overline\p
 This allows us to safely remove all jet related parameters from the sweep, and effectively set $U_\text{jet} = 0$.
 We reject any samples with $\mathcal{V}_- > 0$, and colour each sample point by its Rossby number.
 Accumulating 1000 valid samples gives \cref{fig:random_sample}.
-%TODO FIX FROM HERE
-    Only 5\% of parameter vectors sampled meet the $\mathcal{V}_- = 0$ requirement, raising doubts as to the validity of the findings of \cref{sec:one_param}.
     
-    \begin{figure}[hbtp]
-        \centering
-        \includegraphics{random_sample_trop_correlations.pdf}
-        \caption{1000 randomly sampled parameters from \cref{tab:parameter_bounds} with $\mathcal{V}_- = 0$. Points corresponding to an individual atmospheric state are coloured by their Rossby number.}
-        \label{fig:random_sample}
-    \end{figure}
+\begin{figure}[hbtp]
+    \centering
+    \includegraphics{random_sample_trop_correlations.pdf}
+    \caption{1000 randomly sampled parameters from \cref{tab:parameter_bounds} with $\mathcal{V}_- = 0$ and $U_\text{jet} = 0$. Each point corresponds to an individual atmospheric state, and is coloured by its Rossby number.}
+    \label{fig:random_sample}
+\end{figure}
     
-    We employ the Spearman $\rho$ to quantify the strength of the monotonic relationship between each surface variable and $z_\text{dyn}$.
-    \Cref{fig:random_sample} shows a moderately strong monotonic relationship between $z_\text{dyn}$ and the surface variables, with vorticity being on the edge of what could be called a strong relationship \cite{Schober2018}.
+We employ the Spearman $\rho$ to quantify the strength of the monotonic relationship between each surface variable and $z_\text{dyn}$.
+\Cref{fig:random_sample} shows a moderate monotonic relationship between $z_\text{dyn}$ and the surface variables, with vorticity being on the edge of what could be called a strong relationship \cite{Schober2018}.
     
-    However, most of the atmospheric states in \cref{fig:random_sample} are beyond the range of $\mathrm{Ro}$ for which QGPV is quantitatively or qualitatively useful (as discussed in \cref{sec:limits_of_qgpv}).
-    To address this we drop any points with $\mathrm{Ro} \geq 1$ to produce \cref{fig:random_sample_ro}.
+However, most of the atmospheric states in \cref{fig:random_sample} are beyond the range of $\mathrm{Ro}$ for which QGPV is quantitatively or qualitatively useful (as discussed in \cref{sec:limits_of_qgpv}).
+To address this we drop any points with $\mathrm{Ro} \geq 1$ to produce \cref{fig:random_sample_ro}.
     
-    \begin{figure}[hbtp]
-        \centering
-        \includegraphics{random_sample_trop_correlations_ro_below_1.pdf}
-        \caption{Same as \cref{fig:random_sample}, but only the 21.6\% of points with $\mathrm{Ro} < 1$.}
-        \label{fig:random_sample_ro}
-    \end{figure}
+\begin{figure}[hbtp]
+    \centering
+    \includegraphics{random_sample_trop_correlations_ro_below_1.pdf}
+    \caption{Same as \cref{fig:random_sample}, but only the 14.5\% of points with $\mathrm{Ro} < 1$.}
+    \label{fig:random_sample_ro}
+\end{figure}
     
-    \Cref{fig:random_sample_ro} now only consists of points which fall broadly within the range that QGPV has (at minimum) qualitative usefulness.
-    For quantitative usefulness, we require $\mathrm{Ro} \lesssim 0.5$, but only 0.6\% of points have $\mathrm{Ro} < 0.5$, so this was practical to test.
-    The $\rho$ of each panel changes very little from \cref{fig:random_sample} to \cref{fig:random_sample_ro}, which supports the moderate monotonic relationship between $z_\text{dyn}$ and surface effects.
+\Cref{fig:random_sample_ro} now only consists of points which fall broadly within the range that QGPV has (at minimum) qualitative usefulness.
+For quantitative usefulness, we require $\mathrm{Ro} \ll 1$, but 0.1\% of the sampled points have $\mathrm{Ro} < 0.5$, so this was impractical to test.
+As $|\rho|$ decreases from \cref{fig:random_sample} to \cref{fig:random_sample_ro}, the monotonic relationship weakens in each panel.
+For the atmospheric states QGPV can model with qualitative accuracy, at most a weak monotonic relationship between minimum surface pressure anomaly and minimum dynamical tropopause height exists.
+The relationship with maximum surface wind speed is slightly stronger, with minimum surface vorticity being the strongest with a moderate correlation.
     
-    The above findings support the conclusion that minimum surface vorticity, minimum surface pressure anomaly and maximum surface wind speed are largely driven by the minimum dynamical tropopause height induced by an anomaly.
-    Other characteristics of the anomaly are not as important as the height of the \qty{-1.5}{PVU} contour above the surface.
-%TO HERE
+The above findings support the conclusion that minimum surface vorticity, minimum surface pressure anomaly and maximum surface wind speed are somewhat driven by the minimum dynamical tropopause height induced by an anomaly, however the combination of other parameters generally appears to be more important than the minimum dynamical tropopause height, even in a highly idealised setting.
 
 \subsection{Maximising Surface Response}
 
@@ -1571,12 +1569,12 @@ We use clipped $\tilde{\mathrm{Ro}} = \max\left\{\mathrm{Ro}_\text{max}, 0.3\rig
 We configure Py-BOBYQA to run on a single MPI rank (see \cref{app:mpi}), while allowing the inversion of \cref{qgpv} to run on all ranks.
 
 Running the optimiser for both objectives -- maximum surface wind speed and minimum surface pressure anomaly -- yields \cref{fig:optimiser}.
-Py-BOBYQA is configured to call $C(\bm{x})$ a maximum of 5000 times in each case.
+Py-BOBYQA is configured to call $C(\bm{x})$ a maximum of 5000 times in each case -- an arbitrarily chosen limit dictated by computation time.
 
 \begin{figure}[tp]
     \centering
     \includegraphics{optimiser_cost.pdf}
-    \caption{Convergence of Py-BOBYQA towards the global minimum of $C(\bm{x})$, for both objectives $O$.}
+    \caption{Convergence of Py-BOBYQA towards the global minimum of $C(\bm{x})$, for both objectives $O$. 5000 calls were made to $C(\bm{x})$ in each case, but both reached this minimum in under 100 cost function evaluations.}
     \label{fig:optimiser}
 \end{figure}
 
@@ -1592,13 +1590,89 @@ The cells are coupled only through a numerical flux on each facet.
 Both neighbouring cells share it, so the scheme conserves mass to round-off.
 We take this flux from the upwind side, which supplies the dissipation that stabilises pure advection \cite{Moura2015}.
 
-Unlike with finite difference schemes, we can not assi
+Unlike with finite difference schemes, we can not compute $\partial_t q$ by substituting $q$ directly into \cref{qgpv_time}.
+Instead we must solve the weak form \cref{prog_weak_form_1} for each stage of the timestepping scheme to obtain $\partial_t q$.
 
-Func space
-Weak form derivation
-Limiter
-Time step size
-Result
+\subsection{Weak Form}\label{sec:prognostic_weak_form}
+To set up \cref{qgpv_time} to be solvable with the finite element method, we again multiply by a test function $\phi$ and integrate.
+Since $\phi$ and $q$ may now jump across cell boundaries, we integrate over each cell $K$ of the mesh separately, rather than over the whole domain $V$ at once.
+We use the wind $\bm u = (-\psi_y, \psi_x, 0)$ (\cref{wind}) to make this process more concise.
+
+\begin{equation}\label{prog_weak_form_1}
+    \int_K {\phi \frac{\partial q}{\partial t} \,dV} + \underbrace{\int_K {\phi\, \bm u \cdot \nabla q \,dV}}_{I_K} = 0
+\end{equation}
+
+Now we apply the divergence theorem to the vector field $\phi q \bm u$ over $K$.
+Here $\partial K$ is the surface that encloses $K$, with outward normal vector $\bm{\hat n}$.
+
+\begin{equation}\label{divergence_theorem}
+    \int_K {\nabla \cdot \left( \phi q \bm u \right) \,dV} = \int_{\partial K} {\phi q\, \bm u \cdot \bm{\hat n} \,dA}
+\end{equation}
+
+Expanding the divergence with the product rule, $\nabla \cdot \left( \phi q \bm u \right) = \phi\, \bm u \cdot \nabla q + q \nabla \cdot \left( \phi \bm u \right)$, yields the following for $I_K$ \eqref{prog_weak_form_1}:
+
+\begin{equation}\label{i_k}
+    I_K = \underbrace{\int_{\partial K} {\phi q\, \bm u \cdot \bm{\hat n} \,dA}}_{I_{Kb}} - \int_K {q \nabla \cdot \left( \phi \bm u \right) \,dV}
+\end{equation}
+
+Note that $\nabla \cdot \bm u = -\psi_{yx} + \psi_{xy} = 0$, so $\nabla \cdot (\phi \bm u) = \bm u \cdot \nabla \phi$.
+This holds exactly for the numerical $\psi$ as well, since it is a polynomial within each cell, so its mixed derivatives commute.
+Choosing $\phi = 1$ on a single cell (and $0$ elsewhere) then removes the volume term entirely, so the amount of $q$ in a cell can only change through the flux across its surface.
+
+Since $\bm u$ has no vertical component, $\bm u \cdot \bm{\hat n} = 0$ on every horizontal face, including the top and bottom of the domain, so $I_{Kb}$ only has contributions from vertical faces.
+Each vertical face either lies on the lateral boundary $A_v$ of the domain, or is an interior face $\Gamma$ shared by two cells, which we label $K^+$ and $K^-$ such that $\bm{\hat n}^+ = -\bm{\hat n}^-$.
+On an interior face $\bm u \cdot \bm{\hat n}^+ = -\psi_y n^+_x + \psi_x n^+_y$ is the derivative of $\psi$ along the face, which is single-valued because $\psi$ is continuous (\mintinline{python}{'Q'}).
+However $q$ takes two values $q^+$ and $q^-$, so we replace it with a single numerical flux $\hat q$, taken from the upwind side \cite{CockburnShu1991, FiredrakeUserManual}:
+
+\begin{equation}\label{upwind_flux}
+    \hat q =
+    \begin{cases}
+        q^+ & \bm u \cdot \bm{\hat n}^+ > 0 \\
+        q^- & \bm u \cdot \bm{\hat n}^+ \leq 0
+    \end{cases}
+\end{equation}
+
+Summing $I_{Kb}$ over all cells, each interior face receives a contribution from both of its cells, $\phi^+ \hat q\, \bm u \cdot \bm{\hat n}^+ + \phi^- \hat q\, \bm u \cdot \bm{\hat n}^- = (\phi^+ - \phi^-) \hat q\, \bm u \cdot \bm{\hat n}^+$.
+What leaves one cell therefore enters its neighbour, which is why the scheme conserves $q$.
+We write the upwinding in terms of the outflow speed $u_n = \frac{1}{2} \left( \bm u \cdot \bm{\hat n} + \left| \bm u \cdot \bm{\hat n}\right| \right)$, which is nonzero only on the side of the face that $\bm u$ flows out of:
+
+\begin{equation}\label{upwind_flux_un}
+    \hat q\, \bm u \cdot \bm{\hat n}^+ = u_n^+ q^+ - u_n^- q^-
+\end{equation}
+
+On the lateral boundary $A_v$ there is only one cell, so the interior value of $q$ is used where $\bm u$ flows out of the domain ($\bm u \cdot \bm{\hat n} > 0$).
+Where $\bm u$ flows in ($\bm u \cdot \bm{\hat n} < 0$), $q$ is carried in from outside the domain, which \cref{qgpv_time} does not determine; we hold it at its initial value, $q_\text{in}(x,y,z) = q(x,y,z,0)$.
+We then sum \cref{prog_weak_form_1} over all cells, substitute everything and move terms around to get the form $a(\partial_t q,\phi) = L(\phi)$:
+
+\begin{equation}\label{prog_final_weak_form}
+\begin{aligned}
+    a(\partial_t q, \phi) &= \int_V {\phi \frac{\partial q}{\partial t} \,dV} \\
+    L(\phi) &= \int_V {q \nabla \cdot \left( \phi \bm u \right) \,dV} - \int_{A_v^\text{in}} {\phi q_\text{in}\, \bm u \cdot \bm{\hat n} \,dA} \\
+    &\quad - \int_{A_v^\text{out}} {\phi q\, \bm u \cdot \bm{\hat n} \,dA} - \int_\Gamma {\left( \phi^+ - \phi^- \right) \left( u_n^+ q^+ - u_n^- q^- \right) dA}
+\end{aligned}
+\end{equation}
+
+Here $\int_V$ denotes the sum of the integrals over every cell, and $A_v^\text{in}$ and $A_v^\text{out}$ are the parts of $A_v$ where $\bm u \cdot \bm{\hat n} < 0$ and $\bm u \cdot \bm{\hat n} > 0$ respectively.
+Now \cref{qgpv_time}, with the upwind flux and inflow boundary condition embedded, is in a weak form that can easily be expressed in Firedrake's syntax\footnote{shown in \cref{app:prognostic_weak_form}}.
+
+$L$ depends on $q$ both directly and through $\bm u$, which is calculated from the $\psi$ obtained by inverting \cref{final_weak_form} for the current $q$.
+Every evaluation of $L$ therefore requires a diagnostic solve first.
+Solving $a(\partial_t q, \phi) = L(\phi)$ for $\partial_t q$ then gives the time derivative of $q$, which the time stepping scheme advances.
+
+The bilinear form $a$ is simply the mass matrix of the \mintinline{python}{'DQ'} space.
+Like $\alpha$, it is symmetric, but evaluating
+
+\begin{equation}\label{mass_phi_phi}
+    a(\phi, \phi) = \int_V {\phi^2 \,dV}
+\end{equation}
+
+shows that $a(\phi, \phi) > 0$ for all $\phi \neq 0$, so it is positive definite rather than only semi-definite, and no solvability condition (\cref{sec:solv_cond}) is required.
+Furthermore, each \mintinline{python}{'DQ'} basis function is only nonzero within a single cell, so the matrix is block diagonal, with one $(p+1)^3 \times (p+1)^3$ block per cell, and $a$ does not depend on $q$ or $t$, so the matrix stays the same between time steps.
+
+\subsection{Limiter}
+\subsection{Time Stepping Scheme}
+\subsection{MMS Verification}
+\subsection{Step size}
 
 \section{Conclusions}
 
@@ -1763,7 +1837,7 @@ However, Firedrake only subdivides extruded meshes horizontally \cite{FiredrakeU
 For this reason, the \mintinline{python}{compute_vertical_integral} function will \textbf{only} produce accurate results for \textbf{extruded meshes}.
 This results in a slight increase in efficiency as communication between ranks is not necessary.
 
-\subsection{Weak Form}\label{app:weak_form}
+\subsection{Diagnostic Weak Form}\label{app:weak_form}
 
 Equation \eqref{final_weak_form} is expressed in Firedrake's syntax, which is based on Unified Form Language (UFL) \cite{UFL}.
 This code is included as certain parts of the syntax can be quite unintuitive, especially with extruded meshes.
@@ -1992,6 +2066,39 @@ def compute_psi_0(psi : Function):
 As with \mintinline{python}{compute_vertical_integral}, this relies on Firedrake only subdividing extruded meshes horizontally, so that every rank holds whole columns, sees every $z$ level, and numbers the levels identically.
 Unlike it, the lateral walls are shared between many ranks, so the per-level sums must be combined with an explicit \mintinline{python}{Allreduce} before the mean is taken.
 Writing the profile directly into the DoFs, rather than interpolating an expression, guarantees that $\psi_0$ has no horizontal variation, so none can leak into $p^*$ through \cref{p_star}.
+
+\subsection{Prognostic Weak Form}\label{app:prognostic_weak_form}
+
+Equation \eqref{prog_final_weak_form} is expressed in Firedrake's syntax below.
+Here \mintinline{python}{q} is a \mintinline{python}{Function} on the DG space whose values are overwritten in place before each solve, so, like a \mintinline{python}{Constant}, the form is only compiled once.
+
+\begin{minted}{python}
+# Define the trial and test functions on the DG space
+dq_dt = TrialFunction(dg_space)
+phi = TestFunction(dg_space)
+n = FacetNormal(mesh)
+
+# The wind, from the latest streamfunction in the CG space
+u = as_vector([-psi.dx(1), psi.dx(0), 0])
+
+# The outflow speed u_n, nonzero only on the downwind side of a facet
+un = 0.5 * (dot(u, n) + abs(dot(u, n)))
+
+# Bilinear form a, the mass matrix
+a = phi * dq_dt * dx
+
+# Linear form L
+L = (q * div(phi * u) * dx
+     - conditional(dot(u, n) < 0, phi * dot(u, n) * q_in, 0.0) * ds_v # Inflow
+     - conditional(dot(u, n) > 0, phi * dot(u, n) * q, 0.0) * ds_v # Outflow
+     - (phi('+') - phi('-')) * (un('+') * q('+') - un('-') * q('-')) * dS_v) # Interior facets
+\end{minted}
+
+The measure \mintinline{python}{ds_v} integrates over the lateral boundary $A_v$, and \mintinline{python}{dS_v} over the interior vertical facets $\Gamma$, with \mintinline{python}{('+')} and \mintinline{python}{('-')} restricting an expression to either side of the facet \cite{FiredrakeUserManual}.
+Firedrake picks which side is \mintinline{python}{'+'}, but \cref{prog_final_weak_form} is unchanged by swapping the labels, so the choice does not matter.
+The horizontal facets (\mintinline{python}{ds_tb} and \mintinline{python}{dS_h}) are left out, as $\bm u \cdot \bm{\hat n} = 0$ on them.
+For verification with the method of manufactured solutions, a source term \mintinline{python}{phi * s * dx} is added to \mintinline{python}{L}, which is otherwise zero.
+Since \mintinline{python}{a} never changes, the problem is set up with \mintinline{python}{constant_jacobian=True} so that Firedrake does not rebuild it between solves.
 
 \section{Hardware Used}\label{app:hardware}
 
