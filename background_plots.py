@@ -93,7 +93,7 @@ def plot_function_vs_z(f, plot_title, x_title, x_coord=None, y_coord=None, num_p
 
 def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_coord=None,
                        num_points_h=200, num_points_v=200, figsize=(3.15*2, 4.0), cbar_min = None, cbar_max = None,
-                       vector_field=None, quiver_density=15, highlight_level=None, ax=None, bounds=None):
+                       vector_field=None, quiver_density=15, quiver_kwargs=None, highlight_level=None, ax=None, bounds=None):
     """
     Evaluates and plots a 2D heatmap (with contours) of a 3D Firedrake function
     along a plane normal to the specified axis (x, y, or z).
@@ -123,8 +123,11 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
         Components (f_h, f_v) aligned with the plot's horizontal and vertical axes.
         When given, unit-vector arrows showing their direction are overlaid on a
         coarser grid on top of the heatmap.
-    quiver_density : int, optional
-        Number of arrows per axis when vector_field is given. Defaults to 15.
+    quiver_density : int or (int, int), optional
+        Number of arrows per axis when vector_field is given, or (horizontal, vertical)
+        counts for a non-square window. Defaults to 15.
+    quiver_kwargs : dict, optional
+        Extra arguments to ax.quiver, e.g. scale and width to size the arrows.
     highlight_level : float, optional
         A single contour value to redraw as a heavy solid line, picking it out of
         the surrounding contours (e.g. the dynamical tropopause).
@@ -191,10 +194,8 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
 
     # 5b. Evaluate the (optional) direction field on a coarser grid, as unit vectors
     if vector_field is not None:
-        Hq, Vq = np.meshgrid(
-            np.linspace(h_min, h_max, quiver_density),
-            np.linspace(v_min, v_max, quiver_density),
-        )
+        nq_h, nq_v = np.broadcast_to(quiver_density, 2)
+        Hq, Vq = np.meshgrid(np.linspace(h_min, h_max, nq_h), np.linspace(v_min, v_max, nq_v))
         qpoints = slice_points(Hq, Vq)
         f_h, f_v = vector_field
         Uh = PointEvaluator(mesh, qpoints).evaluate(f_h).reshape(Hq.shape)
@@ -228,7 +229,7 @@ def plot_slice_heatmap(f, plot_title, cbar_title, levels, normal_dir='x', slice_
                 ax.plot(h, v, color='black', linewidth=1.5)
 
         if vector_field is not None:
-            ax.quiver(Hq * h_scale, Vq * v_scale, Uh, Uv, color='white', pivot='mid', alpha=0.8)
+            ax.quiver(Hq * h_scale, Vq * v_scale, Uh, Uv, color='white', pivot='mid', alpha=0.8, **(quiver_kwargs or {}))
 
         ax.set_xlabel(h_label)
         ax.set_ylabel(v_label)
