@@ -228,7 +228,7 @@ An out-of-phase surface anomaly can inhibit the COL from extending to the surfac
 In 53\% of deep COLs with a closed surface low (57\% over southern Africa), the surface cyclone develops at or after the formation of the COL rather than pre-existing, and the two generally develop almost simultaneously \cite{Barnes2021col}.
 Once formed, a COL over a warm ocean can generate a surface $\theta$ anomaly of its own through surface heat fluxes, coupling the surface to the upper-level anomaly and allowing the system to intensify \cite{SingletonReason2007, Barnes2021col}.
 
-\section{Objectives}
+\section{Objectives}\label{sec:objectives}
 
 As discussed above, COLs and Rossby wave breaking are responsible for a substantial share of the extreme weather experienced over and around South Africa.
 Both are associated with stratospheric intrusions: tongues of high-PV air that extend deep into the troposphere and induce a circulation that can reach the surface.
@@ -1541,7 +1541,7 @@ The relationship with maximum surface wind speed is slightly stronger, with mini
     
 The above findings support the conclusion that minimum surface vorticity, minimum surface pressure anomaly and maximum surface wind speed are somewhat driven by the minimum dynamical tropopause height induced by an anomaly, however the combination of other parameters generally appears to be more important than the minimum dynamical tropopause height, even in a highly idealised setting.
 
-\subsection{Maximising Surface Response}
+\subsection{Maximising Surface Response}\label{sec:optimiser}
 
 Automating the search for parameters that maximise surface response requires setting up an optimisation problem.
 We first reduce the dimensionality of the problem by choosing to not vary $w_\text{trop}$, $\delta$ and $\overline{N}'_\text{strat}$, as \cref{sec:one_param} shows that they have negligible effect on the surface.
@@ -1973,7 +1973,7 @@ A larger or stronger anomaly, elsewhere in the parameter space, would reach the 
 We therefore take $\mathrm{C} = 1.3$, roughly half of the largest value found to be stable, at the cost of about twice as many steps as $\mathrm{C} = 2.7$ would need.
 On the mesh above, this gives $\Delta t$ between \qty{182}{\second} and \qty{241}{\second}, or about 17.5 steps per simulated hour.
 
-\subsection{Results}
+\subsection{Results}\label{sec:time_results}
 
 We first test the full numerical prognostic solver by evolving the control parameters for a simulated period of 168 hours, unfortunately introducing further difficulties into the simulation.
 Firstly, $L_x$ must be significantly increased so that the jet stream does not simply push the anomaly into the domain wall after a few simulated days.
@@ -2018,64 +2018,108 @@ Another technique to handle this drift -- without making the mesh intractably la
 
 \section{Conclusions}
 
+The aim of this project (\cref{sec:objectives}) was to quantify how the structure of a stratospheric intrusion, and the background atmosphere in which it is embedded, determine its surface response.
+We first review each objective in turn, and then summarise what the results say about this aim.
+
+\subsection{Objectives}
+
+\begin{enumerate}
+    \item \textbf{Recreating the control state of Barnes et al.}
+    The background state and anomaly were recreated from the published values (\cref{sec:source_term}), with the quantities Barnes et al.\ did not publish ($w_\text{trop}$, $\delta$ and $L_\text{jet}$) taken from Fehlmann or matched to their figures \cite{Barnes2022main,fehlmann1997pvelements}.
+    The recreation is therefore only approximate.
+    It also exposed two problems with the control state itself: $\overline N_\text{strat} = \qty{0.03}{\per\second}$ gives $\overline\theta > \qty{600}{\kelvin}$ at \qty{20}{\kilo\meter} (\cref{fig:theta_bar}), and $\mathcal{V}_- \approx 0.04$ (\cref{V_minus}), so about \qty{4}{\percent} of the domain has $fQ \leq 0$, where an EPV inversion would fail.
+    This objective was achieved, subject to these caveats.
+
+    \item \textbf{Developing and validating the inversion solver.}
+    \Cref{qgpv} was solved with $p = 4$ continuous Galerkin elements on an extruded hexahedral mesh (\cref{sec:numerical_soln}).
+    The solvability condition (\cref{general_solv_cond}) was verified to round-off, and the method of manufactured solutions gave the expected $\mathcal{O}(\Delta z^{p+1})$ convergence for every $p$ tested (\cref{fig:error_convergence}).
+    The scheme is fifth-order accurate, compared with the second-order scheme of Barnes et al.\ \cite{Barnes2022main}.
+    This objective was achieved.
+
+    \item \textbf{Optimising the solver.}
+    Out of more than 40 configurations, a matrix-free conjugate gradient solver with a $p$-multigrid pre-conditioner was the fastest on both the consumer hardware and the HPC cluster (\cref{sec:solver_settings}).
+    Only the $p = 1$ coarse operator is assembled.
+    Its solve time scales as $\mathcal{O}(\text{DoF})$ (\cref{fig:time_complexity}), and a full atmospheric state can be constructed, inverted and analysed in under 3 seconds on the HPC cluster.
+    Since only the coarse matrix is stored, the solver also needs a small fraction of the memory of an assembled one, which permits large meshes on consumer hardware.
+    This objective was achieved.
+
+    \item \textbf{Assessing the limitations of QGPV.}
+    The constraints on $\mathcal{V}_-$, the Rossby number, the Froude number and the assumption of adiabatic flow were set out in \cref{sec:limits_of_qgpv}.
+    The Rossby number is by far the most restrictive.
+    The control state has $\mathrm{Ro}_\text{max} \approx 2$, and of the randomly sampled states with $\mathcal{V}_- = 0$, only \qty{14.5}{\percent} have $\mathrm{Ro} < 1$, and \qty{0.1}{\percent} have $\mathrm{Ro} < 0.5$ (\cref{sec:random_sampling}).
+    Most of the parameter space in \cref{tab:parameter_bounds} therefore lies where QGPV is at best qualitatively useful.
+    Both of the known biases, the fixed penetration depth of QG \cite{Davis1992jas} and the use of dry stratification \cite{Hoskins1985}, point towards an underestimated surface response for strong anomalies.
+    This objective was achieved qualitatively, but quantifying the error of QG inversion against full EPV inversion was beyond the scope of this project.
+
+    \item \textbf{Isolating the effect of each parameter.}
+    Varying one parameter at a time (\cref{sec:one_param}) showed that the tropopause height $z_\text{trop}$, the anomaly depth $z_\text{size}$ and its horizontal size dominate the surface response, in agreement with Barnes et al.\ \cite{Barnes2022main}.
+    A weaker tropospheric stratification and a more poleward latitude intensify it moderately.
+    The tropopause smoothing parameters $w_\text{trop}$ and $\delta$, $\overline N_\text{strat}$, the anomaly aspect ratio and $\overline T'(0)$ have almost no effect on the surface, so neither the numerical treatment of the tropopause nor the unrealistic $\overline N_\text{strat}$ of the control state affects the surface results.
+    The jet parameters also have almost no effect on the surface, which, together with the linearity of \cref{qgpv}, justified removing the jet from the later sweeps.
+    Random sampling (\cref{sec:random_sampling}) showed a moderate monotonic relationship between the minimum dynamical tropopause height $z_\text{dyn}$ and the surface response, but once states with $\mathrm{Ro} \geq 1$ are removed it weakens to at most a weak relationship for the surface pressure anomaly, and a moderate one for the surface vorticity (\cref{fig:random_sample_ro}).
+    So, unlike Barnes et al., who found $z_\text{dyn}$ to be the major factor in surface cyclogenesis \cite{Barnes2022main}, we find that within the range where QGPV is useful, the combination of the other parameters matters more than $z_\text{dyn}$ alone.
+    This objective was achieved, although one feature, the sharp step in $z_\text{dyn}$ as $y_\text{jet}$ varies (\cref{fig:min_dyn_trop}), remains unexplained.
+
+    \item \textbf{Searching for the most severe surface response.}
+    Py-BOBYQA minimised the cost function \cref{cost} in under 100 evaluations for both objectives (\cref{sec:optimiser}).
+    The optimised states have a surface pressure anomaly of \qty{-51.7}{\hecto\pascal} and surface wind of \qty{25.3}{\meter\per\second}, about ten times those of the control state, with $z_\text{dyn} \approx \qty{3}{\kilo\meter}$, comparable to the rare COLs whose \qty{-1.5}{PVU} contour reaches \qty{700}{\hecto\pascal} \cite{Barnes2021col} (\cref{tab:optimiser_results}).
+    They place the tropopause as low, the latitude as far poleward and the anomaly as deep and wide as the bounds allow, and the difference between their anomaly shapes shows that shape also matters for the surface wind.
+    However, despite the penalty in \cref{cost}, both have $\mathrm{Ro}_\text{max} \geq 1.5$, so these results are qualitative only.
+    The optimiser itself was implemented as intended, but it did not find states within the range where QGPV is quantitatively valid.
+
+    \item \textbf{Integrating forward in time.}
+    The prognostic solver uses an upwind discontinuous Galerkin transport scheme (\cref{sec:prognostic_weak_form}), the Zhang-Shu limiter (\cref{sec:limiter}) and SSPRK3 (\cref{sec:time_stepping}).
+    The scheme converges at fifth order in space and third order in time (\cref{sec:prognostic_mms}), was stable for Courant numbers up to $\mathrm{C} = 2.7$, and is run at $\mathrm{C} = 1.3$ (\cref{sec:step_size}).
+    The control state was evolved for \qty{168}{\hour} on a mesh of \num{5e7} degrees of freedom (\cref{sec:time_results}).
+    However, the anomaly drifted south and reached the $y = 0$ wall early in the run, because the jet's background PV gradient acts as an effective $\beta$ (\cref{perturbation_pv,beta_eff_core}).
+    The longevity of the optimised configurations was therefore not assessed.
+    This objective was only partly achieved: the time-evolution solver exists and is verified, but in the current domain its results cannot be used for physical analysis.
+\end{enumerate}
+
+Taken together, within the quasigeostrophic framework the surface response of an intrusion is set mainly by how low and how deep it reaches and by its horizontal size, with the background stratification and latitude playing a secondary role.
+The jet has almost no effect on the instantaneous surface response, yet it dominates the evolution of the anomaly through its PV gradient.
+The strongest responses, however, lie in the part of the parameter space where QGPV is beyond its formal validity, so these findings should be read as qualitative.
+
+\subsection{Future Work}
+
+\begin{itemize}
+    \item \textbf{Inversion beyond QG.}
+    The Rossby number constraint limits most of the results above.
+    Next-order corrections to QG improve its accuracy substantially at $\mathrm{Ro} \approx 0.3$ \cite{Muraki1999}, and a full EPV inversion would avoid the problem entirely, although it would also require background states with $\mathcal{V}_- = 0$.
+    Comparing such an inversion with \cref{qgpv} for the states in \cref{tab:optimiser_results} would also quantify the error of QG directly, which Davis did not do \cite{Davis1992jas}.
+
+    \item \textbf{A realistic lower boundary.}
+    At present, $\theta^*$ on the lower boundary (\cref{qgpv_bcs_vert}) is a single horizontally uniform value of about \qty{-0.1}{\kelvin}, chosen only to satisfy the solvability condition (\cref{sec:solv_cond}).
+    However, whether a COL reaches the surface depends strongly on a surface $\theta$ anomaly in phase with the upper anomaly: 66\% of deep COLs have one when they form, compared with 12\% of shallow COLs \cite{Barnes2021col} (\cref{sec:cols}).
+    Prescribing a horizontally varying surface $\theta^*$, such as a warm anomaly just downstream of the intrusion, with \cref{general_solv_cond} adapted to fix only its mean, would allow the interaction between the two anomalies to be studied.
+
+    \item \textbf{The optimiser's cost function.}
+    Replacing the division by $\tilde{\mathrm{Ro}} \cdot \tilde{\mathrm{Fr}}$ in \cref{cost} with a clipped penalty, like the $\mu \mathcal{V}_-$ term, or a hard constraint on $\mathrm{Ro}_\text{max}$, may steer the optimiser towards states where QGPV remains quantitatively valid.
+
+    \item \textbf{The time-evolution domain.}
+    The lateral walls and their prescribed tangential wind are the main obstacle to physical analysis of the time-evolution.
+    Since the jet is uniform in $x$, a zonally periodic channel would remove the need for a very large $L_x$ and for the inflow condition on the eastern and western walls.
+    A larger $L_y$, or an anomaly offset from the jet core where the effective $\beta$ weakens, would delay the collision with the southern wall.
+    With these changes, the optimised configurations of \cref{tab:optimiser_results} could be evolved to complete the final objective.
+    In addition, the limiter was switched off in the verification of \cref{sec:prognostic_mms}; a test without a source term, whose exact solution obeys \cref{max_principle}, would verify it as well.
+
+    \item \textbf{Moisture.}
+    The inversion uses dry stratification throughout, while condensation in rising air reduces the effective static stability and increases the vertical penetration of an anomaly \cite{Hoskins1985}.
+    A reduced effective $\overline N$ in regions of ascent would give a first estimate of this effect.
+
+    \item \textbf{A more realistic background state.}
+    The control state was kept for parity with Barnes et al., but a realistic $\overline N_\text{strat} \approx \qty{0.022}{\per\second}$ \cite{Grise2010} and a jet with $\mathcal{V}_- = 0$ would give a physically valid reference state for the sweeps.
+
+    \item \textbf{Solver performance.}
+    A transformation that absorbs the spatially varying coefficients of \cref{qgpv} into $\psi$ or into rescaled coordinates would remove the remaining memory traffic of the matrix-free solver (\cref{sec:solver_settings}), and speed up both the sweeps and the diagnostic solve at every stage of the time-evolution.
+    It is possible that this transformation would allow for a closed form Green's function solution to \cref{qgpv}, further enabling an implicit solution to \cref{qgpv_time} using the method of characteristics, bypassing the need for a numerical solver entirely.
+\end{itemize}
+
 \section{References}
 \printbibliography[heading=none]
 
-% \section{TEMP}
-% \subsection{Plan}
-% \begin{enumerate}
-%     \item Title and abstract
-%     \item Introduction
-%     \item \st{Basic structure of the atmosphere}
-%     \item \st{What is potential vorticity?}
-%     \item \st{Introduce Ertel PV}
-%     \item \st{What is a stratospheric intrusion and how does it relate to cut off lows}
-%     \item \st{Cut off lows in south africa}
-%     \item \st{Goal of Thesis - initially reproduce barnes work (same BCs), then add timestepping}
-%     \item \st{I.e. investigate the effects of PV anomalies on the weather in an idealised setting, why QGPV?}
-%     \item \st{Brief overview of QGPV equation and the assumptions that arise from it.}
-%     \item \st{Background states}
-%     \item \st{Boundary conditions}
-%     \item \st{Specify q and plot it}
-%     \item \st{Why we will use finite element and firedrake}
-%     \item \st{Building the mesh and function space in Firedrake}
-%     \item \st{Putting into weak form}
-%     \item \st{Solvability condition}
-%     \item \st{Utility functions}
-%     \item \st{Specifying the equation in Firedrake}
-%     \item \st{Choosing solver parameters (matfree vs assembled)}
-%     \item \st{Verify setup is correct using MMS - order of accuracy}
-%     \item Calculating derived quantities such as pressure, velocity and relative vorticity - dynamical tropopause altitude
-%     \item Limitations of QGPV
-%     \item Quantities to vary
-%     \item Varying one by one
-%     \item Random sampler - relationship between tropopause altitude and surface ting - colour by rossby number and frac
-%     \item Optimiser
-%     \item Feasability of explicit timestepping - stability condition
-%     \item Timestepping methodology
-%     \item Conclusions
-% \end{enumerate}
-
 \newpage
 \begin{appendices}
-
-% If I have enough time
-% \section{Table of Assumptions}\label{app:assumptions} % TODO flesh out
-
-% \begin{table}[hbtp]
-%     \centering
-%     \caption{Assumptions made}
-%     \label{tab:assumptions}
-%     \begin{tabular}{ccc}
-%         \toprule
-%         Assumption & Entry point & Consequences\\
-%         \midrule
-%         Adiabatic flow: $D\theta/Dt =0$ from \cref{pot_temp_conserved} & Required for \cref{epv} to hold \cite{ertel_english, Hoskins1985} & \\
-        
-%          &  & \\
-%         \bottomrule
-%     \end{tabular}
-% \end{table}
 
 \section{Firedrake}
 
@@ -2524,4 +2568,3 @@ Each node has 2 Intel Xeon Gold 6442Y processors, each with 24 cores, 24 threads
 \end{appendices}
 
 \end{document}
-%TODO section for potential areas of extension - realistic lower bcs
