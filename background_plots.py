@@ -394,6 +394,10 @@ def main():
         epv = atmos.ertel_pv()
 
     cg_space = atmos.cg_space
+    # Optimised states reach ~25 m/s and ~-50 hPa at the surface, far past the control's levels
+    surf_wind_levels = np.arange(0, 100, 5) if args.params else np.arange(0, 10, 0.5)
+    pres_ano_levels = np.arange(-100, 100, 5) if args.params else np.arange(-30, 30, 1)
+    pres_levels = np.arange(800, 1100, 5) if args.params else np.arange(-900, 1100, 1)
     PETSc.Sys.Print(f"z_dyn = {derived.min_dyn_tropopause_height()}")
     PETSc.Sys.Print(f"Ro after inversion = {derived.rossby_number()}")
     PETSc.Sys.Print(f"Fr after inversion = {derived.froude_number()}")
@@ -402,7 +406,7 @@ def main():
         derived.horizontal_wind_speed(),
         "Surface Wind",
         r"$\left|\mathbf{u}\right|$ [\unit{\meter \per \second}]",
-        levels=np.arange(0, 10, 0.5),
+        levels=surf_wind_levels,
         normal_dir="z",
         slice_coord=0,
         vector_field=(derived.u(), derived.v())
@@ -497,7 +501,7 @@ def main():
         derived.pressure_anomaly_hpa(),
         "Pressure Anomaly",
         r"$p^*$ [\unit{\hecto\pascal}]",
-        levels=np.arange(-30, 30, 1),
+        levels=pres_ano_levels,
         normals='xy'
     )
 
@@ -505,7 +509,7 @@ def main():
         derived.pressure_hpa(),
         "Pressure",
         r"$p$ [\unit{\hecto\pascal}]",
-        levels=np.arange(-900, 1100, 1),
+        levels=pres_levels,
         normals='z',
         cbar_bound_region=lambda x,y,z: z<10
     )
