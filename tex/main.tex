@@ -676,7 +676,7 @@ The background QGPV $\overline q$ can then be calculated using \cref{qgpv}, with
     \label{fig:zeta_g_bar}
 \end{figure}
 
-\begin{equation}
+\begin{equation}\label{q_bar}
     \overline q = \overline{\zeta_g} + \frac{f_0^2}{\overline{\rho}} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}(z)}{\overline{N}^2}  \frac{\partial \overline\psi}{\partial z} \right)
 \end{equation}
 
@@ -1991,35 +1991,30 @@ The time evolution of the surface wind is given in \cref{fig:time_evolution}.
 
 \Cref{fig:time_evolution} makes it immediately clear that the anomaly very quickly moves not only east, but south as well, colliding with the $y=0$ boundary early on in the simulation.
 The rest of the plot confirms the stability of $C=1.3$, but is unusable for physical analysis as no perfectly straight boundary, \qty{20000}{\kilo\meter} long, that prescribes tangential wind exists in the Earth's atmosphere.
-%SIMPLIFY AND BETTER INTEGRATE FROM HERE
-This behaviour could have been predicted from the basic state alone.
-The $f$-plane removes the planetary vorticity gradient $\beta$, but the jet supplies a gradient of its own that plays exactly the same role.
-Since $\overline{\psi}$ is independent of $x$, the basic state has $\overline{u} = -\partial \overline{\psi} / \partial y$ and $\overline{v} = 0$, so its potential vorticity
-\begin{equation}\label{basic_state_pv}
-    \overline{q} = \frac{\partial^2 \overline{\psi}}{\partial y^2} + \frac{f^2}{\overline{\rho}} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}}{N^2} \frac{\partial \overline{\psi}}{\partial z} \right)
-\end{equation}
-is a steady solution of \cref{qgpv_time}.
-Writing $\psi = \overline{\psi} + \psi'$ and $q = \overline{q} + q'$, \cref{qgpv_time} becomes
+The southward drift is a property of the background state rather than of the solver.
+Although we set $\beta = 0$, the jet supplies a background PV gradient of its own, which plays the same role as the planetary gradient that supports Rossby waves (\cref{sec:rossby_waves}).
+Since $\overline\psi$ (\cref{psi_bar}) is independent of $x$, so is $\overline q$ (\cref{q_bar}), and the background wind (\cref{u_boundary,v_boundary}) is purely zonal, so $\overline q$ on its own is a steady solution of \cref{qgpv_time}.
+Splitting $q = \overline q + q^*$ and $\psi = \overline\psi + \psi^*$ as in \cref{sec:source_term}, with $(u^*, v^*) = (-\psi^*_y, \psi^*_x)$, \cref{qgpv_time} becomes
+
 \begin{equation}\label{perturbation_pv}
-    \frac{\partial q'}{\partial t} + \left( \overline{u} + u' \right) \frac{\partial q'}{\partial x} + v' \frac{\partial q'}{\partial y} + \beta_\text{eff} \, v' = 0,
-    \qquad
-    \beta_\text{eff} = \frac{\partial \overline{q}}{\partial y} = -\frac{\partial^2 \overline{u}}{\partial y^2} - \frac{f^2}{\overline{\rho}} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}}{N^2} \frac{\partial \overline{u}}{\partial z} \right),
+    \frac{\partial q^*}{\partial t} + \left( \overline u + u^* \right) \frac{\partial q^*}{\partial x} + v^* \frac{\partial q^*}{\partial y} + \frac{\partial \overline q}{\partial y} v^* = 0
 \end{equation}
-which is the equation for the same anomaly on a $\beta$-plane, with $\beta$ replaced by $\beta_\text{eff}$.
-Its linear, barotropic form is the Rayleigh--Kuo equation, in which $\beta$ likewise only appears as $\beta - \partial^2 \overline{u} / \partial y^2$ \cite[p.~338]{Vallis2017}.
-For the Gaussian jet $\overline{u} = U \exp(-y'^2/L_y^2) \exp(-z'^2/L_z^2)$, with $y'$ and $z'$ measured from the jet core, $\overline{\rho} = \rho_0 e^{-z/H_\rho}$ and $N$ constant within each layer\footnote{The jump in $N$ at the tropopause adds a term proportional to $\partial \overline{u} / \partial z$, which vanishes when the jet core lies on the tropopause.}, differentiating gives
-\begin{equation}\label{beta_eff_gaussian}
-    \beta_\text{eff} = 2 \overline{u} \left[ \frac{1}{L_y^2} \left( 1 - \frac{2 y'^2}{L_y^2} \right) + \frac{f^2}{N^2 L_z^2} \left( 1 - \frac{2 z'^2}{L_z^2} - \frac{z'}{H_\rho} \right) \right],
-\end{equation}
-which at the jet core reduces to
+
+On a $\beta$-plane, the $f = f_0 + \beta y$ in $\tilde q$ (\cref{qgpv_pressure_psi}) contributes the same term with $\beta$ in place of $\partial \overline q / \partial y$, so the jet acts on the anomaly as an effective $\beta$.
+Differentiating \cref{q_bar} with $\partial_y \overline\psi = -\overline u$ and evaluating at the jet core, where $\partial_z \overline u = 0$, gives
+
 \begin{equation}\label{beta_eff_core}
-    \beta_\text{eff} = \frac{2U}{L_y^2} \left( 1 + \frac{L_y^2}{L_R^2} \right), \qquad L_R = \frac{N L_z}{|f|}.
+    \frac{\partial \overline q}{\partial y} = -\frac{\partial^2 \overline u}{\partial y^2} - \frac{f_0^2}{\overline N^2} \frac{\partial^2 \overline u}{\partial z^2} = \frac{2 U_\text{jet}}{L_\text{jet}^2} + \frac{2 U_\text{jet} f_0^2}{\overline N^2 z_\text{jet}^2}
 \end{equation}
-This is positive, like the planetary $\beta$, and much larger: with $U = \qty{35}{\meter\per\second}$, the horizontal term alone exceeds the planetary $\beta \approx \qty{1.7e-11}{\per\meter\per\second}$ at \ang{42}S whenever $L_y < \qty{2000}{\kilo\meter}$, which covers the entire sampled range.
+
+Both terms are positive, like the planetary $\beta = \partial f / \partial y \approx \qty{1.7e-11}{\per\meter\per\second}$ at \ang{42}S, but much larger: for the control jet the first term alone is \qty{2.8e-10}{\per\meter\per\second}.
+Even for the weakest sampled jet ($U_\text{jet} = \qty{10}{\meter\per\second}$, \cref{tab:parameter_bounds}) the first term exceeds $\beta$ for every sampled $L_\text{jet}$.
 A cyclone on a $\beta$-plane drifts poleward and westward relative to the surrounding flow \cite{Holland1983}.
-With zero offset, the anomaly sits in the core region $|y'| < L_y/\sqrt{2}$ where $\beta_\text{eff} > 0$, so on top of being carried east by the jet it drifts south, as seen in \cref{fig:time_evolution}.
-Beyond $|y'| = L_y/\sqrt{2}$ the sign of $\beta_\text{eff}$ reverses, so an anomaly placed far enough from the jet core would instead drift equatorward.
-%TO HERE
+The control anomaly sits on the jet core ($y_\text{ano} = y_\text{jet}$), so on top of being carried east by the jet it drifts south, as seen in \cref{fig:time_evolution}.
+Away from the core the curvature of $\overline u$ changes sign, beyond $|y - y_\text{jet}| = L_\text{jet} / \sqrt{2}$ horizontally, so $\partial \overline q / \partial y$ weakens and eventually reverses, and an anomaly placed far enough from the jet would be expected to drift equatorward instead.
+
+The nonlinearity of \cref{qgpv_time} prevents simply removing the jet as was done in \cref{sec:random_sampling}, which would otherwise stop the meridional drift.
+Another technique to handle this drift -- without making the mesh intractably large -- would be to make the mesh periodic in $x$ and $y$, though this would require redoing a significant portion of the derivations above, making it out of scope for this Honours Thesis.
 
 \section{Conclusions}
 
