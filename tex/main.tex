@@ -1853,7 +1853,72 @@ The classical fourth-order Runge-Kutta scheme does not have this property\footno
 The stage times $t^n$, $t^n + \Delta t$ and $t^n + \frac{1}{2}\Delta t$ only matter when $q_\text{in}$ or a source term depends on time, as in the verification below.
 Since $\Delta t$ depends on the current wind, it is chosen after the first evaluation of $\mathcal{F}$, which supplies that wind without an extra inversion.
 
-\subsection{MMS Verification}
+\subsection{MMS Verification}\label{sec:prognostic_mms}
+
+As for the inversion (\cref{sec:mms}), the time-evolution is verified with the method of manufactured solutions \cite{Roache2002}.
+The inversion has already been verified, so here the wind is prescribed analytically rather than obtained from $q$, which isolates the transport scheme of \cref{sec:prognostic_weak_form} and the time stepping of \cref{sec:time_stepping}.
+A source term $S$ is added to \cref{qgpv_time}, chosen so that a manufactured solution $q_a$ satisfies it exactly:
+
+\begin{equation}\label{prog_mms_source}
+    \frac{\partial q}{\partial t} + \bm u \cdot \nabla q = S, \qquad S = \frac{\partial q_a}{\partial t} + \bm u \cdot \nabla q_a
+\end{equation}
+
+The prescribed wind is
+
+\begin{equation}\label{prog_mms_wind}
+    u = U_0 + U_1 \sin\left(\frac{2\pi y}{L_x}\right), \qquad v = V_0 + V_1 \sin\left(\frac{2\pi x}{L_x}\right)
+\end{equation}
+
+with $U_0 = \qty{20}{\meter\per\second}$, $U_1 = \qty{10}{\meter\per\second}$, $V_0 = \qty{10}{\meter\per\second}$ and $V_1 = \qty{5}{\meter\per\second}$, on a domain with $L_x = L_y = \qty{1000}{\km}$ and $H = \qty{20}{\km}$.
+Since $u$ depends only on $y$ and $v$ only on $x$, the wind is divergence-free, like the geostrophic wind it stands in for.
+Both components are strictly positive, so the wind flows in through the western and southern walls and out through the eastern and northern walls, exercising both the inflow and outflow terms of \cref{prog_final_weak_form}.
+The manufactured solution is
+
+\begin{equation}\label{prog_mms_q}
+    q_a(x,y,z,t) = \sin\left(\frac{2\pi x}{L_x}\right) \cos\left(\frac{2\pi y}{L_x}\right) \left(1 + \frac{z}{H}\right) + \sin^2\left(\frac{\pi x}{L_x}\right) \sin^2\left(\frac{\pi y}{L_x}\right) \sin\left(\frac{2\pi t}{\tau}\right)
+\end{equation}
+
+with period $\tau = \qty{2e4}{\second}$.
+The time dependence is confined to the second term, which vanishes on the lateral boundary, so the inflow data $q_\text{in} = q_a$ is constant in time, just as it is frozen in the real solver.
+Time-dependent boundary data imposed at the intermediate stage times of a Runge-Kutta scheme can reduce its order of accuracy \cite{Carpenter1995}, which would obscure the convergence being measured.
+Since there is no vertical transport, the mesh has a single layer of cells, in which the linear $z$ dependence of $q_a$ is represented exactly.
+The source term is derived symbolically by UFL from \cref{prog_mms_q,prog_mms_wind} \cite{UFL}, and enters the linear form as $\int_V \phi S \,dV$\footnote{shown in \cref{app:prognostic_weak_form}}.
+The limiter is switched off, since $S$ allows $q_a$ to leave the bounds of \cref{max_principle}, and limiting would clip the exact solution.
+
+The solution is advanced from $q_a(x,y,z,0)$ to $t = \tau$, and compared with $q_a(x,y,z,\tau)$ using the relative $L^2$ error.
+Unlike $\psi$, $q$ is not defined only up to an additive constant, so its mean is part of what is tested and is not removed as in \cref{app:rel_error}:
+
+\begin{equation}\label{prog_rel_error}
+    e = \frac{\lVert q_h - q_a \rVert_{L^2}}{\lVert q_a \rVert_{L^2}}
+\end{equation}
+
+Two convergence tests are run, one for each source of error.
+For the spatial error, $p = 4$ and the mesh is refined through $N_x = N_y = 4, 8, 16$.
+The time step allowed by the CFL condition shrinks only in proportion to the cell width $h$, which would leave the $\mathcal{O}(\Delta t^3)$ error of SSPRK3 dominating the $\mathcal{O}(h^{p+1})$ spatial error.
+The time step is therefore reduced faster, as $\Delta t \propto h^{(p+1)/3}$, so that both errors fall as $h^{p+1}$, and the error should converge at order $p + 1 = 5$.
+
+For the temporal error, $p = 2$ and $N_x = N_y = 8$ are fixed, and the number of time steps is doubled three times from a base time step at a Courant number of $1.75$.
+Each solution is compared with the next rather than with $q_a$, so the spatial error, which is the same for every run on a fixed mesh, cancels.
+For a third-order scheme, the difference between successive runs should fall by a factor of $2^3 = 8$ with each halving of $\Delta t$.
+
+\begin{table}[hbtp]
+    \centering
+    \caption{Relative $L^2$ error (\cref{prog_rel_error}) of the time-evolved manufactured solution (\cref{prog_mms_q}) at $t = \tau$ for $p = 4$, and the observed order of convergence between successive meshes.}
+    \label{tab:prog_mms_convergence}
+    \begin{tabular}{ccc}
+        \toprule
+        $N_x = N_y$ & $e$ & Observed order \\
+        \midrule
+        4 & \num{2.01e-4} & -- \\
+        8 & \num{6.28e-6} & 5.00 \\
+        16 & \num{1.97e-7} & 5.00 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The spatial convergence results are given in \cref{tab:prog_mms_convergence}, where the observed order matches the expected order of $p + 1 = 5$ to within \num{0.003}.
+In the temporal test, the base time step corresponds to 37 steps to $t = \tau$, and the relative $L^2$ differences between successive runs fell from \num{3.50e-5} to \num{4.35e-6} to \num{5.43e-7}, giving observed orders of 3.01 and 3.00, consistent with the third-order accuracy of SSPRK3.
+Together with \cref{sec:mms}, this verifies the inversion, the transport scheme with its boundary conditions, and the time stepping separately; only the limiter, which is switched off here, is not covered.
 \subsection{Step size}
 
 \section{Conclusions}
