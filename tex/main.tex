@@ -1779,7 +1779,59 @@ Like $\alpha$, it is symmetric, but evaluating
 shows that $a(\phi, \phi) > 0$ for all $\phi \neq 0$, so it is positive definite rather than only semi-definite, and no solvability condition (\cref{sec:solv_cond}) is required.
 Furthermore, each \mintinline{python}{'DQ'} basis function is only nonzero within a single cell, so the matrix is block diagonal, with one $(p+1)^3 \times (p+1)^3$ block per cell, and $a$ does not depend on $q$ or $t$, so the matrix stays the same between time steps.
 
-\subsection{Limiter}
+\subsection{Limiter}\label{sec:limiter}
+
+Since \cref{qgpv_time} describes pure advection by a divergence-free wind, $q$ is only carried around the domain, and is never created or destroyed.
+With no source term and the inflow held at $q_\text{in}(x,y,z) = q(x,y,z,0)$, the exact solution therefore obeys a maximum principle: it can never leave the range of its initial values \cite{ZhangShu2010}.
+
+\begin{equation}\label{max_principle}
+    m \leq q(x,y,z,t) \leq M, \qquad m = \min_V q(x,y,z,0), \quad M = \max_V q(x,y,z,0)
+\end{equation}
+
+The upwind scheme of \cref{sec:prognostic_weak_form} does not inherit this property.
+For linear advection, Godunov's theorem states that any linear scheme which does not create new extrema is at most first-order accurate \cite{CockburnShu1991}.
+For a given wind, the scheme is linear in $q$, so at $p=4$ it must produce overshoots and undershoots wherever $q$ has gradients too steep for the polynomials to resolve, such as the edges of the PV anomaly.
+These errors do not stay local: every spurious extremum in $q$ is inverted into $\psi$, and hence into the wind that advects $q$ at the next stage.
+
+Classical slope limiters flatten the polynomial in cells that disagrees with the means of its neighbours \cite{CockburnShu1991}.
+However, they can not distinguish an oscillation from a smooth extremum, so they also clip the latter, which reduces the accuracy there unless a problem-dependent parameter is tuned \cite{CockburnShu1991}.
+Firedrake's built-in vertex-based limiter is of this type, but implements only the $p=1$ case of Kuzmin's vertex-based limiter \cite{Kuzmin2010}, which clips smooth peaks.
+
+Instead we implement the maximum-principle-satisfying limiter of Zhang and Shu \cite{ZhangShu2010}, which enforces \cref{max_principle} directly rather than searching for oscillations.
+In each cell $K$, the polynomial is scaled about its cell mean $\langle q \rangle_K$:
+
+\begin{equation}\label{zhang_shu_limiter}
+    \tilde q = \langle q \rangle_K + \theta_K \left( q - \langle q \rangle_K \right), \qquad \langle q \rangle_K = \frac{1}{|K|} \int_K q \,dV
+\end{equation}
+
+The scaling factor $\theta_K \in [0, 1]$ is chosen to be as large as possible while keeping $\tilde q$ within bounds:
+
+\begin{equation}\label{zhang_shu_theta}
+    \theta_K = \min \left\{ 1, \; \frac{M - \langle q \rangle_K}{M_K - \langle q \rangle_K}, \; \frac{m - \langle q \rangle_K}{m_K - \langle q \rangle_K} \right\}
+\end{equation}
+
+Here $M_K$ and $m_K$ are the maximum and minimum of $q$ over a set of points $S_K$ in $K$, and each ratio is replaced by $1$ unless its bound is violated ($M_K > M$ or $m_K < m$ respectively).
+
+Integrating \cref{zhang_shu_limiter} over $K$ shows that $\int_K \tilde q \,dV = \int_K q \,dV$, so the limiter leaves every cell mean unchanged, and the scheme still conserves $q$.
+Each value of $\tilde q$ on $S_K$ lies between $\langle q \rangle_K$ and the corresponding value of $q$, and $\theta_K$ is just small enough to pull the most extreme of them back onto the violated bound.
+Cells that are already within bounds have $\theta_K = 1$ and are left untouched.
+Unlike slope limiters, each cell is limited using only its own values and the two global bounds, with no reference to its neighbours.
+
+Since the limiter never changes $\langle q \rangle_K$, it can only succeed if the mean itself lies within $[m, M]$.
+Zhang and Shu proved that the cell means after a forward Euler step stay within bounds, provided that the values on $S_K$ were within bounds at the start of the step, and that the time step satisfies a CFL condition stricter than that required for linear stability \cite{ZhangShu2010}.
+The limiter is therefore applied after every stage of the time stepping scheme, which must in turn be built out of forward Euler steps for the guarantee to carry over \cite{ZhangShu2010}.
+Should a mean leave the bounds regardless, such as when the time step is too large, the cell is flattened to its mean ($\theta_K = 0$) as a safeguard.
+
+The proof also requires $S_K$ to be a specific set of points: on rectangular cells, the tensor product of Gauss-Legendre points along each face with Gauss-Lobatto points across it, which includes the cell faces where the upwind flux \eqref{upwind_flux} reads $q$ \cite{ZhangShu2010}.
+By default the nodes of the \mintinline{python}{'DQ'} space are Gauss-Legendre points, which all lie strictly inside the cell \cite{FiredrakeUserManual}, so the values that are actually transported across faces would never be checked.
+Instead, $q$ is interpolated onto a \mintinline{python}{'DQ'} space of the same degree with GLL nodes, as used by the \mintinline{python}{'Q'} space in \cref{sec:cg_space}, and $M_K$ and $m_K$ are taken over its $(p+1)^3$ nodes.
+Both spaces contain exactly the same polynomials, so this interpolation is exact.
+The GLL nodes include the cell faces, but only approximate Zhang and Shu's point set, so the scheme is close to, rather than strictly, bound-preserving.
+In the same way, $m$ and $M$ are taken as the extreme values of the initial $q$ at the GLL nodes, computed once before the first step.
+
+To monitor how often the limiter intervenes, the fraction of the domain's volume in which $\theta_K < 1$ is recorded after each application\footnote{The implementation is shown in \cref{app:limiter}}.
+A source term breaks \cref{max_principle}, so the limiter is switched off for verification with the method of manufactured solutions.
+
 \subsection{Time Stepping Scheme}
 \subsection{MMS Verification}
 \subsection{Step size}
@@ -2209,6 +2261,73 @@ Firedrake picks which side is \mintinline{python}{'+'}, but \cref{prog_final_wea
 The horizontal facets (\mintinline{python}{ds_tb} and \mintinline{python}{dS_h}) are left out, as $\bm u \cdot \bm{\hat n} = 0$ on them.
 For verification with the method of manufactured solutions, a source term \mintinline{python}{phi * s * dx} is added to \mintinline{python}{L}, which is otherwise zero.
 Since \mintinline{python}{a} never changes, the problem is set up with \mintinline{python}{constant_jacobian=True} so that Firedrake does not rebuild it between solves.
+
+\subsection{Zhang-Shu Limiter}\label{app:limiter}
+
+The limiter from \cref{sec:limiter} is given below, simplified to omit the diagnostic.
+Firedrake has no built-in operation for the minimum and maximum of a \mintinline{python}{Function} within each cell, so these are computed with a \mintinline{python}{par_loop}, which runs a short user-written kernel over every cell of the mesh \cite{FiredrakeUserManual}.
+Every other step is expressed with standard Firedrake operations on the \mintinline{python}{'DQ'} space with $p = 0$, which holds one value per cell.
+
+\begin{minted}{python}
+class ZhangShuLimiter:
+    def __init__(self, q, p):
+        mesh = q.function_space().mesh()
+
+        # q on the GLL nodes, which include the cell faces read by the upwind flux
+        self._nodes = Function(FunctionSpace(mesh, "DQ", p, variant="gll"))
+        self._limited = Function(q.function_space())
+
+        # One value per cell: its volume, and the mean, min, max and theta of q
+        W0 = FunctionSpace(mesh, "DQ", 0)
+        self._test = TestFunction(W0)
+        self._volume = assemble(self._test * dx)
+        self._cell_sum = Cofunction(W0.dual())
+        self._mean, self._min, self._max, self._theta = (Function(W0) for _ in range(4))
+
+        # The global bounds m and M, from the initial q
+        self._nodes.interpolate(q)
+        with self._nodes.dat.vec_ro as v:
+            self.lower, self.upper = v.min()[1], v.max()[1]
+
+    def apply(self, q):
+        # Exact, since both spaces contain the same polynomials
+        self._nodes.interpolate(q)
+
+        # m_K and M_K: loop over the nodes of each cell
+        self._min.assign(float('inf'))
+        self._max.assign(float('-inf'))
+        instructions = """
+        for i
+            lo[0] = fmin(lo[0], f[i])
+            hi[0] = fmax(hi[0], f[i])
+        end
+        """
+        par_loop(("{[i]: 0 <= i < f.dofs}", instructions), dx,
+                 {"lo": (self._min, RW), "hi": (self._max, RW), "f": (self._nodes, READ)})
+
+        # Cell means: the integral of q over each cell, divided by the cell's volume
+        assemble(q * self._test * dx, tensor=self._cell_sum)
+        self._mean.dat.data_wo[:] = self._cell_sum.dat.data_ro / self._volume.dat.data_ro
+
+        lo, hi, mean = self._min, self._max, self._mean
+        L, U = self.lower, self.upper
+        # Each ratio is only used where its bound is violated
+        # A mean already out of bounds can't be fixed by scaling about it, so that cell goes flat (theta = 0)
+        upper = conditional(hi > U, conditional(mean < U, (U - mean) / (hi - mean), 0.0), 1.0)
+        lower = conditional(lo < L, conditional(mean > L, (L - mean) / (lo - mean), 0.0), 1.0)
+        self._theta.interpolate(max_value(0.0, min_value(1.0, min_value(upper, lower))))
+
+        # Scale q about each cell's mean, which leaves the mean unchanged
+        self._limited.interpolate(mean + self._theta * (q - mean))
+        q.assign(self._limited)
+        return q
+\end{minted}
+
+Assembling the test function of the $p = 0$ space gives the volume of each cell, and assembling it against $q$ gives the integral of $q$ over each cell, so dividing the two arrays entry by entry yields $\langle q \rangle_K$.
+The cell volumes are computed once, since the mesh does not change.
+The limited $q$ is written to a separate \mintinline{python}{Function} before being copied back, since $q$ itself appears in the expression being interpolated.
+The global bounds are found with PETSc's \mintinline{python}{min()} and \mintinline{python}{max()}, which reduce over every MPI rank \cite{PETScUserManual, Dalcin2011}.
+Every other operation acts on one cell at a time, so, as with \mintinline{python}{relative_error}, the result does not depend on how the mesh is partitioned.
 
 \section{Hardware Used}\label{app:hardware}
 
