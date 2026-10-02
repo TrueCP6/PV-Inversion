@@ -1818,7 +1818,7 @@ Cells that are already within bounds have $\theta_K = 1$ and are left untouched.
 Unlike slope limiters, each cell is limited using only its own values and the two global bounds, with no reference to its neighbours.
 
 Since the limiter never changes $\langle q \rangle_K$, it can only succeed if the mean itself lies within $[m, M]$.
-Zhang and Shu proved that the cell means after a forward Euler step stay within bounds, provided that the values on $S_K$ were within bounds at the start of the step, and that the time step satisfies a CFL condition stricter than that required for linear stability \cite{ZhangShu2010}.
+Zhang and Shu proved that the cell means after a forward Euler step stay within bounds, provided that the values on $S_K$ were within bounds at the start of the step, and that the time step satisfies a CFL condition which, at $p = 4$, is stricter than that required for linear stability \cite{ZhangShu2010}.
 The limiter is therefore applied after every stage of the time stepping scheme, which must in turn be built out of forward Euler steps for the guarantee to carry over (\cref{sec:time_stepping}) \cite{ZhangShu2010}.
 Should a mean leave the bounds regardless, such as when the time step is too large, the cell is flattened to its mean ($\theta_K = 0$) as a safeguard.
 
@@ -1919,7 +1919,107 @@ For a third-order scheme, the difference between successive runs should fall by 
 The spatial convergence results are given in \cref{tab:prog_mms_convergence}, where the observed order matches the expected order of $p + 1 = 5$ to within \num{0.003}.
 In the temporal test, the base time step corresponds to 37 steps to $t = \tau$, and the relative $L^2$ differences between successive runs fell from \num{3.50e-5} to \num{4.35e-6} to \num{5.43e-7}, giving observed orders of 3.01 and 3.00, consistent with the third-order accuracy of SSPRK3.
 Together with \cref{sec:mms}, this verifies the inversion, the transport scheme with its boundary conditions, and the time stepping separately; only the limiter, which is switched off here, is not covered.
-\subsection{Step size}
+
+\subsection{Step size}\label{sec:step_size}
+
+SSPRK3 is explicit, so the time step $\Delta t$ must be limited, both for stability and for the guarantee of the limiter (\cref{sec:limiter}) to hold.
+The wind changes as the flow evolves, so $\Delta t$ is recomputed at the start of every step from the wind of the current state:
+
+\begin{equation}\label{dt_estimate}
+    \Delta t = \mathrm{C} \, \frac{s_p \, \Delta x}{\max_V \left( |u| + |v| \right)}, \qquad \Delta x = \min\left( \frac{L_x}{N_x}, \frac{L_y}{N_y} \right)
+\end{equation}
+
+Here $\mathrm{C}$ is a Courant number, and $s_p$ is the smallest horizontal gap between neighbouring nodes of the \mintinline{python}{'DQ'} reference cell, including its edges, as a fraction of the cell width, so that $\Delta t$ is set by the finest spacing the nodes resolve rather than by the cell width.
+With the default Gauss-Legendre nodes, $s_p$ is the gap between the cell edge and the nearest node, which for $p = 4$ is $s_4 = 0.0469$.
+On rectangular cells, Zhang and Shu's condition bounds $\Delta t \left( |u| / \Delta x + |v| / \Delta y \right)$ rather than $\Delta t \sqrt{u^2 + v^2} / \Delta x$ \cite{ZhangShu2010}, so \cref{dt_estimate} uses $|u| + |v|$; the speed $|\bm u|$ would underestimate it by up to a factor of $\sqrt{2}$ for diagonal flow.
+The maximum is taken over the nodes of $|u| + |v|$ interpolated into the \mintinline{python}{'DQ'} space, since $\bm u$, the derivative of the continuous $\psi$, is discontinuous across cells, and interpolating it into a continuous space would average away its peaks.
+
+To determine how large $\mathrm{C}$ can be, the control atmosphere was evolved for \qty{168}{\hour} on a mesh with $N_x = N_y = N_z = 40$ and $p = 4$, with the limiter on, once at each $\mathrm{C} \in \{1.3, 1.7, 1.9, 2.1, 2.3, 2.5, 2.7\}$.
+A run is classed as unstable if $\max |q|$ grows to more than $10^3$ times its initial value, or if its roughness grows to more than 1.5 times that of the $\mathrm{C} = 1.3$ run at the same time.
+The roughness is the largest root-mean-square, over all cells, of the part of $q$ that is of degree $p$ in $x$ or $y$, found by subtracting the interpolation of $q$ onto polynomials of one degree lower in $x$ and $y$.
+Grid-scale noise appears in this highest-degree part, while a smooth $q$ has little of it, however sharp it is in $z$.
+The roughness is compared between runs rather than against a fixed threshold, because the flow itself sharpens $q$: in every run the roughness peaked at about 38.7 times its initial value after \qty{94}{\hour}.
+This sharpening is the same at every $\Delta t$, whereas noise caused by the time step is not, so the ratio isolates the latter.
+
+\begin{table}[hbtp]
+    \centering
+    \caption{Results of evolving the control atmosphere for \qty{168}{\hour} at each Courant number $\mathrm{C}$ (\cref{dt_estimate}), with $N_x = N_y = N_z = 40$ and $p = 4$. The growth of $\max |q|$ and the $L^2$ norm of $q$ are relative to their initial values. $\Delta t$ excludes the final step, which is shortened to land exactly on \qty{168}{\hour}. The roughness ratio is the largest, over the run, of its roughness divided by that of the $\mathrm{C} = 1.3$ run at the same time. The limited fraction is the fraction of the domain's volume with $\theta_K < 1$ (\cref{zhang_shu_theta}), averaged over all steps.}
+    \label{tab:cfl_scan}
+    \small
+    \begin{tabular}{ccccccc}
+        \toprule
+        $\mathrm{C}$ & Steps & $\Delta t$ [\unit{\second}] & \shortstack{Peak \\ $\max |q|$ growth} & \shortstack{Final \\ $\lVert q \rVert_{L^2}$ ratio} & \shortstack{Roughness \\ ratio} & \shortstack{Limited \\ fraction} \\
+        \midrule
+        1.3 & 2937 & 182--241 & 1.0842 & 0.99294 & 1.000 & \num{4.03e-4} \\
+        1.7 & 2246 & 238--315 & 1.0836 & 0.99294 & 1.006 & \num{4.04e-4} \\
+        1.9 & 2010 & 266--352 & 1.0837 & 0.99294 & 1.004 & \num{4.04e-4} \\
+        2.1 & 1818 & 294--390 & 1.0848 & 0.99294 & 1.006 & \num{4.05e-4} \\
+        2.3 & 1660 & 322--427 & 1.0836 & 0.99293 & 1.007 & \num{4.06e-4} \\
+        2.5 & 1527 & 350--464 & 1.0850 & 0.99293 & 1.009 & \num{4.06e-4} \\
+        2.7 & 1414 & 378--504 & 1.0842 & 0.99282 & 1.057 & \num{4.13e-4} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The results are given in \cref{tab:cfl_scan}, and no run was unstable.
+The growth of $\max |q|$ and the loss of $\lVert q \rVert_{L^2}$ to the dissipation of the upwind flux are the same at every $\mathrm{C}$ to within \qty{0.2}{\percent}, and the fraction of the domain touched by the limiter to within \qty{3}{\percent}, so none of them is caused by the time step.
+The roughness ratio stays below 1.01 up to $\mathrm{C} = 2.5$.
+At $\mathrm{C} = 2.7$ it reaches 1.057, but only within the first \qty{0.3}{\hour}, and it is back to 1.000 by the end of the run.
+
+These results only establish stability for the flow that was tested.
+Over the scan, $\max_V(|u| + |v|)$ varied between \qty{47}{\meter\per\second} and \qty{63}{\meter\per\second}, but this maximum is only reached near the PV anomaly, whose radius of \qty{200}{\km} is comparable to the cell width $\Delta x = \qty{187.5}{\km}$.
+Away from the anomaly, $|u| + |v|$ in the jet is only about \qty{37}{\meter\per\second}, so even the fastest flow there sees only \qtyrange{60}{75}{\percent} of $\mathrm{C}$.
+A larger or stronger anomaly, elsewhere in the parameter space, would reach the maximum wind over more of the domain.
+We therefore take $\mathrm{C} = 1.3$, roughly half of the largest value found to be stable, at the cost of about twice as many steps as $\mathrm{C} = 2.7$ would need.
+On the mesh above, this gives $\Delta t$ between \qty{182}{\second} and \qty{241}{\second}, or about 17.5 steps per simulated hour.
+
+\subsection{Results}
+
+We first test the full numerical prognostic solver by evolving the control parameters for a simulated period of 168 hours, unfortunately introducing further difficulties into the simulation.
+Firstly, $L_x$ must be significantly increased so that the jet stream does not simply push the anomaly into the domain wall after a few simulated days.
+This comes with the hindrance that we can not increase $\Delta x$ to compensate, so we must simply use a far larger mesh and far more degrees of freedom.
+These domain adjustments resulted in \num{5e7} degrees of freedom, which took approximately 36 hours of processing time with the safe $C=1.3$ on the high-performance hardware listed in \cref{app:hardware_hpc}.
+
+The time evolution of the surface wind is given in \cref{fig:time_evolution}.
+
+\begin{figure}[tp]
+    \centering
+    \includegraphics{plots/surface_wind_evolution.pdf}
+    \caption{Evolving the control parameters in time on a mesh with increased $L_x$ and $N_x$. Surface wind is plotted at 24 hour intervals.}
+    \label{fig:time_evolution}
+\end{figure}
+
+\Cref{fig:time_evolution} makes it immediately clear that the anomaly very quickly moves not only east, but south as well, colliding with the $y=0$ boundary early on in the simulation.
+The rest of the plot confirms the stability of $C=1.3$, but is unusable for physical analysis as no perfectly straight boundary, \qty{20000}{\kilo\meter} long, that prescribes tangential wind exists in the Earth's atmosphere.
+%SIMPLIFY AND BETTER INTEGRATE FROM HERE
+This behaviour could have been predicted from the basic state alone.
+The $f$-plane removes the planetary vorticity gradient $\beta$, but the jet supplies a gradient of its own that plays exactly the same role.
+Since $\overline{\psi}$ is independent of $x$, the basic state has $\overline{u} = -\partial \overline{\psi} / \partial y$ and $\overline{v} = 0$, so its potential vorticity
+\begin{equation}\label{basic_state_pv}
+    \overline{q} = \frac{\partial^2 \overline{\psi}}{\partial y^2} + \frac{f^2}{\overline{\rho}} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}}{N^2} \frac{\partial \overline{\psi}}{\partial z} \right)
+\end{equation}
+is a steady solution of \cref{qgpv_time}.
+Writing $\psi = \overline{\psi} + \psi'$ and $q = \overline{q} + q'$, \cref{qgpv_time} becomes
+\begin{equation}\label{perturbation_pv}
+    \frac{\partial q'}{\partial t} + \left( \overline{u} + u' \right) \frac{\partial q'}{\partial x} + v' \frac{\partial q'}{\partial y} + \beta_\text{eff} \, v' = 0,
+    \qquad
+    \beta_\text{eff} = \frac{\partial \overline{q}}{\partial y} = -\frac{\partial^2 \overline{u}}{\partial y^2} - \frac{f^2}{\overline{\rho}} \frac{\partial}{\partial z} \left( \frac{\overline{\rho}}{N^2} \frac{\partial \overline{u}}{\partial z} \right),
+\end{equation}
+which is the equation for the same anomaly on a $\beta$-plane, with $\beta$ replaced by $\beta_\text{eff}$.
+Its linear, barotropic form is the Rayleigh--Kuo equation, in which $\beta$ likewise only appears as $\beta - \partial^2 \overline{u} / \partial y^2$ \cite[p.~338]{Vallis2017}.
+For the Gaussian jet $\overline{u} = U \exp(-y'^2/L_y^2) \exp(-z'^2/L_z^2)$, with $y'$ and $z'$ measured from the jet core, $\overline{\rho} = \rho_0 e^{-z/H_\rho}$ and $N$ constant within each layer\footnote{The jump in $N$ at the tropopause adds a term proportional to $\partial \overline{u} / \partial z$, which vanishes when the jet core lies on the tropopause.}, differentiating gives
+\begin{equation}\label{beta_eff_gaussian}
+    \beta_\text{eff} = 2 \overline{u} \left[ \frac{1}{L_y^2} \left( 1 - \frac{2 y'^2}{L_y^2} \right) + \frac{f^2}{N^2 L_z^2} \left( 1 - \frac{2 z'^2}{L_z^2} - \frac{z'}{H_\rho} \right) \right],
+\end{equation}
+which at the jet core reduces to
+\begin{equation}\label{beta_eff_core}
+    \beta_\text{eff} = \frac{2U}{L_y^2} \left( 1 + \frac{L_y^2}{L_R^2} \right), \qquad L_R = \frac{N L_z}{|f|}.
+\end{equation}
+This is positive, like the planetary $\beta$, and much larger: with $U = \qty{35}{\meter\per\second}$, the horizontal term alone exceeds the planetary $\beta \approx \qty{1.7e-11}{\per\meter\per\second}$ at \ang{42}S whenever $L_y < \qty{2000}{\kilo\meter}$, which covers the entire sampled range.
+A cyclone on a $\beta$-plane drifts poleward and westward relative to the surrounding flow \cite{Holland1983}.
+With zero offset, the anomaly sits in the core region $|y'| < L_y/\sqrt{2}$ where $\beta_\text{eff} > 0$, so on top of being carried east by the jet it drifts south, as seen in \cref{fig:time_evolution}.
+Beyond $|y'| = L_y/\sqrt{2}$ the sign of $\beta_\text{eff}$ reverses, so an anomaly placed far enough from the jet core would instead drift equatorward.
+%TO HERE
 
 \section{Conclusions}
 
