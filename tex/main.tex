@@ -55,19 +55,29 @@
 ]{biblatex}
 \addbibresource{sources.bib}
 
-\title{Idealised simulation of a symmetric cut-off low through quasi-geostrophic potential vorticity inversion and the finite element method}
-\author{Robert Eliott}
+\title{Surface Response to Idealised Stratospheric Intrusions: A High-Order Finite Element Approach to Quasigeostrophic Potential Vorticity Inversion and Evolution}
+\author{Robert Eliott\\[1ex]                                           
+    \small Supervised by Dr. Stefaan Conradie\\                        
+    \small Department of Mathematics and Applied Mathematics, University 
+  of Cape Town}
 
 \begin{document}
 \maketitle
 
-% \begin{abstract}
-% Your abstract. %TODO
-% \end{abstract}
+\begin{abstract}
+    Cut-off lows are responsible for a substantial share of the extreme rainfall and flash flooding over South Africa, and their surface impact depends on how far the stratospheric intrusion at their core reaches towards the ground.
+    We investigate how the structure of an idealised intrusion, and the background atmosphere in which it is embedded, determine its surface response, building upon the quasigeostrophic potential vorticity (QGPV) framework used by Barnes et al.
+    A fifth-order finite element solver for QGPV inversion is built in Firedrake and verified with the method of manufactured solutions.
+    A matrix-free conjugate gradient solver with $p$-multigrid pre-conditioning scales linearly with the number of degrees of freedom, so that a full atmospheric state can be constructed, inverted and analysed in under three seconds, making extensive parameter sweeps feasible.
+    The sweeps show that the surface response is governed mainly by the height of the tropopause and the depth and horizontal size of the intrusion, while the jet stream, the treatment of the tropopause and the stratospheric stability have little effect at the surface.
+    Once states outside the validity of quasigeostrophic theory are excluded, the minimum height of the dynamical tropopause is only weakly to moderately correlated with the surface response.
+    A derivative-free optimiser finds intrusions whose surface pressure anomaly and wind are about ten times those of the control state, but all such states have Rossby numbers of at least 1.5, so these results are qualitative.
+    Finally, an upwind discontinuous Galerkin scheme with a bound-preserving limiter and third-order strong stability preserving time stepping is developed and verified.
+    Evolving the control state shows the intrusion drifting poleward under the potential vorticity gradient of the jet, so the closed domain must be revised before the longevity of intrusions can be assessed.
+\end{abstract}
 
 \setcounter{tocdepth}{2}
 \tableofcontents
-\newpage
 
 \section{Introduction}
 
@@ -2561,7 +2571,7 @@ The majority of benchmarking and solver optimisation was conducted on an 8 core-
 
 \subsection{High Performance Cluster}\label{app:hardware_hpc}
 
-Heavy computations were performed using facilities provided by the University of Cape Town’s ICTS High Performance Computing team: \href{hpc.uct.ac.za}{hpc.uct.ac.za} \cite{HPC}
+Heavy computations were performed using facilities provided by the University of Cape Town’s ICTS High Performance Computing team: \href{https://hpc.uct.ac.za}{hpc.uct.ac.za} \cite{HPC}
 I was given access to a maximum of 40 cores and 320GB of memory per job.
 Each node has 2 Intel Xeon Gold 6442Y processors, each with 24 cores, 24 threads, \qty{1.92}{\mega\byte} of L1 cache, \qty{48}{\mebi\byte} of L2 cache and \qty{60}{\mebi\byte} of L3 cache.
 
