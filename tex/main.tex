@@ -1578,6 +1578,116 @@ Py-BOBYQA is configured to call $C(\bm{x})$ a maximum of 5000 times in each case
     \label{fig:optimiser}
 \end{figure}
 
+The parameters and resulting atmospheric state at the minimum found for each objective are compared to the control state in \cref{tab:optimiser_results}.
+
+\begin{table}[tp]
+    \centering
+    \small
+    \renewcommand{\arraystretch}{1.15}
+    \caption{Control state compared to the minima of $C(\bm{x})$ found by Py-BOBYQA for each objective $O$. $^\dagger$ marks a value on the edge of its range in \cref{tab:parameter_bounds}. Computed with $N=50$, $p=4$.}
+    \label{tab:optimiser_results}
+    \begin{tabular}{@{}llrrr@{}}
+        \toprule
+        & & & \multicolumn{2}{c}{Optimised for} \\
+        \cmidrule(l){4-5}
+        Quantity & Unit & Control & $\max |\bm{u}|_{z=0}$ & $\min p^*_{z=0}$ \\
+        \midrule
+        \paramgroup{Background state}
+        $\varphi$ & \unit{\degree} & $-42$ & $-50^\dagger$ & $-50^\dagger$ \\
+        $\overline{T}(0)$ & \unit{\degreeCelsius} & $11.28$ & $20.05^\dagger$ & $-3.95^\dagger$ \\
+        $\overline{N}_\text{trop}$ & \unit{\per\second} & $0.0100$ & $0.0121$ & $0.0123$ \\
+        $\overline{N}_\text{strat}$ & \unit{\per\second} & $0.0300$ & $0.0289$ & $0.0289$ \\
+        $z_\text{trop}$ & \unit{\kilo\meter} & $12.5$ & $10.0^\dagger$ & $10.0^\dagger$ \\
+        $U_\text{jet}$ & \unit{\meter\per\second} & $35$ & $0$ & $0$ \\
+        \midrule
+        \paramgroup{Anomaly}
+        $x_\text{size}$ & \unit{\kilo\meter} & $200$ & $333$ & $399$ \\
+        $x_\text{size}/y_\text{size}$ & -- & $1.00$ & $0.693$ & $0.997$ \\
+        $z_\text{size}$ & \unit{\kilo\meter} & $5.00$ & $7.00^\dagger$ & $6.90$ \\
+        $Q_\text{anoclip}$ & \unit{PVU} & $-1.5$ & $-1.0^\dagger$ & $-1.0^\dagger$ \\
+        \midrule
+        \paramgroup{Response}
+        $\min p^*_{z=0}$ & \unit{\hecto\pascal} & $-4.58$ & $-43.4$ & $-51.7$ \\
+        $\max |\bm{u}|_{z=0}$ & \unit{\meter\per\second} & $2.22$ & $23.8$ & $25.3$ \\
+        $\min \zeta_g|_{z=0}$ & $10^{-5}$\,\unit{\per\second} & $-2.00$ & $-16.8$ & $-18.3$ \\
+        $z_\text{dyn}$ & \unit{\kilo\meter} & $6.75$ & $2.91$ & $3.25$ \\
+        \midrule
+        \paramgroup{Validity}
+        $\mathrm{Ro}_\text{max}$ & -- & $1.95$ & $1.50$ & $1.65$ \\
+        $\mathrm{Fr}_\text{max}$ & -- & $0.800$ & $0.299$ & $0.300$ \\
+        $\mathcal{V}_-$ & -- & $0.0391$ & $0$ & $0$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+An interesting effect of the penalty scheme in \cref{cost} is that the pressure-optimised sweep results in stronger surface wind when compared to the wind-optimised sweep.
+This is caused by the lower Rossby number of the wind sweep pushing $|C(\bm{x})|$ upwards more than a higher $O$ would.
+
+One would assume that an anomaly with a larger absolute EPV would induce stronger surface effects, however the optimiser finds the optimal $Q_\text{anoclip}$ to be the smallest $|Q|$ allowed.
+A possible explanation is that the $\mathrm{Ro}$ penalty results in the strategy that keeping $|Q|$ small and anomaly size large is more beneficial to minimising $C(\bm{x})$.
+
+Another effect of the penalty terms is that $\overline{N}_\text{trop}$ goes \textit{up} rather than down.
+It follows that reduced tropospheric stratification would increase the Rossby depth and hence increase the surface response \cite{HOLTON_chapter6}.
+The $1/\tilde{\mathrm{Fr}}$ penalty term causes the optimiser to find that increasing $\overline{N}_\text{trop}$ is more beneficial to the cost function than the increased surface response that would be associated with a smaller $\overline{N}_\text{trop}$.
+
+The above findings that maximising $z_\text{size}$, $x_\text{size}$ and $-z_\text{trop}$ in turn maximises surface response are reinforced by \cref{tab:optimiser_results}.
+
+Moving $\varphi$ as far poleward as the bounds allow is purely beneficial.
+It increases $f$, reduces $\mathrm{Ro}$ and increases the Rossby depth \cite{HOLTON_chapter6}.
+All of these decrease $C(\bm{x})$.
+
+\begin{figure}[tp]
+    \centering
+    \includegraphics{plots/epv_optimised_wind_1387312.pdf}
+    \caption{EPV distribution of the wind-optimised parameters in \cref{tab:optimiser_results}. A contour interval of \qty{0.5}{PVU} (Potential Vorticity Units) is used. The thick solid line represents the dynamical tropopause -- the \qty{-1.5}{PVU} contour.}
+    \label{fig:epv_wind}
+\end{figure}
+
+\begin{figure}[tp]
+    \centering
+    \includegraphics{plots/epv_optimised_pres_1387316.pdf}
+    \caption{EPV distribution of the pressure-optimised parameters in \cref{tab:optimiser_results}.}
+    \label{fig:epv_pres}
+\end{figure}
+
+In \cref{fig:epv_wind,fig:epv_pres} we see the slightly different anomaly shapes of the parameters from \cref{tab:optimiser_results} still have notable effects on $\min p^*_{z=0}$ and $\max |\bm{u}|_{z=0}$.
+This implies that anomaly shape is a relevant factor in determining the nature of surface effects caused by an anomaly.
+A possible explanation is that $\max |\bm{u}|_{z=0}$ is a gradient quantity at a single point, so an elongated anomaly tightens the gradient along its narrow axis.
+
+\begin{figure}[tp]
+    \centering
+    \includegraphics{plots/wind_speed_optimised_wind_1387312.pdf}
+    \caption{Cross sections of the wind induced by the wind-optimised parameters from \cref{tab:optimiser_results}.}
+    \label{fig:wind_speed_wind}
+\end{figure}
+
+\begin{figure}[tp]
+    \centering
+    \includegraphics{plots/pressure_anomaly_optimised_pres_1387316.pdf}
+    \caption{Cross sections of the pressure anomaly induced by the pressure-optimised parameters from \cref{tab:optimiser_results}.}
+    \label{fig:pressure_anomaly_pres}
+\end{figure}
+
+Compare the pressure anomaly profile of the pressure-optimised (\cref{fig:pressure_anomaly_pres}) with the control case (\cref{fig:control_pressure_anomaly}).
+The pressure-optimised parameters effectively push the region with the greatest magnitude of pressure anomaly to the surface, whereas in \cref{fig:control_pressure_anomaly} it sits at an altitude of about \qty{7.5}{\kilo\meter}.
+This is part of the reason why the control's $|\min p^*_{z=0}|$ is much smaller than the pressure-optimised case.
+
+Despite providing Py-BOBYQA incentive to bring $\mathrm{Ro} \to 0.3$, while still maximising surface response, the optimal balance found for $C(\bm{x})$ resulted in $\mathrm{Ro}_\text{max} \geq 1.5$ for both objectives.
+This is far beyond the range for which QGPV has quantitative usefulness.
+As discussed in \cref{sec:limits_of_qgpv}, QGPV may still have qualitative usefulness at these $\mathrm{Ro} \sim 1$, but to what extent the qualitative findings from above are true is not known.
+This points towards two possible explanations:
+
+\begin{enumerate}
+    \item
+    \Cref{cost} improperly balances $\mathrm{Ro}$ against $O$.
+    Perhaps a linear clipped constraint such as the $\mu \mathcal{V}_-$ term would prove more effective. 
+    \item 
+    Alternatively, pure QGPV is ill-suited to a parameter sweep intended to ascertain the relationship between atmospheric parameters and surface response.
+    The $\mathrm{Ro} \ll 1$ requirement may be too strict to investigate the effects of a reasonably deep, large or high magnitude stratospheric intrusion.
+\end{enumerate}
+
+In extremely rare cases, the -1.5 PVU contour of COLs reaches down to the \qty{700}{\hecto \pascal} level \cite{Barnes2021col, Skerlak2015}, which corresponds to similar minimum dynamical tropopause heights ($z_\text{dyn}$) as shown in \cref{tab:optimiser_results} \cite{Stull2015}.
+
 \section{Numerical Time-Evolution}
 
 \subsection{Function Space}
