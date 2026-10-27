@@ -1,3 +1,5 @@
+# AI-generated (Claude Code) for the README and videos only. Not part of the thesis code:
+# the project's own solvers and experiments are the files in the repository root.
 """Quick check that the solver runs: build the control state, invert it, print the headline numbers."""
 from hash_seed import use_same_hash
 use_same_hash()

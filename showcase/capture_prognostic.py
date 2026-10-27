@@ -1,3 +1,5 @@
+# AI-generated (Claude Code) for the README and videos only. Not part of the thesis code:
+# the project's own solvers and experiments are the files in the repository root.
 """Record the prognostic (DG + SSPRK3) solver evolving the control state, for
 showcase/render_prognostic.py.
 

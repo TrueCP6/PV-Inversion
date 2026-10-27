@@ -36,10 +36,10 @@ PV has a remarkable property: given its distribution, you can **invert** it to r
 temperature everywhere. Under the quasigeostrophic approximation the inversion is a 3D elliptic PDE for the
 streamfunction $\psi$:
 
-$$
+```math
 q = \frac{\partial^2 \psi}{\partial x^2} + \frac{\partial^2 \psi}{\partial y^2}
   + \frac{f_0^2}{\overline{\rho}} \frac{\partial}{\partial z}\left(\frac{\overline{\rho}}{\overline{N}^2}\frac{\partial \psi}{\partial z}\right)
-$$
+```
 
 This project builds a fast, verified solver for that equation, uses it to run thousands of experiments on idealised
 intrusions, and then steps the PV forward in time to watch an intrusion evolve.
@@ -124,7 +124,7 @@ come from the full-resolution HPC runs.</sub>
 | `mms_checker.py`, `prognostic_mms_checker.py`, `error_convergence.py` | Method-of-manufactured-solutions verification |
 | `time_complexity.py`, `variator.py`, `param_sampler.py` | Scaling benchmarks, one-at-a-time sweeps, random sampling and the Py-BOBYQA optimiser |
 | `slurm_jobs/` | SLURM + Apptainer job scripts for the UCT HPC cluster |
-| `showcase/` | Scripts that captured the solver runs and rendered the videos and animations in this README |
+| `showcase/` | AI-generated scripts that captured the solver runs and rendered the videos and animations in this README (not part of the thesis code) |
 | `tex/` | LaTeX source of the thesis |
 
 ## Running it

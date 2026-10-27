@@ -1,5 +1,9 @@
 # Showcase: videos and animations
 
+> **Disclaimer:** everything in this directory was AI-generated (with Claude Code) to produce the README media and
+> the videos. It is not part of the thesis work. The real substance of the project, the solvers, verification and
+> experiments, is the code in the repository root.
+
 Scripts that run the real solvers, record what they do, and render the videos and README animations in `docs/media/`.
 They are kept apart from the thesis code: capture scripts import the solver modules unchanged, and the renderers only read
 the `.npz` files the capture scripts write.

@@ -1,3 +1,5 @@
+# AI-generated (Claude Code) for the README and videos only. Not part of the thesis code:
+# the project's own solvers and experiments are the files in the repository root.
 """README media: GIFs cut from the two videos, a hero render, and figures from the thesis PDF.
 
     python showcase/make_readme_media.py DATA_DIR MEDIA_DIR [diagnostic] [prognostic] [figures]

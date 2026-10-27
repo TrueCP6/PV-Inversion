@@ -1,3 +1,5 @@
+# AI-generated (Claude Code) for the README and videos only. Not part of the thesis code:
+# the project's own solvers and experiments are the files in the repository root.
 """Sample Firedrake Functions onto regular grids, so the showcase renders can run without Firedrake."""
 import numpy as np
 from firedrake import Function, FunctionSpace, VertexOnlyMesh

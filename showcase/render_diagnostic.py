@@ -1,3 +1,5 @@
+# AI-generated (Claude Code) for the README and videos only. Not part of the thesis code:
+# the project's own solvers and experiments are the files in the repository root.
 """The diagnostic-solver video: from potential vorticity to the full atmosphere, with the
 p-multigrid conjugate gradient solver racing a textbook one on the way.
 
