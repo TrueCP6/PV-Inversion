@@ -214,3 +214,5 @@ tex/*.pyg
 tex/*.toc
 tex/*.synctex.gz
 tex/_minted-*/
+# Raw solver captures for showcase/ (regenerate with showcase/capture_*.py)
+showcase_data/
