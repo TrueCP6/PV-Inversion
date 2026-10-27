@@ -70,7 +70,8 @@ if rank0:
                         surf_x=surf_x, surf_y=surf_y, Lx=Lx, Ly=Ly, H=H,
                         nx=nx, ny=args.ny, nz=args.nz, p=args.p,
                         dg_dofs=solver.q.function_space().dim(), cg_dofs=atmos.cg_space.dim(),
-                        anomaly_x=phys.anomaly_x_pos, anomaly_y=phys.anomaly_y_pos)
+                        anomaly_x=phys.anomaly_x_pos, anomaly_y=phys.anomaly_y_pos,
+                        ranks=MPI.COMM_WORLD.size)
 
 def capture(frame, dt, wall, steps=0):
     solver.resolve()  # psi to match q, as timestepping._diagnostics does

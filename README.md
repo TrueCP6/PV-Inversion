@@ -73,8 +73,11 @@ Jacobi-preconditioned CG (right) is still 51% off. It needs 1,628 iterations and
 ## The prognostic solver at work
 
 The control intrusion, carried by a 35 m/s jet for a week. Each stage of each time step re-runs the 3D inversion above
-to turn PV into winds, then advects the PV with those winds. The jet carries the intrusion east, while the jet's PV
-gradient acts like the planetary β-effect and pulls the cyclone poleward.
+to turn PV into winds, then advects the PV with those winds, so the week below took 3,792 inversions. The jet carries
+the intrusion east, while the jet's PV gradient acts like the planetary β-effect and pulls the cyclone poleward, and a
+wave train of new circulations spins up downstream. The run is set in a 5,000 km wide channel with straight walls, and
+the cyclone's winds soon press against the southern wall, so the thesis uses this run to show that the scheme stays
+stable for a week rather than as a forecast.
 
 <p align="center">
   <img src="docs/media/prognostic_evolution.gif" alt="Animation: the tropopause dip and surface winds of a stratospheric intrusion evolving over 168 hours" width="100%">

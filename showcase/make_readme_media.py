@@ -17,11 +17,11 @@ import videokit as vk
 PDF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "thesis.pdf")
 
 
-def gif(video, out, start, duration, width=960, fps=10, speed=1.0):
+def gif(video, out, start, duration, width=960, fps=10, speed=1.0, colors=160, bayer=4):
     """A palette-optimised GIF of [start, start + duration) of `video`."""
     filters = (f"setpts={1 / speed}*PTS,fps={fps},scale={width}:-1:flags=lanczos,split[a][b];"
-               "[a]palettegen=max_colors=160:stats_mode=diff[p];"
-               "[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle")
+               f"[a]palettegen=max_colors={colors}:stats_mode=diff[p];"
+               f"[b][p]paletteuse=dither=bayer:bayer_scale={bayer}:diff_mode=rectangle")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", str(start), "-t", str(duration),
                     "-i", video, "-vf", filters, out], check=True)
     print(f"{out}: {os.path.getsize(out) / 1e6:.1f} MB")
@@ -50,9 +50,12 @@ def prognostic(data_dir, media_dir):
     figs = thesis_figures.load(PDF, ["evolution"])
     figs["evolution_last"] = render_prognostic.last_panel(figs["evolution"])
     scenes = render_prognostic.scenes(run, figs)
+    # The orbiting camera changes every pixel of every frame, so this one is cut smaller to keep
+    # the GIF near 6 MB
     gif(os.path.join(media_dir, "prognostic_solver.mp4"),
         os.path.join(media_dir, "prognostic_evolution.gif"),
-        scene_start(scenes, 2) + 0.4, scenes[2].duration - 0.7, speed=1.5)
+        scene_start(scenes, 2) + 0.4, scenes[2].duration - 0.7,
+        width=800, fps=8, speed=2.0, colors=128, bayer=5)
 
 
 def figures(media_dir):
